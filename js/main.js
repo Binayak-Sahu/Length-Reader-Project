@@ -39,6 +39,7 @@ const startTier = qs.get('tier') || (app.S.quality !== 'auto' ? app.S.quality : 
 app.quality = new QualityController(tierIndex(startTier), tierIndex(isTouch ? 'high' : 'ultra'));
 world.applyTier(QTIERS[app.quality.tier]);
 world.applyView(app.S, app.db.profile.hand);
+world.setBall(app.S.ball, app.S.sight);
 app.onBallStats = (st) => {
   if (app.S.quality !== 'auto') return;
   const nt = app.quality.onBall(st);
@@ -49,6 +50,7 @@ function applySettings(k) {
   if (k === 'quality') { if (app.S.quality !== 'auto') app.quality.tier = tierIndex(app.S.quality); world.applyTier(QTIERS[app.quality.tier]); }
   if (k === 'overlay') app.perf.setOverlay(app.S.overlay);
   applyA11y();
+  world.setBall(app.S.ball, app.S.sight);
   world.applyView(app.S, app.db.profile.hand); needsRender = true;
 }
 function applyA11y() {

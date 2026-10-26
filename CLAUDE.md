@@ -116,6 +116,8 @@ Also read:
 - Adaptive quality tiers (pixel ratio and shadows) change only between balls.
 - Frame-time overlay: F2, backtick, or Settings.
 
+**Scene (M3):** sky dome, sight screen (Settings → Ball / Sight screen), footmarks, speed gun after each ball, and seam wobble (cosmetic). None of these carries length information.
+
 **Left-handers:** the batter frame and the camera are mirrored. The bowler stays right-arm. Off-spin turns away from left-handers.
 
 ## Decisions already made (don't reopen without new evidence; log changes in DECISIONS.md)
@@ -149,5 +151,11 @@ Also read:
   - How it works page with sources and honest limits.
   - Controller and keyboard menu navigation.
   - Display font; text size, high contrast and reduced motion settings.
-- **Next:** M3, realism polish (sight screen, better bowler, seam wobble, speed gun, lighting). See PLAN.md.
+- **M3 shipped (26 Oct 2026):** realism polish.
+  - Gradient sky, sight screen (white for a red ball, black for a white ball), footmarks.
+  - Seam wobble, speed gun after each ball.
+  - Better bowler body (rig unchanged, physics identical).
+  - Docs, plus the device test checklist in the README.
+- **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
+- **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).
 - **Later (Bink paused it):** a PC mirror using the S25+ as a webcam, with pose checks on the big screen.

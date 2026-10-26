@@ -81,7 +81,7 @@ function banner(text, ms) {
 export function nextBall() {
   const { db, S, world, traj, perf } = app, sess = G.sess;
   if (!sess) return;
-  G.wait = null; clearTimeout(G.timer); world.clearTrail(); world.heStop();
+  G.wait = null; clearTimeout(G.timer); world.clearTrail(); world.heStop(); show('speed', false);
   show('card', false); show('rctl', false); document.body.classList.remove('result'); setHeld(false); $('rcSlow').classList.remove('on');
   const m = sess.match;
   if (m && (m.wk >= 3 || m.runs >= m.target)) { endSession(); return; }
@@ -145,7 +145,9 @@ function stepBall(ts) {
   }
   const black = clock.frame(ts, tr.tb, cur.occ);
   tr.pos(tau, world.ball.position);
-  if (tr.spin) world.ball.rotation.z = tau * (cur.prof.spin === 'off' ? -55 : 55); else world.ball.rotation.x = tau * 75;   // seam: backspin; spinner: side-spin
+  // seam bowler: backspin with a little seam wobble; spinner: side-spin
+  if (tr.spin) world.ball.rotation.z = tau * (cur.prof.spin === 'off' ? -55 : 55);
+  else { world.ball.rotation.x = tau * 75; world.ball.rotation.y = 0.14 * Math.sin(tau * 11 + cur.jx * 30); }
   if (tau >= tr.ta + 0.35) finishBall();
   return black;
 }
@@ -204,6 +206,7 @@ function finishBall() {
     hz: perf.hz, tbP: +tbP.toFixed(3), occA: occA == null ? undefined : +occA.toFixed(3), seg: sess.segI, tm: cur.g.tm || undefined,
   };
   sess.balls.push(rec); sess.segN++; sess.xp += xp;
+  ui.speedGun(cur.g.kph);
   feedLog(cur.type, rec.cat === 'Yorker' ? 'Full' : rec.cat, g.sc);
   sess.streak = g.v === 'good' ? sess.streak + 1 : 0; sess.best = Math.max(sess.best, sess.streak);
   const silent = seg.fb === 'end' || (S.feedback === 'end' && !sess.match);

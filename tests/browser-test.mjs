@@ -130,6 +130,13 @@ ok(perf.p50 < 4, `median CPU per frame ${perf.p50.toFixed(2)} ms (budget 6.06 ms
 ok(perf.info.calls < 60, `draw calls per frame: ${perf.info.calls} (instanced trees, merged lines)`);
 await p.evaluate(() => window.__lr.game.abandonToHome());
 
+// ---------- 6b. ball colour + sight screen setting ----------
+{
+  const r = await p.evaluate(() => { const w = window.__lr.app.world, red = w.ball.material.map; w.setBall('white', true); const white = w.ball.material.map;
+    const out = { changed: red !== white }; w.setBall('red', true); out.back = w.ball.material.map === red; return out; });
+  ok(r.changed && r.back, 'white-ball setting swaps the ball (and the sight screen to black), and back');
+}
+
 // ---------- 7. left-handers: mirrored camera and release point ----------
 await p.evaluate(() => { const a = window.__lr.app; a.db.profile.hand = 'L'; a.world.applyView(a.S, 'L'); });
 await p.click('#bQuick');

@@ -98,6 +98,8 @@ const FIELDS = [
   { k: 'lifeCm', l: 'LIFE-SIZE: SCREEN HEIGHT (CM)', t: 'number', min: 10, max: 300, h: '27-inch vertical ≈ 60 · 27-inch flat ≈ 34' },
   { k: 'lifeM', l: 'LIFE-SIZE: YOUR DISTANCE FROM SCREEN (M)', t: 'number', min: 0.5, max: 6, step: 0.1, h: 'Vertical 27-inch at 1.5 m feels close to real. Ball is shown at true size.' },
   { k: 'boost', l: 'BALL SIZE BOOST', t: 'number', min: 1, max: 3, step: 0.1, h: 'Makes the ball easier to see on screen. 1 = true size. Its growth rate (a timing cue) is unchanged.' },
+  { k: 'ball', l: 'BALL', t: 'select', o: [['red', 'Red ball (white sight screen)'], ['white', 'White ball (black sight screen)']] },
+  { k: 'sight', l: 'SIGHT SCREEN', t: 'check', h: 'A screen behind the bowler, like most grounds. Turn it off if your nets don’t have one.' },
   { k: 'gap', l: 'PAUSE BETWEEN BALLS (S)', t: 'number', min: 1, max: 10, step: 0.5 },
   { k: 'feedback', l: 'FEEDBACK', t: 'select', o: [['auto', 'Auto — fades as you master a stage'], ['always', 'Always — full card every ball'], ['end', 'End only — like nets']], h: 'Auto: full feedback early in each stage, then only on mistakes (helps you rely on your own read).' },
   { k: 'levelMode', l: 'LEVEL', t: 'select', o: [['auto', 'Auto — holds you near 85% right'], ...LEVELS.map((L, i) => [String(i), 'Fixed: ' + L.n])] },
