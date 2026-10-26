@@ -17,6 +17,13 @@ export function bigMark(v) {
   const m = $('bigmark'); m.innerHTML = BADGE[v]; m.className = ''; void m.offsetWidth; m.className = 'show';
 }
 
+// Speed gun: the release speed, shown after the ball (like the radar board at nets). Not a length cue.
+let speedTm = 0;
+export function speedGun(kph) {
+  const el = $('speed'); el.querySelector('b').textContent = kph + ' kph'; show(el, true);
+  clearTimeout(speedTm); speedTm = setTimeout(() => show(el, false), 3000);
+}
+
 export function setZones(mode, S) {
   const z = $('zones'); z.classList.toggle('six', mode === 4);
   const trig = S.trigger ? '1ST TAP BEFORE RELEASE = TRIGGER<br>' : '';

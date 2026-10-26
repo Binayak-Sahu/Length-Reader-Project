@@ -4,7 +4,7 @@
 // • MediaPipe (≈15 MB) is cached the first time the mirror uses it, in its own cache that survives app updates.
 // • A new version waits until the player taps "Reload" (never mid-session).
 // @stamp-start
-const VERSION = 'efe0bdbb5f27';
+const VERSION = 'b75dcf170306';
 const CORE = [
   './',
   'css/app.css',

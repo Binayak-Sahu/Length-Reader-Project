@@ -51,6 +51,13 @@ export function createWorld(canvas) {
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SKY); scene.fog = new THREE.Fog(SKY, 70, 190);
+  // Sky: a vertex-coloured dome (deeper blue overhead, hazy at the horizon) — one draw call, no texture
+  { const g = new THREE.SphereGeometry(320, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), pos = g.attributes.position, col = [];
+    const top = new THREE.Color(0x5d8fc4), hor = new THREE.Color(SKY), c = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) { const h = Math.max(0, pos.getY(i) / 320); c.copy(hor).lerp(top, Math.pow(h, 0.55)); col.push(c.r, c.g, c.b); }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    const sky = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
+    sky.position.z = 20; sky.renderOrder = -1; scene.add(sky); }
   const camera = new THREE.PerspectiveCamera(34, 1, 0.05, 400);
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
@@ -108,6 +115,26 @@ export function createWorld(canvas) {
       trees.setMatrixAt(i, m.compose(p.set(Math.cos(a) * r, rnd(3, 5), Math.sin(a) * r * 0.9 + 15), q, s.set(k, k, k))); }
     scene.add(trees); }
 
+  // Sight screen behind the bowler (white for a red ball, black for a white ball) and its stand
+  const sightMat = new THREE.MeshLambertMaterial({ color: 0xf2f2ee });
+  const sight = new THREE.Group();
+  { const board = new THREE.Mesh(new THREE.BoxGeometry(11, 5.2, 0.25), sightMat); board.position.y = 3.4; sight.add(board);
+    const legMat = new THREE.MeshLambertMaterial({ color: 0x3a3f45 });
+    const legs = new THREE.InstancedMesh(new THREE.BoxGeometry(0.18, 0.9, 0.5), legMat, 3), m = new THREE.Matrix4();
+    [-4.5, 0, 4.5].forEach((x, i) => legs.setMatrixAt(i, m.makeTranslation(x, 0.45, 0.2))); sight.add(legs);
+    sight.position.set(0, 0, 40); scene.add(sight); }
+  // Worn footmarks: the bowler's landing area and the batter's guard mark (one instanced decal)
+  { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d');
+    for (let i = 0; i < 90; i++) { const x = 32 + (Math.random() - 0.5) * 44, y = 32 + (Math.random() - 0.5) * 50, r = 2 + Math.random() * 5;
+      c.fillStyle = `rgba(${90 + Math.random() * 30},${70 + Math.random() * 20},${45},${0.12 + Math.random() * 0.2})`; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); }
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+    const marks = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshLambertMaterial({ map: t, transparent: true, depthWrite: false }), 3);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2), p = new THREE.Vector3(), sc = new THREE.Vector3();
+    marks.setMatrixAt(0, m.compose(p.set(-0.45, 0.006, 18.0), q, sc.set(0.9, 2.4, 1)));
+    marks.setMatrixAt(1, m.compose(p.set(0.35, 0.006, 19.2), q, sc.set(0.7, 1.6, 1)));
+    marks.setMatrixAt(2, m.compose(p.set(-0.12, 0.006, -0.1), q, sc.set(0.6, 0.9, 1)));
+    marks.receiveShadow = true; scene.add(marks); }
+
   const bowler = createBowler(scene);
   // Cheap blob shadow under the bowler for low tiers (no shadow map)
   const blobTex = radialTex(64, 0.15);
@@ -116,11 +143,13 @@ export function createWorld(canvas) {
 
   // Batter-frame group: ball, trail and pitch marker live here; mirrored for left-handers.
   const frame = new THREE.Group(); scene.add(frame);
-  const ballTex = (() => { const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128; const c = cv.getContext('2d');
-    const g = c.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, '#8e0f19'); g.addColorStop(0.5, '#b3141f'); g.addColorStop(1, '#8e0f19'); c.fillStyle = g; c.fillRect(0, 0, 256, 128);
-    c.fillStyle = '#efe4d2'; c.fillRect(0, 59, 256, 10);
-    c.strokeStyle = '#7a0c14'; c.lineWidth = 1.5; for (let x = 0; x < 256; x += 6) { c.beginPath(); c.moveTo(x, 57); c.lineTo(x + 3, 71); c.stroke(); }
-    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  // Ball textures: red (seam in cream stitching) or white (white-ball cricket, green-ish stitching)
+  const mkBallTex = (dark, mid, seam, stitch) => { const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128; const c = cv.getContext('2d');
+    const g = c.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, dark); g.addColorStop(0.5, mid); g.addColorStop(1, dark); c.fillStyle = g; c.fillRect(0, 0, 256, 128);
+    c.fillStyle = seam; c.fillRect(0, 59, 256, 10);
+    c.strokeStyle = stitch; c.lineWidth = 1.5; for (let x = 0; x < 256; x += 6) { c.beginPath(); c.moveTo(x, 57); c.lineTo(x + 3, 71); c.stroke(); }
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; };
+  const ballTex = mkBallTex('#8e0f19', '#b3141f', '#efe4d2', '#7a0c14'), whiteTex = mkBallTex('#d9d9d2', '#f4f4ef', '#c9c9bf', '#3f6b3f');
   const ballGeo = new THREE.SphereGeometry(R, 24, 16); ballGeo.rotateZ(Math.PI / 2);   // seam upright, along the line of flight
   const ball = new THREE.Mesh(ballGeo, new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.35, metalness: 0.05 }));
   ball.visible = false; frame.add(ball);
@@ -215,6 +244,11 @@ export function createWorld(canvas) {
     renderer, scene, camera, heCam, bowler, ball, frame,
     get tier() { return tier; }, get hx() { return hx; },
     applyTier, applyView, resize,
+    // Ball colour and matching sight screen (red ball → white screen; white ball → black screen), or no screen.
+    setBall(colour, sightOn) {
+      ball.material.map = colour === 'white' ? whiteTex : ballTex; ball.material.needsUpdate = true;
+      sightMat.color.setHex(colour === 'white' ? 0x15171a : 0xf2f2ee); sight.visible = sightOn !== false; shadowDirty = true;
+    },
     // Call after posing the bowler: the shadow map is redrawn on the next render only.
     bowlerMoved() { shadowDirty = true; },
     // Release point in the batter frame (mirrored for left-handers).

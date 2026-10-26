@@ -54,3 +54,14 @@ Decisions in CLAUDE.md are still in force unless an entry here changes them.
 | G8 | **Onboarding** = welcome (with an honesty note) → batting hand → set-up → reaction test (skippable) → 4 scripted tutorial balls (2 told, 2 your call). v4 players skip it. | A useful first 3 minutes; v4 users go straight back to training. |
 | G9 | **Badges (17)** are computed from ball records. They need correct, on-time reads in specific situations, or the habits (weekly goal, 7-day streak). Guesses never count. | "Reward only real skill." They can be earned retroactively from imported or v4 history. |
 | G10 | **XP is shown as a number, not a level.** The training level stays the only level; career rank is a name. | Same as G1. |
+
+## Realism polish (M3, 26 Oct 2026)
+
+| # | Decision | Why |
+|---|---|---|
+| R1 | **Sight screen on by default**, white for a red ball and black for a white ball. It can be turned off. | Most grounds and good nets have one. It shows the release against a plain background, which is a realistic condition, not a fake cue. If your nets have none, turn it off. |
+| R2 | **Speed gun:** the release speed is shown for 3 s *after* the ball, in every mode, nets included. | Nets often have a radar readout. It's shown only after the ball, so it can't help the read. |
+| R3 | **Seam wobble** (±8° about the line of flight) on pace balls. It is cosmetic. | Looks real. It carries no length information, so it isn't a tell. |
+| R4 | **Bowler body:** capsule limbs, neck, cap peak, cream trousers and a kit trim. The rig and keyframes are unchanged, so release points and physics are identical. | It looks finished without touching the tested timing. |
+| R5 | **Gradient sky dome and footmarks.** Footmarks are worn patches at the bowler's landing and at the batter's guard. | They give depth and texture to the scene for 2 extra draw calls. |
+| R6 | **GPU resources are created once and re-used.** Nothing is allocated per ball, so nothing leaks. Shadow maps are disposed when their size changes. | This answers v4's "never disposed" problem by never creating per-ball resources at all. |

@@ -5,21 +5,28 @@ import { poseAt, RUN_START_Z } from '../core/action.js';
 const d2r = Math.PI / 180;
 
 export function createBowler(scene) {
-  const whites = new THREE.MeshLambertMaterial({ color: 0xeeeee6 });
+  const whites = new THREE.MeshLambertMaterial({ color: 0xf1f1ea });
+  const cream = new THREE.MeshLambertMaterial({ color: 0xe6e2d3 });           // trousers a touch darker than the shirt
   const skin = new THREE.MeshLambertMaterial({ color: 0x7a4a30 });
-  const dark = new THREE.MeshLambertMaterial({ color: 0x1d2530 });
+  const dark = new THREE.MeshLambertMaterial({ color: 0x1d2530 });            // kit colour: cap, trim, shoes
   const casters = [];
   const mesh = (geo, mat) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; casters.push(m); return m; };
+  // Limb segment hanging from its joint: a capsule, so knees and elbows stay rounded with no gaps
   function seg(len, r1, r2, mat) {
-    const g = new THREE.Group(), m = mesh(new THREE.CylinderGeometry(r1, r2, len, 12), mat);
+    const r = (r1 + r2) / 2, g = new THREE.Group(), m = mesh(new THREE.CapsuleGeometry(r, Math.max(0.01, len - r), 4, 10), mat);
     m.position.y = -len / 2; g.add(m); return g;
   }
   const root = new THREE.Group(); scene.add(root);
-  const pel = mesh(new THREE.BoxGeometry(0.34, 0.16, 0.2), whites); root.add(pel);
+  const pel = mesh(new THREE.CapsuleGeometry(0.11, 0.16, 4, 10), cream); pel.rotation.z = Math.PI / 2; root.add(pel);
   const torso = new THREE.Group(); torso.position.y = 0.06; root.add(torso);
-  const ch = mesh(new THREE.CylinderGeometry(0.2, 0.16, 0.56, 12), whites); ch.position.y = 0.3; torso.add(ch);
-  const hd = mesh(new THREE.SphereGeometry(0.11, 16, 12), skin); hd.position.y = 0.74; torso.add(hd);
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.116, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), dark); cap.position.y = 0.755; torso.add(cap);
+  const ch = mesh(new THREE.CylinderGeometry(0.19, 0.15, 0.52, 14), whites); ch.position.y = 0.3; torso.add(ch);
+  const sh = mesh(new THREE.CapsuleGeometry(0.075, 0.3, 4, 10), whites); sh.rotation.z = Math.PI / 2; sh.position.y = 0.53; torso.add(sh);   // shoulder line
+  const trim = new THREE.Mesh(new THREE.CylinderGeometry(0.152, 0.152, 0.035, 14), dark); trim.position.y = 0.06; torso.add(trim);      // waistband
+  const neck = mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.1, 10), skin); neck.position.y = 0.62; torso.add(neck);
+  const hd = mesh(new THREE.SphereGeometry(0.105, 16, 12), skin); hd.scale.set(1, 1.1, 1.05); hd.position.y = 0.74; torso.add(hd);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.113, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), dark); cap.position.y = 0.77; torso.add(cap);
+  const peak = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.012, 16, 1, false, -Math.PI / 2, Math.PI), dark);
+  peak.position.set(0, 0.772, -0.07); peak.scale.set(1, 1, 1.15); torso.add(peak);                  // peak faces the batter (−z)
   function arm(side) {
     const sh = new THREE.Group(); sh.position.set(0.21 * side, 0.54, 0); torso.add(sh);
     const up = seg(0.31, 0.05, 0.045, whites); sh.add(up);
@@ -30,10 +37,10 @@ export function createBowler(scene) {
   }
   function leg(side) {
     const hip = new THREE.Group(); hip.position.set(0.1 * side, -0.06, 0); root.add(hip);
-    const th = seg(0.47, 0.075, 0.06, whites); hip.add(th);
+    const th = seg(0.47, 0.075, 0.06, cream); hip.add(th);
     const kn = new THREE.Group(); kn.position.y = -0.47; th.add(kn);
-    const sh = seg(0.46, 0.055, 0.045, whites); kn.add(sh);
-    const ft = mesh(new THREE.BoxGeometry(0.1, 0.06, 0.26), dark); ft.position.set(0, -0.48, -0.06); sh.add(ft);
+    const sh = seg(0.46, 0.055, 0.045, cream); kn.add(sh);
+    const ft = mesh(new THREE.CapsuleGeometry(0.045, 0.17, 4, 8), dark); ft.rotation.x = Math.PI / 2; ft.position.set(0, -0.48, -0.06); sh.add(ft);
     return { hip, kn, ft };
   }
   const rA = arm(1), lA = arm(-1), rL = leg(1), lL = leg(-1);
@@ -52,7 +59,7 @@ export function createBowler(scene) {
   }
 
   return {
-    root, casters, materials: [whites, skin, dark],
+    root, casters, materials: [whites, cream, skin, dark],
     setKit(hex) { dark.color.setHex(hex); },
     // Pose at scene time t (s). rel = release-angle offset (deg), jx = small sideways shift of the release.
     pose(t, prof, rel, jx) { apply(poseAt(t, prof, rel, P), prof, jx); },

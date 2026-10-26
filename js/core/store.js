@@ -8,7 +8,7 @@ export const DEF = {
   maxKph: 120, view: 'auto', trigger: false, rotate: 'ball', club: true, netsGap: 20, spinners: true, hawk: true, smart: true,
   lifeCm: 60, lifeM: 1.5, boost: 1.8, gap: 2.5, widePct: 22, bouncerPct: 8, levelMode: 'auto', sound: true, voice: true, fullscreen: true,
   // v5
-  feedback: 'auto', quality: 'auto', overlay: false, haptics: true, textScale: 1, contrast: false, reduceMotion: false, ball: 'red',
+  feedback: 'auto', quality: 'auto', overlay: false, haptics: true, textScale: 1, contrast: false, reduceMotion: false, ball: 'red', sight: true,
 };
 
 export function newDB() {

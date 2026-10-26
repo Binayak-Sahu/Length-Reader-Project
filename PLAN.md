@@ -51,6 +51,9 @@ First user: Bink (right-handed). Selection nets after 15 Nov 2026 against pace u
 
 ## Roadmap
 
+Status (26 Oct 2026): **M1, M2 and M3 shipped.** The next ideas are listed at the bottom.
+
+
 ### Milestone 1: "train on it today"
 
 - Engine on three r186.
@@ -104,3 +107,9 @@ First user: Bink (right-handed). Selection nets after 15 Nov 2026 against pace u
 - The app can't see your feet. Make the real step as you press, and use the mirror to check it.
 - Controller timing precision depends on how often the browser reads the controller.
 - Real-device frame rates (S25+ at 120 Hz, PC at 165 Hz) can only be confirmed on those devices. A checklist is in the README.
+
+## Next ideas (not started)
+
+- PC mirror: the S25+ as a webcam, with pose checks on the big screen (Bink paused this).
+- Bowler-specific release cues learned from real footage, if good data can be found.
+- Optional 2-player "net bowler" mode on one PC.

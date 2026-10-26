@@ -312,3 +312,9 @@ body.contrast #zones div{border-color:rgba(255,255,255,.5)}
 body.calm #flash.show,body.calm #bigmark.show{animation-name:fadeOnly}
 body.calm #card,body.calm .newBadges .bdg{animation:none}
 body.calm .cta,body.calm .tile,body.calm .start{transition:none}
+
+/* Speed gun readout (after each ball) */
+#speed{position:fixed;right:max(2vw,env(safe-area-inset-right,0px));top:calc(2vh + 64px + env(safe-area-inset-top,0px));z-index:6;pointer-events:none;padding:8px 14px;border-radius:12px;background:#050607;border:1px solid #334155;display:grid;justify-items:end;animation:fadeOnly 3s linear forwards}
+#speed small{color:#94a3b8;font:700 11px/1 system-ui;letter-spacing:.18em}
+#speed b{font:800 calc(clamp(26px,2.4vw,46px)*var(--fs))/1 var(--display);color:#fb923c;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+@media (orientation:portrait){#speed{top:calc(120px + env(safe-area-inset-top,0px))}}
