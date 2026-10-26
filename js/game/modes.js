@@ -8,9 +8,10 @@
 //   xpCtx    XP multiplier context ('nets', 'pressure', 'trial', 'boss')
 //   fixed    {m, k, o} a fixed level spec (trials, bosses) instead of your level
 //   boss     boss bowler (profile + trademark ball)
+//   script   fixed balls for the tutorial ([{cat, d, lx}])      coach  a banner before each ball      labels  keep tap-zone labels on
 export function seg(o) {
   return Object.assign({ n: 50, name: '', adapt: true, levelDelta: 0, fb: 'auto', walk: false, drill: null, weakP: 0.4,
-    xpCtx: '', fixed: null, boss: null, intro: null }, o);
+    xpCtx: '', fixed: null, boss: null, intro: null, script: null, coach: null, labels: false }, o);
 }
 
 export const MODE_INFO = {
@@ -30,7 +31,13 @@ export function buildPlan(kind, opts = {}) {
     case 'daily': return { kind, title: 'Daily session', segs: [
       seg({ n: 8, name: 'Warm-up', adapt: false, levelDelta: -1, fb: 'full', weakP: 0, intro: 'WARM-UP · 8 balls · one step easier' }),
       seg({ n: 20, name: 'Focus', adapt: true, weakP: 0.5, intro: 'FOCUS · 20 balls · your weak spot comes more often' }),
-      seg({ n: 6, name: 'Pressure over', adapt: false, fb: 'end', walk: true, weakP: 0, xpCtx: 'pressure', gap: 6, intro: 'PRESSURE OVER · 6 balls · no feedback till the end' })] };
+      seg({ n: 6, name: 'Pressure over', adapt: false, fb: 'end', walk: true, weakP: 0, xpCtx: 'pressure', gap: Math.min(10, S.netsGap || 20), intro: 'PRESSURE OVER · 6 balls · no feedback till the end' })] };
+    case 'tutorial': {
+      const r = Math.random() < 0.5;
+      return { kind, title: 'Tutorial', segs: [seg({ n: 4, name: 'Tutorial', adapt: false, fb: 'full', weakP: 0, fixed: { m: 1, k: 80, o: null }, labels: true,
+        script: [{ cat: 'Full', d: 2.6 }, { cat: 'Short', d: 8.4 }, r ? { cat: 'Short', d: 7.6 } : { cat: 'Full', d: 3.4 }, r ? { cat: 'Full', d: 3.4 } : { cat: 'Short', d: 7.6 }],
+        coach: ['BALL 1 · watch the hand · this one is pitched up → FRONT', 'BALL 2 · this one is short → BACK', 'BALL 3 · your call: front or back?', 'BALL 4 · your call'] })] };
+    }
     case 'session': return { kind, title: "Classic 50", segs: [seg({ n: 50 })] };
     case 'quick': return { kind, title: 'Quick 30', segs: [seg({ n: 30 })] };
     case 'endless': return { kind, title: 'Endless', segs: [seg({ n: Infinity })] };
@@ -41,7 +48,7 @@ export function buildPlan(kind, opts = {}) {
     case 'trial': case 'boss': {
       const b = opts.boss;
       return { kind, title: (kind === 'trial' ? 'Trial: ' : 'Boss nets: ') + b.n, boss: b, segs: [seg({ n: 12, adapt: false, fb: 'end', walk: true, weakP: 0,
-        xpCtx: kind, fixed: b.spec, boss: b, gap: 8, intro: `${b.n.toUpperCase()} · 2 overs · 80% to pass` })] };
+        xpCtx: kind, fixed: b.spec, boss: b, gap: Math.min(12, S.netsGap || 20), intro: `${b.n.toUpperCase()} · 2 overs · ${kind === 'trial' ? '80% to pass' : 'beat your best'}` })] };
     }
     default: throw new Error('unknown mode ' + kind);
   }

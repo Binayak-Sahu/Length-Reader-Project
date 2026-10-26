@@ -57,7 +57,7 @@ function pickBowler(seg) {
   return (S.spinners && ov % 3 === 0) ? sp : ps;
 }
 // Smart feeding: the length you get wrong most is bowled more.
-function weakest(type, mode) {
+export function weakest(type, mode) {
   const st = (app.db.cs && app.db.cs[type]) || {}, cats = ['Full', 'Good', 'Short'].concat(mode >= 2 ? ['Wide off'] : []).concat(mode >= 2 && type === 'pace' ? ['Bouncer'] : []);
   let w = null, wv = 0.8;
   for (const c of cats) { const a = st[c]; if (!a || a.length < 6) continue; const m = a.reduce((x, y) => x + y, 0) / a.length; if (m < wv) { wv = m; w = c; } }
@@ -69,11 +69,12 @@ function feedLog(type, cat, sc) {
   a.push(+sc.toFixed(2)); if (a.length > 30) a.shift();
 }
 
-function segIntro(seg) {
-  G.state = 'intro'; G.sess.introShown = G.sess.segI;
-  const b = $('banner'); b.textContent = seg.intro; show(b, true);
-  app.voice.say(seg.intro.split('·')[0].trim().toLowerCase());
-  G.timer = setTimeout(() => { show(b, false); if (G.state === 'intro') nextBall(); }, 2400);
+// A banner between segments (and before tutorial balls); the next ball follows by itself.
+function banner(text, ms) {
+  G.state = 'intro';
+  const b = $('banner'); b.textContent = text; show(b, true);
+  app.voice.say(text.split('·').slice(0, 2).join('.').toLowerCase());
+  G.timer = setTimeout(() => { show(b, false); if (G.state === 'intro') nextBall(); }, ms);
 }
 
 // ---------- each ball ----------
@@ -82,12 +83,13 @@ export function nextBall() {
   if (!sess) return;
   G.wait = null; clearTimeout(G.timer); world.clearTrail(); world.heStop();
   show('card', false); show('rctl', false); document.body.classList.remove('result'); setHeld(false); $('rcSlow').classList.remove('on');
-  $('zones').classList.toggle('lbl', sess.balls.length < 3);
   const m = sess.match;
   if (m && (m.wk >= 3 || m.runs >= m.target)) { endSession(); return; }
   let seg = sess.plan.segs[sess.segI];
   if (sess.segN >= seg.n) { sess.segI++; sess.segN = 0; seg = sess.plan.segs[sess.segI]; if (!seg) { endSession(); return; } }
-  if (seg.intro && sess.introShown !== sess.segI) { segIntro(seg); return; }
+  if (seg.intro && sess.introShown !== sess.segI) { sess.introShown = sess.segI; banner(seg.intro, 2400); return; }
+  if (seg.coach && seg.coach[sess.segN] && sess.coached !== sess.segN) { sess.coached = sess.segN; banner(seg.coach[sess.segN], 2600); return; }
+  $('zones').classList.toggle('lbl', sess.balls.length < 3 || seg.labels);
   const perBall = !m && (seg.walk || S.rotate === 'ball');
   if (perBall || sess.balls.length % 6 === 0) { sess.over++; PROF = pickBowler(seg); world.bowler.setKit(PROF.c); }
   const lvl = clampLevel(sess.level + seg.levelDelta);
@@ -98,14 +100,16 @@ export function nextBall() {
   const kph = m ? Math.max(100, Math.min(LEVELS[db.level].k, S.maxKph)) : Math.min(LV.k, S.maxKph);
   const occ = m ? null : (seg.walk && !seg.fixed ? null : LV.o);
   const g = genBall(S, { kph, mode: gm, drill: seg.drill, spin: PROF.spin || null, weak, weakP: seg.weakP, hand: db.profile.hand,
-    club: S.club && !['short', 'spin'].includes(seg.drill) && !seg.boss, trademark: seg.boss ? seg.boss.trademark : null });
+    club: S.club && !['short', 'spin'].includes(seg.drill) && !seg.boss && !seg.script, trademark: seg.boss ? seg.boss.trademark : null });
+  const sc = seg.script && seg.script[sess.segN];
+  if (sc) { g.d = sc.d; g.lx = sc.lx || 0; g.cat = sc.cat; g.opt = { varn: null }; }
   const rel = relCue(g.d, !!PROF.spin), jx = rnd(-0.1, 0.1);
   world.bowler.pose(T_REL, PROF, rel, jx);
   const job = traj.request(world.releasePoint(), g.kph, g.d, g.lx, g.opt);      // solved in the worker during the run-up
   world.bowler.pose(0, PROF, rel, jx); world.bowlerMoved(); world.ballToHand();
   world.ball.visible = true; world.ball.rotation.set(0, 0, 0);
   G.cur = { g, job, tr: null, prof: PROF, rel, jx, occ, mode: gm, type, lvl, seg, fed: weak && g.cat === weak ? weak : null,
-    trig: null, foot: null, played: false, shot: null, src: null, si: 0, sounds: false, lblOff: false };
+    trig: null, foot: null, played: false, shot: null, src: null, si: 0, sounds: false, lblOff: !!seg.labels };
   clock.reset();
   if (sess.zm !== gm) { ui.setZones(gm, S); sess.zm = gm; }
   G.state = 'run'; perf.ballStart(); hudUpdate();

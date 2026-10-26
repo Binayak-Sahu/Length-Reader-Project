@@ -152,9 +152,56 @@ ok(await p.evaluate(async () => { const V = await import(new URL('vendor/mediapi
 await p.close();
 await ctx.close();
 
+// ---------- 8b. first run: onboarding → tutorial ----------
+{
+  const c = await browser.newContext({ viewport: { width: 900, height: 600 } });
+  const q = await page(c, '?nosw');
+  await waitFor(q, () => window.__lr && document.querySelector('#onboard:not(.hidden)'));
+  ok(true, 'a new player starts with onboarding');
+  await q.click('#obNext');                                      // welcome → hand
+  await q.click('[data-h="L"]');                                 // left-handed
+  ok(await q.evaluate(() => window.__lr.app.db.profile.hand === 'L' && window.__lr.app.world.camera.position.x > 0), 'choosing left-handed mirrors the view straight away');
+  await q.click('#obNext');                                      // setup → reaction
+  await q.click('#obSkip');                                      // skip the reaction test
+  await q.click('#obNext');                                      // bowl the tutorial
+  await waitFor(q, () => window.__lr.game.G.state === 'intro' && /BALL 1/.test(document.getElementById('banner').textContent));
+  ok(true, 'tutorial coaches ball 1 with a banner');
+  await waitFor(q, () => window.__lr.game.G.state === 'run');
+  ok(await q.evaluate(() => { const c = window.__lr.game.G.cur; return c.g.cat === 'Full' && c.g.kph <= 83 && document.getElementById('zones').classList.contains('lbl'); }), 'tutorial ball 1 is a scripted full ball at 80 kph');
+  await q.evaluate(() => { const G = window.__lr.game.G; for (let i = 0; i < 4; i++) G.sess.balls.push({ d: 3, lx: 0, lxB: 0, kph: 80, cat: 'Full', fe: 'F', fv: 'good', v: 'good', ok: true, sc: 1, xp: 10, mode: 1 }); G.sess.xp = 40; window.__lr.game.endSession(); });
+  await waitFor(q, () => !document.getElementById('end').classList.contains('hidden'));
+  ok(await q.evaluate(() => window.__lr.app.db.profile.onboarded && /first daily/.test(document.getElementById('bAgain').textContent)), 'after the tutorial: onboarded, and the next step is the first daily session');
+  ok(await q.evaluate(() => /First Read/.test(document.getElementById('eBadges').textContent)), 'first badge shown on the end screen');
+  await c.close();
+}
+
+// ---------- 8c. career trial → promotion ----------
+{
+  const c = await browser.newContext({ viewport: { width: 1100, height: 700 } });
+  const q = await page(c, '?nosw', `localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false }, level: 2, levelD: 0.5, sessions: [], career: { tier: 0, trials: [] }, badges: {}, bosses: {}, v3: { merged: true, last: null, count: 0 }, imports: [] }));`);
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  ok(await q.evaluate(() => !document.getElementById('bTrialTile').classList.contains('locked') && /Metronome/.test(document.getElementById('trialTitle').textContent)), 'Play tab offers the unlocked Club trial');
+  await q.click('#bTrialTile');
+  await waitFor(q, () => window.__lr.game.G.state === 'run');
+  ok(await q.evaluate(() => { const c = window.__lr.game.G.cur; return c.prof.id === 'metronome' && c.mode === 1 && c.seg.fb === 'end' && c.seg.n === 12; }), 'trial: the boss bowls, 12 balls, nets rules');
+  await q.evaluate(() => { const G = window.__lr.game.G; G.sess.balls = []; for (let i = 0; i < 12; i++) G.sess.balls.push({ d: 8, lx: 0, lxB: 0, kph: 100, cat: 'Short', fe: 'B', fv: i < 10 ? 'good' : 'bad', v: i < 10 ? 'good' : 'bad', ok: i < 10, sc: i < 10 ? 1 : 0, xp: 0, mode: 1 }); window.__lr.game.endSession(); });
+  await waitFor(q, () => !document.getElementById('end').classList.contains('hidden'));
+  ok(await q.evaluate(() => /PROMOTED TO CLUB/.test(document.getElementById('eTrial').textContent) && window.__lr.app.db.career.tier === 1), '10/12 (83%) → promoted to Club, shown on the end screen');
+  await q.click('#bHome3');
+  ok(await q.evaluate(() => document.getElementById('pTier').textContent === 'CLUB'), 'home shows the new rank');
+  // tabs + keyboard focus navigation
+  await q.click('#tCareer');
+  ok(await q.evaluate(() => !document.getElementById('career').classList.contains('hidden') && document.querySelectorAll('#bossNets [data-boss]').length === 1), 'Career tab: ladder plus boss nets for the beaten boss');
+  await q.keyboard.press('Escape');
+  ok(await q.evaluate(() => window.__lr.app.state === 'home'), 'Esc goes back to Play');
+  await q.keyboard.press('ArrowDown'); await q.keyboard.press('ArrowDown');
+  ok(await q.evaluate(() => document.activeElement && document.activeElement.tagName === 'BUTTON' && document.activeElement.id !== 'bDaily'), 'arrow keys move focus around the menu (10-foot / controller style)');
+  await c.close();
+}
+
 // ---------- 9. offline: install the service worker, go offline, reload ----------
 const ctx2 = await browser.newContext({ viewport: { width: 640, height: 360 } });
-p = await page(ctx2, '');
+p = await page(ctx2, '', `if (!localStorage.getItem('lr5')) localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false } }));`);
 await waitFor(p, () => navigator.serviceWorker && navigator.serviceWorker.controller, null, 30000);
 const cached = await p.evaluate(async () => { const ks = await caches.keys(), c = await caches.open(ks.find(k => k.startsWith('lr-core-'))); return (await c.keys()).length; });
 ok(cached > 25, `service worker precached ${cached} core files`);

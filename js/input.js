@@ -11,22 +11,22 @@ export function createPads() {
   return {
     get connected() { return connected; },
     list: () => Array.from(list()).filter(Boolean),
-    // cb(E, stickUp, stickDown, pressTime, gp) is called once per controller per poll, only when something was newly pressed.
+    // cb(E, stickUp, stickDown, pressTime, gp, stickLeft, stickRight) is called once per controller per poll, only when something was newly pressed.
     poll(cb) {
       if (!connected) return;
       const gps = list(), now = performance.now();
       for (let k = 0; k < gps.length; k++) {
         const gp = gps[k]; if (!gp) continue;
         let p = prev[gp.index];
-        if (!p) p = prev[gp.index] = { b: new Uint8Array(32), up: false, dn: false, poll: null };
-        const ay = gp.axes[1] || 0, up = ay < -0.6, dn = ay > 0.6;
+        if (!p) p = prev[gp.index] = { b: new Uint8Array(32), up: false, dn: false, lf: false, rt: false, poll: null };
+        const ay = gp.axes[1] || 0, ax = gp.axes[0] || 0, up = ay < -0.6, dn = ay > 0.6, lf = ax < -0.6, rt = ax > 0.6;
         let any = false;
         for (let i = 0; i < 32; i++) {
           const btn = gp.buttons[i], on = btn ? (btn.pressed ? 1 : 0) : 0;
           E[i] = on && !p.b[i] ? 1 : 0; if (E[i]) any = true; p.b[i] = on;
         }
-        const su = up && !p.up, sd = dn && !p.dn; p.up = up; p.dn = dn;
-        if (any || su || sd) cb(E, su, sd, padStamp(gp.timestamp, p.poll, now), gp);
+        const su = up && !p.up, sd = dn && !p.dn, sl = lf && !p.lf, sr = rt && !p.rt; p.up = up; p.dn = dn; p.lf = lf; p.rt = rt;
+        if (any || su || sd || sl || sr) cb(E, su, sd, padStamp(gp.timestamp, p.poll, now), gp, sl, sr);
         p.poll = now;
       }
     },

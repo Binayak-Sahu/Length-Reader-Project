@@ -65,6 +65,7 @@ export function genBall(S, c, rng = Math.random) {
     else if (tm.varn === 'Outswing') { varn = 'Outswing'; o.swing = -r_(2.5, 3.5); }
     else if (tm.varn === 'Inswing') { varn = 'Inswing'; o.swing = r_(2.5, 3.5); }
     else if (tm.varn === 'Arm ball') varn = 'Arm ball';
+    else if (tm.varn === 'Googly' && c.spin === 'leg') varn = 'Googly';             // the leg-spinner's wrong'un: turns like an off-break
   } else if (c.mode >= 3) {
     if (c.spin) { if (rng() < 0.25) varn = 'Arm ball'; }
     else {
@@ -77,7 +78,7 @@ export function genBall(S, c, rng = Math.random) {
   }
   // Off-break turns into a right-hander and away from a left-hander (and the leg-break the other way).
   // The physics frame is batter-relative (off = −x), so the turn's sign flips for left-handers.
-  if (c.spin && varn !== 'Arm ball') o.seam = (c.spin === 'off' ? 1 : -1) * (c.hand === 'L' ? -1 : 1) * r_(0.6, 1.5);
+  if (c.spin && varn !== 'Arm ball') o.seam = (c.spin === 'off' || varn === 'Googly' ? 1 : -1) * (c.hand === 'L' ? -1 : 1) * r_(0.6, 1.5);
   if (c.spin && !varn) varn = c.spin === 'off' ? 'Off-break' : 'Leg-break';
   o.varn = varn;
   return { d, lx, kph: Math.round(kph), opt: o, cat: special || cat, tm: tm ? tm.name || 'Trademark' : null };

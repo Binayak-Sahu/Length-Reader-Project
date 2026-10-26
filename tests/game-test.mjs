@@ -7,6 +7,9 @@ import { genBall } from '../js/core/bowling.js';
 import { xpForBall, sessionXP, streak, week, summarize, progressData } from '../js/core/progress.js';
 import { load, save, importData, exportData, newDB, KEY, V4_KEY, normalize } from '../js/core/store.js';
 import { QualityController, tierIndex } from '../js/core/quality.js';
+import { BOSSES, careerState, recordTrial, TIERS } from '../js/core/career.js';
+import { checkBadges, BADGES } from '../js/core/badges.js';
+import { isHitting, categorize } from '../js/core/rules.js';
 import { mulberry32, makeOk, fakeStorage } from './util.mjs';
 const { ok, done } = makeOk('game');
 
@@ -135,5 +138,51 @@ console.log('— adaptive quality —');
   for (let i = 0; i < 20; i++) q.onBall({ frames: 400, drops: 0, cpuP95: 2, budget: 8.33 });
   ok(q.tier === tierIndex('high'), 'retries the failed tier after 20 balls');
   ok(new QualityController(1).onBall({ frames: 400, drops: 0, cpuP95: 7, budget: 6.06 }) === 0, 'CPU over 85% of a 165 Hz budget → down');
+}
+
+console.log('— career ladder & boss bowlers —');
+{
+  const db = newDB(); db.level = 1;
+  let cs = careerState(db);
+  ok(cs.name === 'Gully' && cs.next.id === 'metronome' && !cs.unlocked, 'start in the gully; the Club trial is locked until training reaches L1 · 100 kph');
+  db.level = 2; cs = careerState(db);
+  ok(cs.unlocked, 'reaching L1 · 100 kph unlocks the Club trial');
+  const fail = recordTrial(db, BOSSES[0], 75, 'x1');
+  ok(!fail.passed && db.career.tier === 0 && db.bosses.metronome === 75, '75% fails the trial (80% needed) but the best score is kept');
+  const pass = recordTrial(db, BOSSES[0], 83, 'x2');
+  ok(pass.passed && pass.promoted && db.career.tier === 1 && TIERS[db.career.tier] === 'Club', '83% passes: promoted to Club');
+  ok(!recordTrial(db, BOSSES[2], 90, 'x3').promoted && db.career.tier === 1, 'beating a boss two rungs up does not skip a tier');
+  ok(BOSSES.every((b, i) => b.tier === i + 1) && BOSSES.map(b => b.unlock).every((u, i, a) => i === 0 || u >= a[i - 1]), 'five bosses, one per promotion, unlocking in order');
+}
+{ // each trademark ball really tests what the boss card says (physics + grading, not just labels)
+  const S = { widePct: 22, bouncerPct: 8 }, p0 = { x: -0.57, y: 2.16, z: 17.6 }, ps = { x: -0.4, y: 2.05, z: 17.9 };
+  const tmBalls = (b, n = 300) => { const rng = mulberry32(b.tier * 7), out = [];
+    for (let i = 0; i < n; i++) { const g = genBall(S, { kph: b.spec.k, mode: b.spec.m, spin: b.prof.spin || null, hand: 'R', trademark: Object.assign({}, b.trademark, { p: 1 }) }, rng);
+      out.push({ g, tr: makeTraj(b.prof.spin ? ps : p0, g.kph, g.d, g.lx, g.opt) }); } return out; };
+  const [met, hus, swi, mag, exp] = BOSSES.map(b => tmBalls(b));
+  ok(met.every(x => footFor(x.tr) === 'B'), 'The Metronome’s back-of-a-length ball always needs the back foot at 100 kph');
+  ok(hus.every(x => footFor(x.tr) === 'B') && hus.filter(x => isHitting(x.tr)).length > 0.6 * hus.length, 'The Hustler: short at the body — back foot, and mostly hitting (must play)');
+  const wide = swi.filter(x => x.tr.lxArr > 0.30).length;
+  ok(swi.every(x => footFor(x.tr) === 'F') && wide > 0.2 * swi.length && wide < 0.8 * swi.length, `The Swing King: full outswingers — forward, ${Math.round(100 * wide / swi.length)}% wide enough to leave (tests leaving outside off)`);
+  ok(mag.every(x => x.g.opt.varn === 'Googly' && x.g.opt.seam > 0), 'The Magician’s googly turns in to a right-hander (opposite to his leg-break)');
+  ok(exp.every(x => x.g.opt.varn === 'Slower ball' && x.g.kph <= 111 && x.g.kph >= 99 && footFor(x.tr) === 'F'), 'The Express’s slower ball: 12–18 kph slower and pitched up');
+}
+
+console.log('— badges reward real skills only —');
+{
+  const db = newDB(), mk = (o) => Object.assign({ fe: 'B', fv: 'good', v: 'good', ok: true, sc: 1, cat: 'Short', mode: 1 }, o);
+  const s1 = { kind: 'session', n: 12, score: 90, balls: [...Array.from({ length: 10 }, () => mk({})), mk({ fe: 'F', cat: 'Full' })] };
+  db.sessions.push(s1);
+  let got = checkBadges(db, s1, new Date(2026, 9, 26));
+  ok(got.includes('first') && got.includes('back10') && !got.includes('fwd10'), '10 short balls in a row read right → Back in Time');
+  ok(checkBadges(db, s1, new Date(2026, 9, 26)).length === 0, 'a badge is awarded once');
+  const s2 = { kind: 'session', n: 10, score: 50, balls: Array.from({ length: 10 }, () => mk({ fe: 'F', cat: 'Full', fv: 'warn', v: 'warn', ok: false, guess: true, sc: 0.5 })) };
+  ok(!checkBadges(newDB(), s2).includes('fwd10'), 'guessed (correct-foot) balls never count toward a badge');
+  const s3 = { kind: 'daily', n: 34, score: 85, balls: [...Array.from({ length: 28 }, () => mk({ seg: 1 })), ...Array.from({ length: 6 }, () => mk({ seg: 2 }))] };
+  ok(checkBadges(newDB(), s3).includes('pressure6'), '6/6 in the pressure over → Pressure Proof');
+  const s4 = Object.assign({}, s3, { balls: s3.balls.map((b, i) => i === 30 ? mk({ seg: 2, ok: false, fv: 'bad', v: 'bad', sc: 0 }) : b) });
+  ok(!checkBadges(newDB(), s4).includes('pressure6'), '5/6 is not enough');
+  const db2 = newDB(); db2.career.tier = 5; ok(checkBadges(db2, null).includes('selected'), 'reaching India A → Selected');
+  ok(new Set(BADGES.map(b => b.id)).size === BADGES.length, `${BADGES.length} badges, unique ids`);
 }
 done();

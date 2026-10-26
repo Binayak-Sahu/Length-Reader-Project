@@ -2,7 +2,9 @@
 // ball is live (or after a change), so menus cost almost nothing.
 import { app, $, show } from './app.js';
 import { load, save, KEY } from './core/store.js';
-import { TIERS, tierIndex, QualityController } from './core/quality.js';
+import { TIERS as QTIERS, tierIndex, QualityController } from './core/quality.js';
+import { TIERS, bossById, careerState, recordTrial } from './core/career.js';
+import { checkBadges } from './core/badges.js';
 import { createWorld } from './engine/world.js';
 import { createPerf } from './engine/perf.js';
 import { createAudio, createVoice, createHaptics } from './audio.js';
@@ -10,17 +12,18 @@ import { createPads } from './input.js';
 import { createTrajService } from './traj-service.js';
 import * as game from './game/game.js';
 import * as scr from './ui/screens.js';
+import * as menu from './ui/menus.js';
 
-const VERSION = '5.0.0';
+const VERSION = '5.1.0';
 const qs = new URLSearchParams(location.search);
 
 // ---------- data ----------
 const boot = load(window.localStorage);
 app.db = boot.db; app.S = app.db.settings; app.storage = window.localStorage;
-app.saveNow = () => { if (!save(window.localStorage, app.db)) toast('Couldn’t save — storage is full or blocked. Export your data from Settings.'); };
+app.saveNow = () => { if (!save(window.localStorage, app.db)) toast('Couldn’t save — storage is full or blocked. Export your data from More.'); };
+if (boot.fromV4) checkBadges(app.db, null);                 // badges earned in v4 history count too
 app.saveNow();
-// Ask the browser not to evict our data (installed apps usually get this automatically).
-if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});   // ask the browser not to evict our data
 
 // ---------- engine ----------
 const isTouch = matchMedia('(pointer:coarse)').matches;
@@ -34,32 +37,62 @@ app.audio = createAudio(app.S); app.voice = createVoice(app.S); app.haptics = cr
 app.traj = createTrajService();
 const startTier = qs.get('tier') || (app.S.quality !== 'auto' ? app.S.quality : (isTouch ? 'medium' : 'high'));
 app.quality = new QualityController(tierIndex(startTier), tierIndex(isTouch ? 'high' : 'ultra'));
-world.applyTier(TIERS[app.quality.tier]);
+world.applyTier(QTIERS[app.quality.tier]);
 world.applyView(app.S, app.db.profile.hand);
 app.onBallStats = (st) => {
   if (app.S.quality !== 'auto') return;
   const nt = app.quality.onBall(st);
-  if (nt != null) world.applyTier(TIERS[nt]);
+  if (nt != null) world.applyTier(QTIERS[nt]);
 };
 let needsRender = true;
 function applySettings(k) {
-  if (k === 'quality') { if (app.S.quality !== 'auto') { app.quality.tier = tierIndex(app.S.quality); } world.applyTier(TIERS[app.quality.tier]); }
+  if (k === 'quality') { if (app.S.quality !== 'auto') app.quality.tier = tierIndex(app.S.quality); world.applyTier(QTIERS[app.quality.tier]); }
   if (k === 'overlay') app.perf.setOverlay(app.S.overlay);
+  applyA11y();
   world.applyView(app.S, app.db.profile.hand); needsRender = true;
 }
+function applyA11y() {
+  document.documentElement.style.setProperty('--fs', String(app.S.textScale || 1));
+  document.body.classList.toggle('contrast', !!app.S.contrast);
+  document.body.classList.toggle('calm', !!app.S.reduceMotion);
+}
+applyA11y();
 app.perf.setOverlay(app.S.overlay || qs.has('debug'));
 $('c').addEventListener('webglcontextlost', (e) => { e.preventDefault(); show('nolib', true); $('nolib').innerHTML = 'The graphics were reset by the device.<br><button class="btn" onclick="location.reload()">Reload</button>'; });
 
-// ---------- screens ----------
-function goHome() { scr.renderHome(); scr.only('home'); needsRender = true; if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); }
+// ---------- navigation ----------
+function goHome() { menu.renderHome(game.weakest); needsRender = true; if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); }
+const TAB = { home: goHome, career: () => menu.renderCareer(id => start('trial', { boss: bossById(id) }), id => start('boss', { boss: bossById(id) })), progress: () => scr.renderProgress(), more: () => menu.renderMore() };
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => { app.audio.click(); TAB[b.dataset.tab](); });
+function back() {
+  const s = app.state;
+  if (s === 'settings' || s === 'howto') menu.renderMore();
+  else if (s === 'career' || s === 'progress' || s === 'more' || s === 'end') goHome();
+  else if (s === 'onboard') { /* stay: finish or skip onboarding */ }
+}
+
+// ---------- sessions ----------
+let last = { kind: 'daily', opts: {} };
+function start(kind, opts = {}) { last = { kind, opts }; game.startSession(kind, opts); }
 game.setHooks({
-  enter() { scr.only(null); app.state = 'session'; },
+  enter() { menu.only(null); app.state = 'session'; },
   leave() { needsRender = true; },
-  showEnd(s, score, rec) { scr.renderEnd(s, score, rec); },
   goHome,
+  showEnd(s, score, rec) {
+    const { db, audio, haptics } = app, extra = {};
+    if (s.kind === 'trial') {
+      const r = recordTrial(db, s.boss, score, rec.date);
+      extra.trial = Object.assign(r, { tierName: TIERS[r.tier] });
+    } else if (s.kind === 'boss') db.bosses[s.boss.id] = Math.max(db.bosses[s.boss.id] || 0, score);
+    if (s.kind === 'tutorial') db.profile.onboarded = true;
+    extra.badges = checkBadges(db, rec);
+    app.saveNow();
+    scr.renderEnd(s, score, rec, extra);
+    if (extra.trial && extra.trial.promoted) { audio.fanfare(); haptics.reward(); app.voice.say(`Promoted to ${TIERS[extra.trial.tier]}!`); }
+    else if (extra.badges.length) { audio.chime(); haptics.reward(); }
+  },
 });
-let lastKind = 'session';
-function start(kind, opts) { lastKind = kind; game.startSession(kind, opts); }
+$('bDaily').onclick = () => start('daily');
 $('bStart').onclick = () => start('session');
 $('bQuick').onclick = () => start('quick');
 $('bEndless').onclick = () => start('endless');
@@ -67,16 +100,26 @@ $('bDrill').onclick = () => start('short');
 $('bSpin').onclick = () => start('spin');
 $('bMatch').onclick = () => start('match');
 $('bNets').onclick = () => start('nets');
-$('bDaily').onclick = () => start('daily');
-$('bRT').onclick = () => scr.rtOpen();
-$('bProg').onclick = () => scr.renderProgress();
-$('bProgBack').onclick = goHome;
-$('bTrig').onclick = () => { app.S.trigger = !app.S.trigger; app.saveNow(); scr.renderTrig(); };
+$('bTrialTile').onclick = () => { const cs = careerState(app.db); if (cs.next && cs.unlocked) start('trial', { boss: cs.next }); else TAB.career(); };
+$('bAgain').onclick = () => {
+  const s = game.G.sess;
+  if (s && s.kind === 'tutorial') start('daily'); else start(last.kind, last.opts);
+};
+$('bHome3').onclick = goHome;
+
+// ---------- More ----------
+let rtBack = () => menu.renderMore();
+function reaction(backFn) { rtBack = backFn || (() => menu.renderMore()); scr.rtOpen(); }
+$('bRT').onclick = () => reaction();
+$('bHow').onclick = () => menu.only('howto');
+$('bHowBack').onclick = () => menu.renderMore();
+$('bControls').onclick = () => { $('controls').classList.toggle('hidden'); };
+$('bTrig').onclick = () => { app.S.trigger = !app.S.trigger; app.saveNow(); menu.renderMore(); };
 $('bSettings').onclick = () => scr.renderSettings(applySettings);
-$('bSetBack').onclick = goHome;
+$('bSetBack').onclick = () => menu.renderMore();
 $('bExport').onclick = scr.doExport; $('bExport2').onclick = scr.doExport;
 $('bImport').onclick = () => $('fileIn').click();
-$('fileIn').onchange = (e) => { const f = e.target.files[0]; if (f) scr.doImport(f, (msg) => { toast(msg); scr.renderSettings(applySettings); }); e.target.value = ''; };
+$('fileIn').onchange = (e) => { const f = e.target.files[0]; if (f) scr.doImport(f, (msg) => { checkBadges(app.db, null); app.saveNow(); toast(msg); scr.renderSettings(applySettings); }); e.target.value = ''; };
 let resetArm = 0;
 $('bReset').onclick = () => {
   const b = $('bReset');
@@ -86,31 +129,41 @@ $('bReset').onclick = () => {
 $('pBtn').onclick = () => game.togglePause();
 $('rcHold').onclick = game.holdToggle; $('rcRep').onclick = () => game.replay(false); $('rcSlow').onclick = () => game.replay(true); $('rcNext').onclick = () => game.nextBall();
 $('bResume').onclick = () => game.togglePause(); $('bEndNow').onclick = () => game.endSession(); $('bHome2').onclick = () => game.abandonToHome();
-$('bAgain').onclick = () => start(lastKind); $('bHome3').onclick = goHome;
 
 // ---------- input ----------
+const typing = () => { const a = document.activeElement; return a && (a.tagName === 'SELECT' || (a.tagName === 'INPUT' && a.type !== 'checkbox')); };
+function rtPress(ts) { scr.rtPress(ts); if (!scr.rtActive()) rtBack(); }
 addEventListener('keydown', (e) => {
   const k = e.key;
   if (k === 'F2' || k === '`') { app.S.overlay = !app.perf.overlayOn; app.perf.setOverlay(app.S.overlay); app.saveNow(); e.preventDefault(); return; }
-  if (scr.rtActive()) { e.preventDefault(); if (k === 'Escape') scr.rtClose(goHome); else if (!e.repeat) { scr.rtPress(e.timeStamp); if (!scr.rtActive()) goHome(); } return; }
+  if (scr.rtActive()) { e.preventDefault(); if (k === 'Escape') scr.rtClose(rtBack); else if (!e.repeat) rtPress(e.timeStamp); return; }
   if (game.onKey(e)) return;
-  if (app.state === 'home') { if (k === 'Enter' && document.activeElement === document.body) start('session'); return; }
-  if (app.state === 'end') { if (k === 'Enter') { e.preventDefault(); start(lastKind); } if (k === 'Escape') goHome(); return; }
-  if (app.state === 'settings' || app.state === 'progress') { if (k === 'Escape') goHome(); }
+  if (k === 'Escape') { back(); return; }
+  if (typing()) return;
+  const dir = { ArrowUp: 'u', ArrowDown: 'd', ArrowLeft: 'l', ArrowRight: 'r' }[k];
+  if (dir) { e.preventDefault(); menu.moveFocus(dir); return; }
+  if (k === 'Enter' && (document.activeElement === document.body || !document.activeElement)) {
+    if (app.state === 'home') start('daily'); else if (app.state === 'end') $('bAgain').click();
+  }
 });
 addEventListener('pointerdown', (e) => {
-  if (scr.rtActive()) { e.preventDefault(); scr.rtPress(e.timeStamp); if (!scr.rtActive()) goHome(); return; }
+  if (scr.rtActive()) { e.preventDefault(); rtPress(e.timeStamp); return; }
   game.onPointer(e);
 }, { passive: false });
 addEventListener('mousedown', (e) => { if (game.G.state === 'run' && e.button === 1) e.preventDefault(); });
 addEventListener('contextmenu', (e) => { if (game.G.state === 'run' || game.G.state === 'result') e.preventDefault(); });
-function onPad(E, su, sd, ts) {
-  if (scr.rtActive()) { scr.rtPress(ts); if (!scr.rtActive()) goHome(); return; }
+function onPad(E, su, sd, ts, gp, sl, sr) {
+  if (scr.rtActive()) { rtPress(ts); return; }
   if (game.onPad(E, su, sd, ts)) return;
-  if (E[9] || E[0]) { if (app.state === 'home') start('session'); else if (app.state === 'end') start(lastKind); }
-  else if (E[1] && app.state !== 'home') goHome();
+  // menus: D-pad / stick move, A choose, B back, LB/RB tabs, Menu = start the daily session from Play
+  if (E[12] || su) menu.moveFocus('u'); else if (E[13] || sd) menu.moveFocus('d');
+  else if (E[14] || sl) menu.moveFocus('l'); else if (E[15] || sr) menu.moveFocus('r');
+  else if (E[0]) { if (!menu.clickFocused()) { if (app.state === 'home') start('daily'); else if (app.state === 'end') $('bAgain').click(); } }
+  else if (E[1]) back();
+  else if (E[4]) menu.stepTab(-1); else if (E[5]) menu.stepTab(1);
+  else if (E[9] && app.state === 'home') start('daily');
 }
-addEventListener('gamepadconnected', () => { if (app.state === 'home') scr.renderHome(); });
+addEventListener('gamepadconnected', () => { if (app.state === 'more') menu.renderMore(); });
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && (game.G.state === 'run' || game.G.state === 'result')) game.togglePause(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && (game.G.state === 'run' || game.G.state === 'result')) game.togglePause(); });
 addEventListener('resize', () => { world.resize(); needsRender = true; });
@@ -152,15 +205,21 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:' && !qs.has('no
 function toast(msg, act, fn) {
   const t = $('toast'); t.innerHTML = ''; const s = document.createElement('span'); s.textContent = msg; t.appendChild(s);
   if (act) { const b = document.createElement('button'); b.className = 'btn'; b.textContent = act; b.onclick = () => { show(t, false); fn(); }; t.appendChild(b); }
-  show(t, true); clearTimeout(toast.tm); toast.tm = setTimeout(() => show(t, false), act ? 15000 : 5000);
+  show(t, true); clearTimeout(toast.tm); toast.tm = setTimeout(() => show(t, false), act ? 15000 : 6000);
 }
 app.toast = toast;
 
 // ---------- go ----------
 $('ver').textContent = 'v' + VERSION;
 world.bowler.pose(0, { s: 1, xo: 0, tw: 1, ao: 0 }, 0, 0);
-goHome();
-if (boot.fromV4 && boot.added) toast(`Welcome to v5. Your ${boot.added} v4 session${boot.added === 1 ? '' : 's'} and level came across.`);
+const onboardApi = { applyView: () => world.applyView(app.S, app.db.profile.hand), reaction: (cb) => reaction(cb), tutorial: () => start('tutorial'), home: goHome };
+if (!app.db.profile.onboarded) menu.onboarding(0, onboardApi);
+else {
+  goHome();
+  if (boot.fromV4 && boot.added) toast(`Welcome to v5. Your ${boot.added} v4 session${boot.added === 1 ? '' : 's'}, level and reaction time came across.`);
+  else if (!app.db.profile.seenV5) toast('New: Daily session, career trials with boss bowlers, badges and offline install.');
+}
+app.db.profile.seenV5 = true; app.saveNow();
 requestAnimationFrame(loop);
 // Test hook (headless browser tests): read-only peek at state.
-window.__lr = { app, game, VERSION, KEY };
+window.__lr = { app, game, menu, VERSION, KEY };
