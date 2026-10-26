@@ -21,3 +21,7 @@ curl -fsSL -o vendor/mediapipe/pose_landmarker_lite.task \
 printf 'three %s\n@mediapipe/tasks-vision %s\npose_landmarker_lite float16/1\n' "$THREE" "$MP" > vendor/VERSIONS.txt
 rm -rf "$TMP"
 echo "vendor/ updated"
+
+# Display font (SIL OFL): Barlow Condensed 600/700/800, latin subset, from @fontsource.
+# TMP2=$(mktemp -d); (cd "$TMP2" && npm pack @fontsource/barlow-condensed@5.3.0 >/dev/null && tar xzf *.tgz)
+# for w in 600 700 800; do cp "$TMP2/package/files/barlow-condensed-latin-$w-normal.woff2" fonts/; done

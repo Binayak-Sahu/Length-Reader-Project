@@ -140,8 +140,14 @@ Also read:
 ## Status
 
 - **M1 shipped (26 Oct 2026):** v5 engine, timing fixes, performance fixes, PWA, migration, all v4 modes, Daily session, left-handers, local mirror.
-- **Next:**
-  - M2: game layer (career ladder, trials, bosses, badges, streaks, onboarding, new home).
-  - M3: realism and accessibility polish.
-  - See PLAN.md.
+- **M2 shipped (26 Oct 2026):** the game layer.
+  - New 4-tab shell (Play, Career, Progress, More).
+  - Onboarding and tutorial.
+  - Career ladder with 5 boss trials (`js/core/career.js`).
+  - 17 skill badges (`js/core/badges.js`).
+  - Day streak and 5-day weekly goal.
+  - How it works page with sources and honest limits.
+  - Controller and keyboard menu navigation.
+  - Display font; text size, high contrast and reduced motion settings.
+- **Next:** M3, realism polish (sight screen, better bowler, seam wobble, speed gun, lighting). See PLAN.md.
 - **Later (Bink paused it):** a PC mirror using the S25+ as a webcam, with pose checks on the big screen.

@@ -4,10 +4,14 @@
 // • MediaPipe (≈15 MB) is cached the first time the mirror uses it, in its own cache that survives app updates.
 // • A new version waits until the player taps "Reload" (never mid-session).
 // @stamp-start
-const VERSION = '5f141f05c4bd';
+const VERSION = 'efe0bdbb5f27';
 const CORE = [
   './',
   'css/app.css',
+  'fonts/OFL-barlow-condensed.txt',
+  'fonts/barlow-condensed-latin-600-normal.woff2',
+  'fonts/barlow-condensed-latin-700-normal.woff2',
+  'fonts/barlow-condensed-latin-800-normal.woff2',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -16,7 +20,9 @@ const CORE = [
   'js/app.js',
   'js/audio.js',
   'js/core/action.js',
+  'js/core/badges.js',
   'js/core/bowling.js',
+  'js/core/career.js',
   'js/core/levels.js',
   'js/core/match.js',
   'js/core/physics.js',
@@ -34,6 +40,7 @@ const CORE = [
   'js/main.js',
   'js/traj-service.js',
   'js/traj-worker.js',
+  'js/ui/menus.js',
   'js/ui/screens.js',
   'js/ui/session-ui.js',
   'legacy/v4.html',

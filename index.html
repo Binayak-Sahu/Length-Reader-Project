@@ -17,7 +17,9 @@
 <link rel="modulepreload" href="js/app.js">
 <link rel="modulepreload" href="js/audio.js">
 <link rel="modulepreload" href="js/core/action.js">
+<link rel="modulepreload" href="js/core/badges.js">
 <link rel="modulepreload" href="js/core/bowling.js">
+<link rel="modulepreload" href="js/core/career.js">
 <link rel="modulepreload" href="js/core/levels.js">
 <link rel="modulepreload" href="js/core/match.js">
 <link rel="modulepreload" href="js/core/physics.js">
@@ -34,6 +36,7 @@
 <link rel="modulepreload" href="js/input.js">
 <link rel="modulepreload" href="js/main.js">
 <link rel="modulepreload" href="js/traj-service.js">
+<link rel="modulepreload" href="js/ui/menus.js">
 <link rel="modulepreload" href="js/ui/screens.js">
 <link rel="modulepreload" href="js/ui/session-ui.js">
 <!-- @preload-end -->
@@ -70,47 +73,136 @@
   <canvas id="map" aria-label="Pitch map"></canvas>
 </div>
 
-<!-- HOME -->
-<div id="home" class="screen hidden">
+<!-- NAV (Play · Career · Progress · More) -->
+<nav id="nav" class="hidden" aria-label="Main">
+  <button data-tab="home" id="tPlay"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg><span>Play</span></button>
+  <button data-tab="career" id="tCareer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4v-6H4zm6 0h4V9h-4zm6 0h4V4h-4z"/></svg><span>Career</span></button>
+  <button data-tab="progress" id="tProg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8v4h2V3h-8v2h4l-6 6-4-4-8 8z"/></svg><span>Progress</span></button>
+  <button data-tab="more" id="tMore"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/></svg><span>More</span></button>
+</nav>
+
+<!-- PLAY (home) -->
+<div id="home" class="screen tabbed hidden">
   <div class="wrap">
-    <div class="brand"><i></i>LENGTH READER<span class="stage" id="ver"></span></div>
-    <h1>Read it early.<br>Move your feet.</h1>
-    <p class="lead">Read the length from the hand and the first part of the flight. Level 1: feet only. Level 2: play or leave. Level 3: slower balls and swing. Level 4: pick the shot.</p>
-    <button class="start" id="bStart"><div class="play"></div><div>Start today's session<span>50 balls · adapts to you · about 8 minutes</span></div></button>
-    <div class="tiles">
-      <button class="tile gold" id="bDaily"><b>Daily session</b><span>Warm-up · focus · pressure over · ~10 min</span></button>
+    <header class="topbar">
+      <div class="brand"><i></i>LENGTH READER</div>
+      <div class="pills">
+        <span class="pill tier" id="pTier" title="Career rank"></span>
+        <span class="pill xp" id="pXP" title="XP: correct, on-time reads"></span>
+        <span class="pill streak" id="pStreak" title="Days in a row"></span>
+      </div>
+    </header>
+    <section class="hero">
+      <div class="heroL">
+        <small class="kicker">TODAY</small>
+        <h1 class="display">Daily session</h1>
+        <p class="heroSub" id="heroSub"></p>
+        <button class="cta" id="bDaily"><span class="ctaPlay"></span>Start<span class="ctaHint" id="ctaHint">A · Enter</span></button>
+      </div>
+      <div class="heroR">
+        <div class="week" id="week" aria-label="Practice days this week"></div>
+        <div class="weekTxt" id="weekTxt"></div>
+        <div class="lvl" id="lvlCard"></div>
+      </div>
+    </section>
+    <div class="tiles modes">
       <button class="tile blue" id="bNets"><b>Nets session</b><span>24 balls · bowlers take turns · no feedback till the end</span></button>
+      <button class="tile gold" id="bTrialTile"><b id="trialTitle">Next trial</b><span id="trialSub"></span></button>
       <button class="tile" id="bDrill"><b>Short-ball drill</b><span>30 balls · 60% short</span></button>
       <button class="tile" id="bSpin"><b>Spin drill</b><span>30 balls · off- and leg-spin</span></button>
       <button class="tile green" id="bMatch"><b>Match · 3 overs</b><span>Chase a target · 3 wickets</span></button>
-      <button class="tile" id="bProg"><b>Progress</b><span>Daily trend</span></button>
-      <button class="tile" id="bRT"><b>Reaction test</b><span>Your button delay</span></button>
-      <a class="tile" id="bMirror" href="mirror.html"><b>Batting mirror</b><span>Phone camera · slow-mo · pose checks</span></a>
+      <button class="tile" id="bStart"><b>Classic 50</b><span>50 balls · adapts to you</span></button>
+      <button class="tile" id="bQuick"><b>Quick 30</b><span>30 balls · adapts to you</span></button>
+      <button class="tile" id="bEndless"><b>Endless</b><span>Stop when you like</span></button>
     </div>
-    <div class="row">
-      <button class="btn" id="bTrig" aria-pressed="false">Trigger: OFF</button>
-      <button class="btn" id="bQuick">Quick 30</button>
-      <button class="btn" id="bEndless">Endless practice</button>
-      <button class="btn" id="bSettings">Settings</button>
-      <button class="btn" id="bExport">Export data</button>
-      <button class="btn hidden" id="bInstall">Install app</button>
-    </div>
-    <div class="path" id="path"></div>
-    <div class="stats">
-      <div class="stat"><small>LEVEL</small><b id="sLevel">—</b></div>
-      <div class="stat"><small>LAST SCORE</small><b id="sLast">—</b></div>
-      <div class="stat"><small>XP</small><b id="sXP">—</b></div>
-      <div class="stat"><small>YOUR REACTION</small><b id="sCount">—</b></div>
-    </div>
-    <div class="keys">
-      <div class="key kT"><b>TRIGGER</b><div>Optional · before release · RB · Space · wheel click · phone: 1st tap</div></div>
-      <div class="key kF"><b>FEET (L1–3)</b><div>FRONT: Y · ← · left click · tap top<br>BACK: A · → · right click · tap bottom<br>L2–3: press again = PLAY, nothing = LEAVE</div></div>
-      <div class="key kP"><b>SHOTS (L4)</b><div>Front: Y defend · X drive · LT flick (Q W E)<br>Back: A defend · B punch · RT pull (A S D)<br>Phone: 6 tap zones · nothing = LEAVE</div></div>
-    </div>
-    <p class="note" id="padNote"></p>
-    <p class="note">Stand 2.5–3 m from the screen in your stance, head still, eyes on the bowler's hand. Make the real step as you press. Against spin, get forward to anything tossed up.</p>
+    <p class="note" id="setupTip"></p>
     <div class="hist" id="hist"></div>
   </div>
+</div>
+
+<!-- CAREER -->
+<div id="career" class="screen tabbed hidden">
+  <div class="wrap">
+    <header class="topbar"><div class="brand"><i></i>CAREER</div></header>
+    <h1 class="display">From the gully to India A</h1>
+    <p class="lead">Each promotion is a trial: 2 overs in the nets against a boss bowler, no feedback till the end, 80% to pass. A trial opens when your training level reaches what it tests.</p>
+    <div id="nextTrial"></div>
+    <div class="ladder" id="ladder"></div>
+    <h2>Boss nets</h2>
+    <p class="note">Face a boss you've beaten again, any time.</p>
+    <div class="tiles" id="bossNets"></div>
+  </div>
+</div>
+
+<!-- MORE -->
+<div id="more" class="screen tabbed hidden">
+  <div class="wrap">
+    <header class="topbar"><div class="brand"><i></i>MORE</div><span class="stage" id="ver"></span></header>
+    <div class="tiles more">
+      <button class="tile" id="bSettings"><b>Settings</b><span>Hand · view · pace · feedback · graphics</span></button>
+      <button class="tile" id="bRT"><b>Reaction test</b><span id="rtSub2">Your button delay</span></button>
+      <a class="tile" id="bMirror" href="mirror.html"><b>Batting mirror</b><span>Phone camera · slow-mo · head and feet checks</span></a>
+      <button class="tile" id="bHow"><b>How it works</b><span>The science — and what a screen can't do</span></button>
+      <button class="tile" id="bControls"><b>Controls</b><span>Phone · keyboard · mouse · Xbox controller</span></button>
+      <button class="tile" id="bTrig"><b>Trigger: OFF</b><span>Time your forward press</span></button>
+      <button class="tile" id="bExport"><b>Export data</b><span>Back up your sessions</span></button>
+      <button class="tile hidden" id="bInstall"><b>Install app</b><span>Home screen · full screen · offline</span></button>
+    </div>
+    <div class="keys hidden" id="controls">
+      <div class="key kT"><b>TRIGGER</b><div>Optional · before release · RB/LB · Space · wheel click · phone: 1st tap</div></div>
+      <div class="key kF"><b>FEET (L1–3)</b><div>FRONT: Y · ← · left click · tap top half<br>BACK: A · → · right click · tap bottom half<br>L2–3: press again = PLAY · nothing = LEAVE</div></div>
+      <div class="key kP"><b>SHOTS (L4)</b><div>Front: Y defend · X drive · LT flick (W E Q)<br>Back: A defend · B punch · RT pull (S D A)<br>Phone: 6 tap zones · nothing = LEAVE</div></div>
+      <div class="key"><b>AFTER A BALL</b><div>A · Enter = next · Y · H = hold · B · R = replay · X · S = slow-mo<br>Menu · P · Esc = pause</div></div>
+      <div class="key"><b>MENUS</b><div>D-pad / stick = move · A = choose · B = back · LB/RB = tabs</div></div>
+    </div>
+    <p class="note" id="padNote"></p>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<div id="howto" class="screen hidden">
+  <div class="wrap prose">
+    <div class="brand"><i></i>HOW IT WORKS</div>
+    <h1 class="display">Read it early. Move your feet.</h1>
+    <h2>What it trains</h2>
+    <p>Picking up the length from the bowler's hand and the first part of the flight — and turning it into the right foot movement before the ball pitches.</p>
+    <ul>
+      <li><b>Blackout (temporal occlusion).</b> At higher levels the screen goes black at or just after release, so you must use early information. Occlusion is a standard way researchers study how batters anticipate (Müller, Abernethy &amp; Farrow, 2006).</li>
+      <li><b>Real conditions.</b> Real pace, flight times and bounce, club-level accuracy, bowlers taking turns, the real gap between balls in nets. Practice should look like the game (Pinder, Davids, Renshaw &amp; Araújo, 2011).</li>
+      <li><b>See it, then move.</b> Stand in your stance and make the real step as you press. Reading without moving trains a different skill.</li>
+      <li><b>Where to look.</b> Eyes on the hand at release; good batters' eyes then jump ahead to where the ball will pitch (Land &amp; McLeod, 2000).</li>
+      <li><b>About 85% right.</b> The level adjusts after every ball to keep you right about 85% of the time — hard enough to learn, easy enough to keep the read (Wilson et al., 2019).</li>
+      <li><b>Feedback fades.</b> Full replays early in each stage, then only after mistakes, so you learn to trust your own read (Salmoni, Schmidt &amp; Walter, 1984).</li>
+      <li><b>Mixed, not blocked.</b> Lengths, lines and bowlers are mixed, which helps the skill last and transfer (Shea &amp; Morgan, 1979).</li>
+      <li><b>Short and often.</b> About 10 minutes a day. Spreading practice out generally helps learning stick better than cramming it into one long session.</li>
+    </ul>
+    <h2>What counts as a good read</h2>
+    <p>The right foot (and play or leave), <b>before the ball pitches</b> (+30 ms grace), and <b>after a real look</b>. Pressing sooner than your reaction time + 0.05 s after release can't have used the ball's flight, so it counts as a guess: half marks, no XP. XP comes only from good reads — never from speed or volume.</p>
+    <h2>What a screen can't do</h2>
+    <ul>
+      <li><b>No real depth.</b> A flat screen has no stereo vision. Life-size view gets the ball's size and timing right, not its depth.</li>
+      <li><b>It can't see your feet.</b> You're scored on the decision you press, not your footwork. Use the batting mirror to check head and feet.</li>
+      <li><b>No bat, no ball, no fear.</b> You don't learn to hit here, and a screen ball can't hurt you. Real nets come first.</li>
+      <li><b>Simulated bowlers.</b> Real bowlers have their own actions and cues. Here the release cue for length is real but deliberately subtle and noisy.</li>
+      <li><b>Transfer is not guaranteed.</b> Video-based reading practice improves reading in tests; evidence that it improves real batting is promising but limited. Treat this as one part of your preparation.</li>
+      <li><b>Timing.</b> Every press is measured from the frame that showed the release, using the press's own timestamp. The screen and controller still add a few milliseconds; the reaction test uses the same path, so they cancel out of your reading time.</li>
+    </ul>
+    <h2>Sources</h2>
+    <ul class="refs">
+      <li>Land, M. F., &amp; McLeod, P. (2000). From eye movements to actions: how batsmen hit the ball. <i>Nature Neuroscience</i>.</li>
+      <li>Müller, S., Abernethy, B., &amp; Farrow, D. (2006). How do world-class cricket batsmen anticipate a bowler's intention? <i>Quarterly Journal of Experimental Psychology</i>.</li>
+      <li>Pinder, R. A., Davids, K., Renshaw, I., &amp; Araújo, D. (2011). Representative learning design and functionality of research and practice in sport. <i>Journal of Sport &amp; Exercise Psychology</i>.</li>
+      <li>Salmoni, A. W., Schmidt, R. A., &amp; Walter, C. B. (1984). Knowledge of results and motor learning: a review and critical reappraisal. <i>Psychological Bulletin</i>.</li>
+      <li>Shea, J. B., &amp; Morgan, R. L. (1979). Contextual interference effects on the acquisition, retention, and transfer of a motor skill. <i>Journal of Experimental Psychology: Human Learning and Memory</i>.</li>
+      <li>Wilson, R. C., Shenhav, A., Straccia, M., &amp; Cohen, J. D. (2019). The Eighty Five Percent Rule for optimal learning. <i>Nature Communications</i>.</li>
+    </ul>
+    <div class="row"><button class="btn" id="bHowBack">Back</button></div>
+  </div>
+</div>
+
+<!-- ONBOARDING -->
+<div id="onboard" class="screen hidden">
+  <div class="wrap narrow" id="obBody"></div>
 </div>
 
 <!-- SETTINGS -->
@@ -135,14 +227,17 @@
 </div>
 
 <!-- PROGRESS -->
-<div id="progress" class="screen hidden">
+<div id="progress" class="screen tabbed hidden">
   <div class="wrap">
     <div class="brand"><i></i>PROGRESS</div>
     <h1 class="h1s">Are you reading it earlier?</h1>
     <div class="legend"><span><i class="lg g"></i>● Score %</span><span><i class="lg w"></i>▲ Short balls %</span><span><i class="lg a"></i>■ Reading time (s, right axis — 0.2–0.25 s is the target)</span></div>
     <div class="panel"><canvas id="progChart"></canvas><p class="note hidden" id="progEmpty">No sessions yet. Play one and come back.</p></div>
+    <h2>Badges</h2>
+    <p class="note">Earned for real skills — correct, on-time reads — never for speed or volume.</p>
+    <div class="badges" id="badges"></div>
+    <h2>Day by day</h2>
     <div class="panel tablewrap" id="progTable"></div>
-    <div class="row"><button class="btn" id="bProgBack">Back</button></div>
   </div>
 </div>
 
@@ -170,7 +265,9 @@
             <div class="counts" id="eCounts"></div>
           </div>
           <div class="meta" id="eMeta"></div>
+          <div class="trialRes hidden" id="eTrial"></div>
           <div class="leak" id="eLeak"></div>
+          <div class="newBadges" id="eBadges"></div>
           <p class="note" id="eNote"></p>
         </div>
         <div class="panel">

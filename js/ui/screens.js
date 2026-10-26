@@ -8,41 +8,12 @@ import { importData, exportData, newDB, DEF } from '../core/store.js';
 import { median } from '../core/timing.js';
 import { TIERS } from '../core/quality.js';
 import { drawMap } from './session-ui.js';
-
-const SCREENS = ['home', 'settings', 'progress', 'end', 'pause', 'rtest'];
-export function only(id) { for (const s of SCREENS) show(s, s === id); app.state = id || 'none'; }
-
-// ---------- home ----------
-function drillName(s) {
-  if (s.match) return 'Match · ' + s.match.runs + '/' + s.match.wk + ' · ' + (s.match.res || '');
-  const k = s.kind || s.drill;
-  return ({ short: 'Short-ball drill', spin: 'Spin drill', nets: 'Nets session', daily: 'Daily session', quick: 'Quick 30', endless: 'Endless',
-    trial: 'Trial', boss: 'Boss nets' })[k] || ('peak: ' + (LEVELS[s.peak] || LEVELS[0]).n);
-}
-export function renderHome() {
-  const { db, S } = app, ss = db.sessions;
-  renderTrig();
-  $('sCount').textContent = db.rtBase ? Math.round(db.rtBase * 1000) + ' ms' : 'Test it';
-  const L = LEVELS[db.level];
-  $('sLevel').textContent = S.levelMode === 'auto' ? `L${L.m} · ${L.k} kph` : 'Fixed';
-  $('sLast').textContent = ss.length ? ss[ss.length - 1].score + '%' : '—';
-  $('sXP').textContent = totalXP(db).toLocaleString();
-  $('path').innerHTML = [1, 2, 3, 4].map(m => {
-    const st = STAGE_START[m], en = m < 4 ? STAGE_START[m + 1] : LEVELS.length, n = en - st, cur = db.level;
-    const done = cur >= en, on = cur >= st && cur < en, f = done ? 1 : (on ? (cur - st + (db.levelD || 0)) / n : 0);
-    return `<div class="stg${on ? ' on' : ''}${done ? ' done' : ''}"><small>LEVEL ${m}</small><b>${STAGES[m]}</b><i><u style="width:${Math.round(f * 100)}%"></u></i></div>`;
-  }).join('');
-  $('hist').innerHTML = ss.length ? '<div class="hh">RECENT</div>' + ss.slice(-5).reverse().map(s => {
-    const d = new Date(s.date);
-    return `<div><span>${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span><span>${s.n} balls</span><span>${s.score}%</span><span>${s.xp ? s.xp + ' XP' : ''}</span><span>${esc(drillName(s))}</span></div>`;
-  }).join('') : '';
-  $('padNote').innerHTML = app.pads.connected ? '<b>Controller connected.</b> RB/LB = trigger · Y = front · A = back · L2–3: any button again = play · L4: Y defend, X drive, LT flick · A defend, B punch, RT pull · Menu = pause'
-    : 'Xbox controller: plug it in and press any button.';
-}
-export function renderTrig() { const b = $('bTrig'); b.textContent = 'Trigger: ' + (app.S.trigger ? 'ON' : 'OFF'); b.setAttribute('aria-pressed', app.S.trigger ? 'true' : 'false'); b.classList.toggle('on', !!app.S.trigger); }
+import { only } from './menus.js';
+import { BADGES, badgeSVG, badgeById } from '../core/badges.js';
+export { only };
 
 // ---------- end of session ----------
-export function renderEnd(s, score, rec) {
+export function renderEnd(s, score, rec, extra = {}) {
   const b = s.balls, cnt = v => b.filter(x => x.v === v).length;
   const silentEnd = s.plan.segs.every(x => x.fb === 'end');
   if (s.match) { const m = s.match; $('eScore').textContent = `${m.runs}/${m.wk}`; $('eScore').style.color = m.won ? 'var(--good)' : 'var(--bad)'; $('eTitle').textContent = (m.won ? 'WON · ' : 'LOST · ') + m.res + ` · target ${m.target}`; }
@@ -75,6 +46,16 @@ export function renderEnd(s, score, rec) {
   if (top && top[1] >= 2) { show('eLeak', true); $('eLeak').innerHTML = `<b>Biggest leak:</b> ${esc(top[0])} (${top[1]}×)`; }
   else show('eLeak', false);
   $('eNote').textContent = silentEnd ? 'Nets rules: this is your first look at how you did.' : '';
+  const tr = extra.trial, et = $('eTrial');
+  if (tr) {
+    et.className = 'trialRes ' + (tr.passed ? 'pass' : 'fail');
+    et.innerHTML = (tr.passed ? '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="43" fill="none" stroke="#22c55e" stroke-width="9"/><path d="M29 52 L44 67 L72 36" fill="none" stroke="#22c55e" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      : '<svg viewBox="0 0 100 100"><rect x="8" y="8" width="84" height="84" rx="16" fill="none" stroke="#ef4444" stroke-width="9"/><path d="M32 32 L68 68 M68 32 L32 68" stroke="#ef4444" stroke-width="10" stroke-linecap="round"/></svg>')
+      + `<span>${tr.promoted ? `PROMOTED TO ${esc(tr.tierName.toUpperCase())}!` : tr.passed ? 'PASSED' : `NOT THIS TIME — ${score}% (80% needed)`}</span>`;
+  } else { et.className = 'trialRes hidden'; et.innerHTML = ''; }
+  const nb = extra.badges || [];
+  $('eBadges').innerHTML = nb.map(id => { const b = badgeById(id); return `<div class="bdg">${badgeSVG(b, true)}<b>${esc(b.n)}</b><small>${esc(b.d)}</small></div>`; }).join('');
+  $('bAgain').textContent = s.kind === 'tutorial' ? 'Start your first daily session' : s.kind === 'trial' && !(tr && tr.passed) ? 'Try the trial again' : 'Go again (Enter · A)';
   only('end');
   requestAnimationFrame(() => drawMap($('endMap'), b, null, app.db.profile.hand));
 }
@@ -85,6 +66,8 @@ export function renderProgress() {
   const cell = v => v == null ? '—' : `<span class="${v >= 80 ? 'g' : v >= 60 ? 'w' : 'b'}">${v}%</span>`;
   $('progTable').innerHTML = D.length ? `<table><thead><tr><th>Day</th><th>Balls</th><th>Score</th><th>Reading</th><th>Full</th><th>Short</th><th>Wide off</th><th>Spin</th><th>XP</th><th>Matches</th><th>Level</th></tr></thead><tbody>` +
     D.slice().reverse().map(r => `<tr><td>${r.k.slice(5)}</td><td>${r.n}</td><td>${cell(r.score)}</td><td>${r.read == null ? '—' : r.read.toFixed(2) + ' s'}</td><td>${cell(r.full)}</td><td>${cell(r.short)}</td><td>${cell(r.wide)}</td><td>${cell(r.spin)}</td><td>${r.xp || '—'}</td><td>${r.matches ? r.wins + '/' + r.matches + ' won' : '—'}</td><td>L${LEVELS[r.lvl].m} · ${LEVELS[r.lvl].k}</td></tr>`).join('') + '</tbody></table>' : '';
+  $('badges').innerHTML = BADGES.map(b => { const on = !!app.db.badges[b.id];
+    return `<div class="bdg${on ? '' : ' off'}">${badgeSVG(b, on)}<b>${esc(b.n)}</b><small>${esc(b.d)}${on ? '<br>✓ ' + new Date(app.db.badges[b.id]).toLocaleDateString() : ''}</small></div>`; }).join('');
   only('progress');
   requestAnimationFrame(() => drawProg($('progChart'), D));
 }
@@ -128,6 +111,9 @@ const FIELDS = [
   { k: 'smart', l: 'SMART FEEDING', t: 'check', h: 'Bowls more of the length you get wrong most.' },
   { k: 'sound', l: 'SOUND', t: 'check' }, { k: 'voice', l: 'VOICE COACH', t: 'check' }, { k: 'haptics', l: 'VIBRATION / RUMBLE', t: 'check' },
   { k: 'fullscreen', l: 'FULL SCREEN ON START', t: 'check' },
+  { k: 'textScale', l: 'TEXT SIZE IN PLAY', t: 'number', min: 1, max: 1.6, step: 0.1, h: '1 = normal. Bigger verdicts and HUD for reading from 3 m.' },
+  { k: 'contrast', l: 'HIGH CONTRAST', t: 'check', h: 'Stronger outlines and solid panels. Verdicts always use shape as well as colour.' },
+  { k: 'reduceMotion', l: 'REDUCE MOTION', t: 'check', h: 'No zoom or slide animations (the ball itself always moves, of course).' },
   { k: 'quality', l: 'GRAPHICS QUALITY', t: 'select', o: [['auto', 'Auto — keeps every frame on time'], ...TIERS.map(t => [t.id, t.id[0].toUpperCase() + t.id.slice(1)])], h: 'Auto lowers resolution or shadows between balls if frames are late. Never changes mid-delivery.' },
   { k: 'overlay', l: 'FRAME-TIME OVERLAY', t: 'check', h: 'Debug: refresh rate, frame times, dropped frames. Shortcut: F2 or the ` key.' },
 ];
