@@ -1,0 +1,20 @@
+# Runs the tests on every push and pull request. Deployment needs no build: GitHub Pages serves the repo as-is.
+name: tests
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Physics, grading, timing, game logic, saved data, service-worker stamp
+        run: node tests/run-all.mjs
+      - name: Install headless Chromium
+        run: npm install --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
+      - name: Browser tests (boot, migration, timing, blackout, offline)
+        run: node tests/browser-test.mjs
