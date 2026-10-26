@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07090c">
+<meta name="color-scheme" content="dark">
+<title>Batting Mirror</title>
+<style>
+/* Layout: full-screen camera canvas, guides drawn on top, one control tray at the bottom */
+:root{
+  --bg:#07090c;--panel:rgba(12,16,22,.92);--line:rgba(255,255,255,.12);
+  --text:#eef2f6;--muted:#8d99a8;--good:#22c55e;--warn:#f5a524;--accent:#38bdf8;--gold:#fde68a;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:"Segoe UI",Roboto,system-ui,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.hidden{display:none!important}
+#view{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none}
+video{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none}
+
+#chip{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:5;pointer-events:none;
+  padding:8px 16px;border-radius:999px;background:rgba(6,9,13,.7);border:1px solid var(--line);font-weight:800;letter-spacing:.12em;font-size:clamp(14px,3.6vw,26px);white-space:nowrap;font-variant-numeric:tabular-nums}
+#chip.slow{background:rgba(120,80,0,.8);border-color:#a16207;color:var(--gold)}
+#chip.live{color:var(--good)}
+#prog{position:fixed;left:0;bottom:0;height:5px;background:var(--gold);z-index:5;width:0}
+#editTip{position:fixed;left:50%;top:calc(64px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:6;width:min(92vw,560px);text-align:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px;line-height:1.45}
+#editTip b{color:var(--gold)}
+#editTip button{margin-top:10px;padding:10px 22px;border-radius:12px;background:#15803d;font-weight:800}
+
+#tray{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--panel);border-top:1px solid var(--line);backdrop-filter:blur(10px);
+  padding:12px max(12px,env(safe-area-inset-left,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-right,0px));
+  display:grid;gap:10px;transition:transform .25s ease}
+#tray.off{transform:translateY(110%)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{padding:11px 14px;font-weight:700;font-size:15px;color:var(--muted)}
+.seg button.on{background:#1e2a36;color:var(--text)}
+.btn{padding:11px 14px;border-radius:12px;background:#161d26;border:1px solid var(--line);font-weight:700;font-size:15px}
+.btn.gold{background:#3a2a10;border-color:#a16207;color:var(--gold)}
+.lbl{color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.12em;margin-right:2px}
+.num{min-width:58px;text-align:center;font-weight:800;font-variant-numeric:tabular-nums}
+
+#report{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:6;
+  margin:0 auto;max-width:560px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;display:grid;gap:6px}
+#report .r{display:grid;grid-template-columns:28px 1fr;align-items:center;gap:8px;font-size:clamp(15px,3.8vw,22px);font-weight:650}
+#report .s{width:24px;height:24px}
+#report .h{color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.14em}
+#start{position:fixed;inset:0;z-index:20;overflow:auto;background:radial-gradient(ellipse at 30% 10%,#0f1722,#05070a 70%);
+  padding:calc(28px + env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px))}
+#start .wrap{max-width:620px;margin:0 auto}
+.brand{color:var(--muted);font-weight:800;letter-spacing:.2em;font-size:13px}
+h1{font-size:clamp(34px,9vw,56px);line-height:1.02;font-weight:850;margin:16px 0 10px;text-wrap:balance}
+.lead{color:#c3ccd6;font-size:17px;line-height:1.5}
+ol{margin:20px 0 0 20px;color:#cfd6df;font-size:16px;line-height:1.55;display:grid;gap:8px}
+ol b{color:var(--text)}
+#go{margin-top:24px;width:100%;padding:20px;border-radius:18px;background:linear-gradient(135deg,#16a34a,#15803d);font-size:22px;font-weight:850;box-shadow:0 16px 40px rgba(22,163,74,.25)}
+#err{margin-top:16px;color:#fca5a5;font-size:15px;line-height:1.5}
+.note{margin-top:14px;color:var(--muted);font-size:14px;line-height:1.5}
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<video id="cam" playsinline muted autoplay></video>
+<div id="chip" class="hidden"></div>
+<div id="prog"></div>
+<div id="report" class="hidden"></div>
+<div id="editTip" class="hidden">
+  Stand in your stance. <b>Drag the white line</b> onto your head, <b>drag the yellow line</b> to your crease, and <b>tap your head</b> to drop the ring.
+  <br><button id="editDone">Done</button>
+</div>
+
+<div id="tray" class="hidden off">
+  <div class="row">
+    <span class="lbl">MODE</span>
+    <div class="seg" id="modeSeg"><button data-m="shot">Shot replay</button><button data-m="delay">Delay mirror</button></div>
+    <button class="btn gold" id="replayBtn">Replay last</button>
+  </div>
+  <div class="row" id="delayRow">
+    <span class="lbl">DELAY</span>
+    <button class="btn" id="dMinus" aria-label="Shorter delay">−</button><span class="num" id="dVal">3.0 s</span><button class="btn" id="dPlus" aria-label="Longer delay">+</button>
+  </div>
+  <div class="row" id="sensRow">
+    <span class="lbl">SHOT DETECT</span>
+    <div class="seg" id="sensSeg"><button data-s="0.7">Low</button><button data-s="1">Medium</button><button data-s="1.5">High</button></div>
+  </div>
+  <div class="row">
+    <button class="btn gold" id="poseBtn">Pose checks: ON</button>
+    <button class="btn" id="guideBtn">Set guides</button>
+    <button class="btn" id="flipBtn">Flip camera</button>
+    <button class="btn" id="mirBtn">Mirror: ON</button>
+    <button class="btn" id="fsBtn">Full screen</button>
+  </div>
+</div>
+
+<div id="start">
+  <div class="wrap">
+    <div class="brand">BATTING MIRROR</div>
+    <h1>See your head and feet, every shot.</h1>
+    <p class="lead">Play a shadow shot. The phone spots it and replays it in slow motion, then goes back to live. Or switch to a delayed mirror.</p>
+    <ol>
+      <li><b>Prop the phone</b> about 2–3 m in front of you, waist to chest height, where the bowler would be (front-on). Your whole body should be in view.</li>
+      <li><b>Tap Start</b> and allow the camera.</li>
+      <li><b>Tap the screen</b> any time for controls. Use <b>Set guides</b> once: line on your head in your stance, ring on your head.</li>
+      <li><b>Watch for:</b> head staying on the line and inside the ring, front toe to mid-off, and back foot really going back and across.</li>
+    </ol>
+    <button id="go">Start camera</button>
+    <div id="err"></div>
+    <p class="note">Pose checks (right-handed batter, camera front-on): head on the line, head still through the shot, and front stride or back-and-across. They need internet the first time to load. Toe angle and base width are left out: one camera can’t judge them reliably.</p>
+    <p class="note">The camera only works when this page is opened from an https address, like your GitHub Pages link. Everything stays on your phone. Nothing is uploaded.</p>
+  </div>
+</div>
+
+<script>
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+const view=$('view'), vctx=view.getContext('2d'), cam=$('cam');
+const cap=document.createElement('canvas'), cctx=cap.getContext('2d');
+const mo=document.createElement('canvas'), mctx=mo.getContext('2d',{willReadFrequently:true});
+
+// ---------- settings (kept on this phone) ----------
+const DEF={mode:'shot',delay:3,sens:1,mirror:true,facing:'user',pose:true,g:{x:0.5,y:0.88,hx:null,hy:null,set:false}};
+let ST; try{ ST=Object.assign({},DEF,JSON.parse(localStorage.getItem('mirror_v1'))||{}); }catch(e){ ST=Object.assign({},DEF); }
+ST.g=Object.assign({},DEF.g,ST.g||{});
+function save(){ try{ localStorage.setItem('mirror_v1',JSON.stringify(ST)); }catch(e){} }
+
+// ---------- frame buffer: small JPEGs, so 8+ seconds fit in a few MB ----------
+const FPS=24, KEEP_EXTRA=5000;
+let frames=[], pending=0, lastCap=0, stream=null, running=false, prevPix=null;
+let replay=null, lastShot=null, cooldownUntil=0, shots=0;
+function trim(now){ const keep=ST.delay*1000+KEEP_EXTRA; while(frames.length&&frames[0].t<now-keep) frames.shift(); }
+function pick(list,t){ if(!list.length) return null; let lo=0,hi=list.length-1; if(t<list[0].t) return list[0];
+  while(lo<hi){ const m=(lo+hi+1)>>1; if(list[m].t<=t) lo=m; else hi=m-1; } return list[lo]; }
+
+function capture(now){
+  if(!running||cam.readyState<2||document.hidden) return;
+  if(now-lastCap<1000/FPS-3||pending>2) return;
+  lastCap=now;
+  const vw=cam.videoWidth, vh=cam.videoHeight; if(!vw||!vh) return;
+  const W=vw>=vh?640:480, H=Math.round(W*vh/vw);
+  if(cap.width!==W||cap.height!==H){ cap.width=W; cap.height=H; }
+  cctx.drawImage(cam,0,0,W,H);
+  // motion energy on a tiny greyscale copy
+  const mw=48, mh=Math.max(16,Math.round(48*vh/vw));
+  if(mo.width!==mw||mo.height!==mh){ mo.width=mw; mo.height=mh; prevPix=null; }
+  mctx.drawImage(cam,0,0,mw,mh);
+  const d=mctx.getImageData(0,0,mw,mh).data, n=mw*mh;
+  let e=0; if(!prevPix) prevPix=new Float32Array(n);
+  for(let i=0,j=0;j<n;i+=4,j++){ const g=(d[i]+d[i+1]+d[i+2])/3; e+=Math.abs(g-prevPix[j]); prevPix[j]=g; }
+  e/=n;
+  const t=now; pending++;
+  cap.toBlob(b=>{ pending--; if(b){ frames.push({t,blob:b}); trim(performance.now()); } },'image/jpeg',0.72);
+  motion(t,e);
+}
+
+// ---------- shot detection: a burst of movement, then stillness → slow-mo replay ----------
+const M={state:'idle',base:2,above:0,start:0,last:0};
+function motion(t,e){
+  if(ST.mode!=='shot'||replay||t<cooldownUntil){ if(!replay) M.base=M.base*0.97+e*0.03; M.state='idle'; M.above=0; return; }
+  const hi=(M.base*2.4+3)/ST.sens, lo=M.base*1.6+1.2;
+  if(M.state==='idle'){
+    if(e>hi){ if(++M.above>=2){ M.state='moving'; M.start=t-120; M.last=t; } }
+    else { M.above=0; M.base=M.base*0.96+e*0.04; }
+  } else {
+    if(e>lo) M.last=t;
+    if(t-M.last>550){ const dur=M.last-M.start; M.state='idle'; M.above=0;
+      if(dur>250&&dur<4500){ const a=M.start, b=M.last; setTimeout(()=>{ startReplay(a-500,b+350,0.5,true); if(pose&&ST.pose) showReport(analyse(a-500,a,b+350)); },60); } }
+    else if(t-M.start>7000){ M.state='idle'; M.above=0; }      // walking about, not a shot
+  }
+}
+function startReplay(t0,t1,rate,isShot){
+  const seg=frames.filter(f=>f.t>=t0&&f.t<=t1); if(seg.length<6) return;
+  replay={frames:seg,t0:seg[0].t,t1:seg[seg.length-1].t,start:performance.now(),rate};
+  if(isShot){ lastShot={t0,t1,frames:seg,poses:poses.filter(p=>p.t>=t0&&p.t<=t1)}; shots++; }
+  beep();
+}
+function replayLast(){
+  if(lastShot){ replay={frames:lastShot.frames,t0:lastShot.frames[0].t,t1:lastShot.frames[lastShot.frames.length-1].t,start:performance.now(),rate:0.5}; return; }
+  const now=performance.now(); startReplay(now-4000,now,0.5,false);
+}
+let AC=null;
+function beep(){ try{ AC=AC||new (window.AudioContext||window.webkitAudioContext)(); const o=AC.createOscillator(), g=AC.createGain(), t=AC.currentTime;
+  o.frequency.value=880; g.gain.setValueAtTime(0.12,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.15); o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t+0.16); }catch(e){} }
+
+// ---------- pose (MediaPipe Pose Landmarker, runs on the phone) ----------
+const MPV='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MODEL='https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+let pose=null, poseState='off', poses=[], lastPose=0, liveLm=null;
+async function loadPose(){
+  if(pose||poseState==='loading') return; poseState='loading';
+  try{
+    const V=await import(MPV+'/vision_bundle.mjs');
+    const fs=await V.FilesetResolver.forVisionTasks(MPV+'/wasm');
+    const o=d=>({baseOptions:{modelAssetPath:MODEL,delegate:d},runningMode:'VIDEO',numPoses:1,minPoseDetectionConfidence:0.5,minPosePresenceConfidence:0.5,minTrackingConfidence:0.5});
+    try{ pose=await V.PoseLandmarker.createFromOptions(fs,o('GPU')); }catch(e){ pose=await V.PoseLandmarker.createFromOptions(fs,o('CPU')); }
+    poseState='on';
+  }catch(e){ poseState='fail'; }
+}
+function runPose(now){
+  if(!pose||!ST.pose||cam.readyState<2||now-lastPose<66) return;      // ~15 checks a second
+  lastPose=now;
+  try{ const r=pose.detectForVideo(cam,now), lm=r&&r.landmarks&&r.landmarks[0];
+    liveLm=lm||null; if(lm){ poses.push({t:now,lm}); const keep=ST.delay*1000+KEEP_EXTRA; while(poses.length&&poses[0].t<now-keep) poses.shift(); } }catch(e){}
+}
+const EDGES=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,31],[28,32],[27,29],[28,30]];
+function px(lm,i){ const p=lm[i]; return {x:p.x*cam.videoWidth,y:p.y*cam.videoHeight,v:p.visibility==null?1:p.visibility}; }
+function lineRawX(){ return (ST.mirror?1-ST.g.x:ST.g.x)*cam.videoWidth; }
+function torso(lm){ const a=px(lm,11),b=px(lm,12),c=px(lm,23),d=px(lm,24); return Math.hypot((a.x+b.x-c.x-d.x)/2,(a.y+b.y-c.y-d.y)/2)||1; }
+function drawSkel(lm,headOk){
+  if(!lm) return; const dpr=view.width/innerWidth;
+  const P=i=>({x:box.x+(ST.mirror?1-lm[i].x:lm[i].x)*box.w,y:box.y+lm[i].y*box.h,v:lm[i].visibility==null?1:lm[i].visibility});
+  vctx.save(); vctx.lineWidth=3*dpr; vctx.strokeStyle='rgba(125,211,252,.75)'; vctx.lineCap='round';
+  for(const [a,b] of EDGES){ const A=P(a),B=P(b); if(A.v<0.3||B.v<0.3) continue; vctx.beginPath(); vctx.moveTo(A.x,A.y); vctx.lineTo(B.x,B.y); vctx.stroke(); }
+  const n=P(0); if(n.v>0.4){ vctx.fillStyle=headOk==null?'#e5e7eb':(headOk?'#22c55e':'#f5a524'); vctx.beginPath(); vctx.arc(n.x,n.y,9*dpr,0,7); vctx.fill();
+    vctx.lineWidth=2*dpr; vctx.strokeStyle='#000'; vctx.stroke(); }
+  vctx.restore();
+}
+function headOkLive(lm){ if(!lm||!ST.g.set) return null; const n=px(lm,0); if(n.v<0.4) return null; return Math.abs(n.x-lineRawX())<0.25*torso(lm); }
+
+// Shot report. Right-handed batter, camera front-on: off side = left of the raw camera image.
+// Nearer the camera = lower in the image, so a front-foot stride shows as the front ankle moving down.
+const SHAPE={good:'<svg class="s" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="#22c55e" stroke-width="3"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/></svg>',
+  warn:'<svg class="s" viewBox="0 0 24 24"><path d="M12 3L22 20H2Z" fill="none" stroke="#f5a524" stroke-width="3" stroke-linejoin="round"/><path d="M12 10v4" stroke="#f5a524" stroke-width="3" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="#f5a524"/></svg>',
+  bad:'<svg class="s" viewBox="0 0 24 24"><rect x="2.5" y="2.5" width="19" height="19" rx="4" fill="none" stroke="#ef4444" stroke-width="3"/><path d="M8 8l8 8M16 8l-8 8" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/></svg>'};
+function med(a){ if(!a.length) return null; const b=a.slice().sort((x,y)=>x-y); return b[b.length>>1]; }
+function analyse(t0,tMove,t1){
+  const pre=poses.filter(p=>p.t>=t0-300&&p.t<=tMove), seg=poses.filter(p=>p.t>=tMove&&p.t<=t1);
+  if(pre.length<2||seg.length<4) return [{v:'warn',m:'Couldn’t see you clearly — keep your whole body in view'}];
+  const T=med(pre.map(p=>torso(p.lm)));
+  const out=[];
+  const nx0=med(pre.map(p=>px(p.lm,0).x)), ref= ST.g.set? lineRawX() : nx0;
+  // 1. head on the line in the stance
+  if(ST.g.set){ const d=(nx0-ref)/T; out.push(Math.abs(d)<0.25?{v:'good',m:'Stance: head on the line'}:{v:'warn',m:`Stance: head starts ${d<0?'off':'leg'} side of the line`}); }
+  // 2. head through the shot
+  let worst=0; for(const p of seg){ const n=px(p.lm,0); if(n.v<0.4) continue; const d=(n.x-ref)/T; if(Math.abs(d)>Math.abs(worst)) worst=d; }
+  const aw=Math.abs(worst), side= worst<0?'OFF':'LEG';
+  out.push(aw<0.25?{v:'good',m:'Head stayed on the line'}:aw<0.4?{v:'warn',m:`Head drifted to the ${side} side`}:{v:'bad',m:`Head fell to the ${side} side`});
+  // 3. feet
+  const fa0={x:med(pre.map(p=>px(p.lm,27).x)),y:med(pre.map(p=>px(p.lm,27).y))}, ba0={x:med(pre.map(p=>px(p.lm,28).x)),y:med(pre.map(p=>px(p.lm,28).y))};
+  let fDown=0, bAcross=0, bBack=0, vis=0;
+  for(const p of seg){ const f=px(p.lm,27), b=px(p.lm,28); if(f.v<0.3||b.v<0.3) continue; vis++;
+    fDown=Math.max(fDown,(f.y-fa0.y)/T); bAcross=Math.max(bAcross,(ba0.x-b.x)/T); bBack=Math.max(bBack,(ba0.y-b.y)/T); }
+  if(vis<3) out.push({v:'warn',m:'Feet not visible — move the phone back or lower'});
+  else if(fDown>0.12) out.push({v:'good',m:'Front foot: stride forward'});
+  else if(bAcross>0.10) out.push({v:'good',m:'Back foot: back and across'});
+  else if(bBack>0.05) out.push({v:'warn',m:'Back foot went back, but not across to off stump'});
+  else out.push({v:'bad',m:'Feet barely moved'});
+  return out;
+}
+let reportTimer=null;
+function showReport(rows){
+  const el=$('report'); el.innerHTML='<div class="h">LAST SHOT</div>'+rows.map(r=>`<div class="r">${SHAPE[r.v]}<span>${r.m}</span></div>`).join('');
+  el.classList.remove('hidden'); clearTimeout(reportTimer); reportTimer=setTimeout(()=>el.classList.add('hidden'),9000);
+  const bad=rows.find(r=>r.v==='bad')||rows.find(r=>r.v==='warn'); say(bad?bad.m.replace(/—.*/,''):'Good.');
+}
+function say(t){ try{ if(!window.speechSynthesis) return; speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.rate=1.05; speechSynthesis.speak(u); }catch(e){} }
+
+// ---------- drawing ----------
+let shown=null, shownBmp=null, decoding=false, box={x:0,y:0,w:1,h:1};
+async function decode(f){ if(!f||f===shown||decoding) return; decoding=true;
+  try{ const b=await createImageBitmap(f.blob); if(shownBmp&&shownBmp.close) shownBmp.close(); shownBmp=b; shown=f; }catch(e){} decoding=false; }
+function fit(sw,sh){ const W=view.width, H=view.height, s=Math.min(W/sw,H/sh), w=sw*s, h=sh*s; box={x:(W-w)/2,y:(H-h)/2,w,h}; }
+function resize(){ const dpr=Math.min(2,window.devicePixelRatio||1); view.width=Math.round(innerWidth*dpr); view.height=Math.round(innerHeight*dpr); }
+addEventListener('resize',resize); resize();
+
+function draw(src,sw,sh){
+  const W=view.width,H=view.height; vctx.fillStyle='#000'; vctx.fillRect(0,0,W,H);
+  if(src&&sw){ fit(sw,sh); vctx.save();
+    if(ST.mirror){ vctx.translate(box.x*2+box.w,0); vctx.scale(-1,1); }
+    vctx.drawImage(src,box.x,box.y,box.w,box.h); vctx.restore(); }
+  guides();
+}
+function guides(){
+  const g=ST.g, dpr=view.width/innerWidth, X=box.x+g.x*box.w, Y=box.y+g.y*box.h;
+  vctx.save(); vctx.lineWidth=3*dpr;
+  vctx.setLineDash([14*dpr,10*dpr]); vctx.strokeStyle='rgba(255,255,255,.85)';
+  vctx.beginPath(); vctx.moveTo(X,box.y); vctx.lineTo(X,box.y+box.h); vctx.stroke();      // head line / middle-stump line
+  vctx.strokeStyle='rgba(253,230,138,.85)';
+  vctx.beginPath(); vctx.moveTo(box.x,Y); vctx.lineTo(box.x+box.w,Y); vctx.stroke();      // crease
+  vctx.setLineDash([]);
+  if(g.hx!=null){ const r=box.h*0.055; vctx.strokeStyle='rgba(56,189,248,.95)'; vctx.lineWidth=4*dpr;
+    vctx.beginPath(); vctx.arc(box.x+g.hx*box.w,box.y+g.hy*box.h,r,0,Math.PI*2); vctx.stroke(); }   // head ring
+  if(editing){ vctx.fillStyle='rgba(255,255,255,.9)'; vctx.beginPath(); vctx.arc(X,box.y+box.h*0.5,12*dpr,0,7); vctx.fill();
+    vctx.fillStyle='rgba(253,230,138,.95)'; vctx.beginPath(); vctx.arc(box.x+box.w*0.5,Y,12*dpr,0,7); vctx.fill(); }
+  vctx.restore();
+}
+
+function setChip(txt,cls){ const c=$('chip'); c.textContent=txt; c.className=cls||''; }
+function loop(now){
+  requestAnimationFrame(loop);
+  if(!running) return;
+  capture(now);
+  runPose(now);
+  if(replay){
+    const p=replay.t0+(now-replay.start)*replay.rate;
+    if(p>replay.t1){ replay=null; cooldownUntil=now+900; $('prog').style.width='0'; }
+    else { const f=pick(replay.frames,p); decode(f); if(shownBmp){ draw(shownBmp,shownBmp.width,shownBmp.height); if(ST.pose&&shown){ const q=pick(poses,shown.t); if(q&&Math.abs(q.t-shown.t)<150) drawSkel(q.lm,headOkLive(q.lm)); } }
+      setChip('SLOW-MO ½×'+(shots?' · SHOT '+shots:''),'slow'); $('prog').style.width=(100*(p-replay.t0)/(replay.t1-replay.t0)).toFixed(1)+'%'; return; }
+  }
+  if(ST.mode==='delay'){
+    const t=now-ST.delay*1000, have=frames.length&&frames[0].t<=t;
+    if(have){ const f=pick(frames,t); decode(f); if(shownBmp){ draw(shownBmp,shownBmp.width,shownBmp.height); if(ST.pose&&shown){ const q=pick(poses,shown.t); if(q&&Math.abs(q.t-shown.t)<150) drawSkel(q.lm,headOkLive(q.lm)); } } setChip(ST.delay.toFixed(1)+' s DELAY',''); }
+    else { draw(null); setChip('STARTING…',''); }
+  } else {
+    draw(cam,cam.videoWidth,cam.videoHeight); if(ST.pose) drawSkel(liveLm,headOkLive(liveLm));
+    const ps= ST.pose? (poseState==='loading'?' · POSE LOADING…':poseState==='fail'?' · POSE OFF (NO NET?)':(poseState==='on'&&!liveLm?' · STEP INTO VIEW':'')) : '';
+    setChip((M.state==='moving'?'● SHOT…':'LIVE · PLAY A SHOT'+(shots?' · '+shots:''))+ps,'live');
+  }
+}
+
+// ---------- camera ----------
+async function startCam(){
+  $('err').textContent='';
+  if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    $('err').textContent='The camera is blocked here. Open this page from your GitHub Pages link (https) in Chrome.'; return false; }
+  try{
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:ST.facing,width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}},audio:false});
+    cam.srcObject=stream; await cam.play();
+  }catch(e){
+    $('err').textContent= e&&e.name==='NotAllowedError' ? 'Camera permission was refused. Tap the lock icon in the address bar, allow Camera, then tap Start again.'
+      : 'Couldn’t start the camera ('+(e&&e.name||'error')+'). Close other apps using the camera and try again.';
+    return false; }
+  frames=[]; poses=[]; shown=null; replay=null; prevPix=null; running=true; wake(); if(ST.pose) loadPose(); return true;
+}
+let lock=null;
+async function wake(){ try{ if('wakeLock' in navigator&&!document.hidden) lock=await navigator.wakeLock.request('screen'); }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&running) wake(); });
+
+// ---------- controls ----------
+let trayTimer=null, editing=false, drag=null;
+function showTray(on){ const t=$('tray'); t.classList.toggle('off',!on); clearTimeout(trayTimer); if(on) trayTimer=setTimeout(()=>showTray(false),7000); }
+function renderTray(){
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===ST.mode));
+  document.querySelectorAll('#sensSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.s===ST.sens));
+  $('dVal').textContent=ST.delay.toFixed(1)+' s'; $('poseBtn').textContent='Pose checks: '+(ST.pose?'ON':'OFF'); $('mirBtn').textContent='Mirror: '+(ST.mirror?'ON':'OFF');
+  $('delayRow').classList.toggle('hidden',ST.mode!=='delay'); $('sensRow').classList.toggle('hidden',ST.mode!=='shot');
+}
+$('tray').addEventListener('pointerdown',()=>showTray(true));
+document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{ ST.mode=b.dataset.m; replay=null; M.state='idle'; save(); renderTray(); });
+document.querySelectorAll('#sensSeg button').forEach(b=>b.onclick=()=>{ ST.sens=+b.dataset.s; save(); renderTray(); });
+$('dMinus').onclick=()=>{ ST.delay=Math.max(1,+(ST.delay-0.5).toFixed(1)); save(); renderTray(); };
+$('dPlus').onclick=()=>{ ST.delay=Math.min(6,+(ST.delay+0.5).toFixed(1)); save(); renderTray(); };
+$('poseBtn').onclick=()=>{ ST.pose=!ST.pose; if(ST.pose) loadPose(); save(); renderTray(); };
+$('replayBtn').onclick=()=>{ replayLast(); showTray(false); };
+$('mirBtn').onclick=()=>{ ST.mirror=!ST.mirror; if(ST.g.hx!=null) ST.g.hx=1-ST.g.hx; ST.g.x=1-ST.g.x; save(); renderTray(); };
+$('flipBtn').onclick=async()=>{ ST.facing=ST.facing==='user'?'environment':'user'; ST.mirror=ST.facing==='user'; save(); renderTray(); await startCam(); };
+$('fsBtn').onclick=()=>{ const d=document.documentElement; if(!document.fullscreenElement&&d.requestFullscreen) d.requestFullscreen().catch(()=>{}); else if(document.exitFullscreen) document.exitFullscreen().catch(()=>{}); };
+$('guideBtn').onclick=()=>{ editing=true; $('editTip').classList.remove('hidden'); showTray(false); };
+$('editDone').onclick=()=>{ editing=false; ST.g.set=true; $('editTip').classList.add('hidden'); save(); };
+
+view.addEventListener('pointerdown',e=>{
+  if(!running) return;
+  if(!editing){ showTray($('tray').classList.contains('off')); return; }
+  const dpr=view.width/innerWidth, px=e.clientX*dpr, py=e.clientY*dpr, g=ST.g;
+  const X=box.x+g.x*box.w, Y=box.y+g.y*box.h, near=26*dpr;
+  if(Math.abs(px-X)<near) drag='x'; else if(Math.abs(py-Y)<near) drag='y';
+  else { g.hx=Math.max(0,Math.min(1,(px-box.x)/box.w)); g.hy=Math.max(0,Math.min(1,(py-box.y)/box.h)); drag=null; }
+  view.setPointerCapture(e.pointerId);
+});
+view.addEventListener('pointermove',e=>{ if(!editing||!drag) return; const dpr=view.width/innerWidth;
+  if(drag==='x') ST.g.x=Math.max(0,Math.min(1,(e.clientX*dpr-box.x)/box.w)); else ST.g.y=Math.max(0,Math.min(1,(e.clientY*dpr-box.y)/box.h)); });
+view.addEventListener('pointerup',()=>{ drag=null; });
+
+$('go').onclick=async()=>{ beep(); if(await startCam()){ $('start').classList.add('hidden'); $('chip').classList.remove('hidden'); $('tray').classList.remove('hidden'); renderTray(); showTray(true);
+  const d=document.documentElement; if(d.requestFullscreen) d.requestFullscreen().catch(()=>{}); } };
+renderTray();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
