@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#07090c">
 <meta name="color-scheme" content="dark">
 <title>Batting Mirror</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
 <style>
 /* Layout: full-screen camera canvas, guides drawn on top, one control tray at the bottom */
 :root{
@@ -108,8 +110,9 @@ ol b{color:var(--text)}
     </ol>
     <button id="go">Start camera</button>
     <div id="err"></div>
-    <p class="note">Pose checks (right-handed batter, camera front-on): head on the line, head still through the shot, and front stride or back-and-across. They need internet the first time to load. Toe angle and base width are left out: one camera can’t judge them reliably.</p>
-    <p class="note">The camera only works when this page is opened from an https address, like your GitHub Pages link. Everything stays on your phone. Nothing is uploaded.</p>
+    <p class="note">Pose checks (<span id="handTxt">right-handed</span> batter, camera front-on): head on the line, head still through the shot, and front stride or back-and-across. Change your batting hand in the app's Settings. Everything is stored on this phone, so after the first open it works offline. Toe angle and base width are left out: one camera can’t judge them reliably.</p>
+    <p class="note">The camera only works when this page is opened from an https address, like your GitHub Pages link. Camera images stay in the phone's memory for the replay and are never saved or uploaded.</p>
+    <p class="note"><a href="./" style="color:var(--accent)">← Back to Length Reader</a></p>
   </div>
 </div>
 
@@ -186,8 +189,12 @@ function beep(){ try{ AC=AC||new (window.AudioContext||window.webkitAudioContext
   o.frequency.value=880; g.gain.setValueAtTime(0.12,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.15); o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t+0.16); }catch(e){} }
 
 // ---------- pose (MediaPipe Pose Landmarker, runs on the phone) ----------
-const MPV='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
-const MODEL='https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+// Served from this site (vendor/mediapipe, tasks-vision 0.10.14) and cached by the service worker: no CDN at runtime.
+const MPV=new URL('vendor/mediapipe',location.href).href;
+const MODEL=new URL('vendor/mediapipe/pose_landmarker_lite.task',location.href).href;
+// Batting hand from the app's saved data (same site). Left-handers: front foot = right ankle, off side flips.
+let HAND='R'; try{ const d=JSON.parse(localStorage.getItem('lr5')); if(d&&d.profile&&d.profile.hand==='L') HAND='L'; }catch(e){}
+const FA=HAND==='L'?28:27, BA=HAND==='L'?27:28, OFFSGN=HAND==='L'?-1:1;   // OFFSGN: +1 when off side = left of the raw image
 let pose=null, poseState='off', poses=[], lastPose=0, liveLm=null;
 async function loadPose(){
   if(pose||poseState==='loading') return; poseState='loading';
@@ -220,7 +227,7 @@ function drawSkel(lm,headOk){
 }
 function headOkLive(lm){ if(!lm||!ST.g.set) return null; const n=px(lm,0); if(n.v<0.4) return null; return Math.abs(n.x-lineRawX())<0.25*torso(lm); }
 
-// Shot report. Right-handed batter, camera front-on: off side = left of the raw camera image.
+// Shot report. Camera front-on: for a right-hander the off side is the left of the raw camera image (flipped for left-handers).
 // Nearer the camera = lower in the image, so a front-foot stride shows as the front ankle moving down.
 const SHAPE={good:'<svg class="s" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="#22c55e" stroke-width="3"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/></svg>',
   warn:'<svg class="s" viewBox="0 0 24 24"><path d="M12 3L22 20H2Z" fill="none" stroke="#f5a524" stroke-width="3" stroke-linejoin="round"/><path d="M12 10v4" stroke="#f5a524" stroke-width="3" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="#f5a524"/></svg>',
@@ -233,16 +240,16 @@ function analyse(t0,tMove,t1){
   const out=[];
   const nx0=med(pre.map(p=>px(p.lm,0).x)), ref= ST.g.set? lineRawX() : nx0;
   // 1. head on the line in the stance
-  if(ST.g.set){ const d=(nx0-ref)/T; out.push(Math.abs(d)<0.25?{v:'good',m:'Stance: head on the line'}:{v:'warn',m:`Stance: head starts ${d<0?'off':'leg'} side of the line`}); }
+  if(ST.g.set){ const d=OFFSGN*(nx0-ref)/T; out.push(Math.abs(d)<0.25?{v:'good',m:'Stance: head on the line'}:{v:'warn',m:`Stance: head starts ${d<0?'off':'leg'} side of the line`}); }
   // 2. head through the shot
-  let worst=0; for(const p of seg){ const n=px(p.lm,0); if(n.v<0.4) continue; const d=(n.x-ref)/T; if(Math.abs(d)>Math.abs(worst)) worst=d; }
+  let worst=0; for(const p of seg){ const n=px(p.lm,0); if(n.v<0.4) continue; const d=OFFSGN*(n.x-ref)/T; if(Math.abs(d)>Math.abs(worst)) worst=d; }
   const aw=Math.abs(worst), side= worst<0?'OFF':'LEG';
   out.push(aw<0.25?{v:'good',m:'Head stayed on the line'}:aw<0.4?{v:'warn',m:`Head drifted to the ${side} side`}:{v:'bad',m:`Head fell to the ${side} side`});
   // 3. feet
-  const fa0={x:med(pre.map(p=>px(p.lm,27).x)),y:med(pre.map(p=>px(p.lm,27).y))}, ba0={x:med(pre.map(p=>px(p.lm,28).x)),y:med(pre.map(p=>px(p.lm,28).y))};
+  const fa0={x:med(pre.map(p=>px(p.lm,FA).x)),y:med(pre.map(p=>px(p.lm,FA).y))}, ba0={x:med(pre.map(p=>px(p.lm,BA).x)),y:med(pre.map(p=>px(p.lm,BA).y))};
   let fDown=0, bAcross=0, bBack=0, vis=0;
-  for(const p of seg){ const f=px(p.lm,27), b=px(p.lm,28); if(f.v<0.3||b.v<0.3) continue; vis++;
-    fDown=Math.max(fDown,(f.y-fa0.y)/T); bAcross=Math.max(bAcross,(ba0.x-b.x)/T); bBack=Math.max(bBack,(ba0.y-b.y)/T); }
+  for(const p of seg){ const f=px(p.lm,FA), b=px(p.lm,BA); if(f.v<0.3||b.v<0.3) continue; vis++;
+    fDown=Math.max(fDown,(f.y-fa0.y)/T); bAcross=Math.max(bAcross,OFFSGN*(ba0.x-b.x)/T); bBack=Math.max(bBack,(ba0.y-b.y)/T); }
   if(vis<3) out.push({v:'warn',m:'Feet not visible — move the phone back or lower'});
   else if(fDown>0.12) out.push({v:'good',m:'Front foot: stride forward'});
   else if(bAcross>0.10) out.push({v:'good',m:'Back foot: back and across'});
@@ -306,7 +313,7 @@ function loop(now){
     else { draw(null); setChip('STARTING…',''); }
   } else {
     draw(cam,cam.videoWidth,cam.videoHeight); if(ST.pose) drawSkel(liveLm,headOkLive(liveLm));
-    const ps= ST.pose? (poseState==='loading'?' · POSE LOADING…':poseState==='fail'?' · POSE OFF (NO NET?)':(poseState==='on'&&!liveLm?' · STEP INTO VIEW':'')) : '';
+    const ps= ST.pose? (poseState==='loading'?' · POSE LOADING…':poseState==='fail'?' · POSE CHECKS UNAVAILABLE':(poseState==='on'&&!liveLm?' · STEP INTO VIEW':'')) : '';
     setChip((M.state==='moving'?'● SHOT…':'LIVE · PLAY A SHOT'+(shots?' · '+shots:''))+ps,'live');
   }
 }
@@ -368,6 +375,8 @@ view.addEventListener('pointerup',()=>{ drag=null; });
 $('go').onclick=async()=>{ beep(); if(await startCam()){ $('start').classList.add('hidden'); $('chip').classList.remove('hidden'); $('tray').classList.remove('hidden'); renderTray(); showTray(true);
   const d=document.documentElement; if(d.requestFullscreen) d.requestFullscreen().catch(()=>{}); } };
 renderTray();
+$('handTxt').textContent= HAND==='L'?'left-handed':'right-handed';
+if('serviceWorker' in navigator&&location.protocol!=='file:') navigator.serviceWorker.register('./sw.js').catch(()=>{});
 requestAnimationFrame(loop);
 })();
 </script>

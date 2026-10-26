@@ -1,0 +1,50 @@
+# Decisions
+
+Each entry gives the choice made, why, and the date. Newest entries are at the bottom of each section.
+Decisions in CLAUDE.md are still in force unless an entry here changes them.
+
+## Platform and architecture (26 Oct 2026)
+
+| # | Decision | Why |
+|---|---|---|
+| A1 | **No build step at deploy.** Plain ES modules plus an import map, served from the repo root by GitHub Pages "deploy from branch". | Bink can't run commands. With no build there is nothing to configure in Pages settings and no gap between what's tested and what's served. Libraries are vendored already minified, with the exact command in `tools/`. |
+| A2 | **three.js r186** (0.186.1), vendored at `vendor/three/` as one minified ES module bundle. | r128 is 4+ years old. The new version has modern colour management and the current WebGL renderer. Vendoring means no CDN at runtime. |
+| A3 | **MediaPipe tasks-vision stays on 0.10.14**, now vendored (SIMD and non-SIMD wasm, plus the lite pose model). | It's the version the mirror was built and tested with. 1.x is newer but not worth the risk before selection. |
+| A4 | **Trajectories are solved in a module Web Worker** while the bowler runs in (≥3 s before release), with a synchronous fallback. | Moves the ~1–5 ms solve off the frame loop entirely. |
+| A5 | **Exact-bounce integrator plus a bracketed secant (Illinois) solver** replaces the 36-step bisection. | The landing point is now continuous in launch angle, so the solver converges in about 6–10 flights instead of about 150. Same physics constants as v4, so results match within a few mm. |
+| A6 | **Service worker:** the core is precached under a content-hash version stamped by `tools/stamp.mjs`. A CI test fails if the stamp is stale. MediaPipe is cached on first use in a separate cache. | Updates are atomic: old and new modules can never mix. A forgotten version bump can't strand users on old files. The ~15 MB mirror download only happens for people who use the mirror. |
+| A7 | **The new app lives at `/` (`index.html`).** `length-reader.html` redirects there, and v4 is kept at `legacy/v4.html`. | Old bookmarks and home-screen icons keep working, and there is a known-good fallback. |
+| A8 | **Data is saved under the `lr5` key.** v4's `lr_v3` is left untouched and re-merged on each start (deduplicated by session date). | If Bink falls back to v4 for a session, nothing is lost. |
+| A9 | **Mirror stays a separate page** (`mirror.html`) inside the same PWA scope. | It needs the camera and a different screen layout. Folding it into the 3D app would add risk and gain nothing. |
+
+## Timing (26 Oct 2026)
+
+| # | Decision | Why |
+|---|---|---|
+| T1 | The clock for every ball event is the **rAF timestamp of the first frame that shows it** (release, bounce, occlusion). | This is the closest the web gives to "when it was presented". Display latency is the same for every frame, and it cancels out of reading time because the reaction test uses the same pipeline. |
+| T2 | Touch, mouse and keyboard use **`event.timeStamp`**, never handler time. Raw stamps are stored and resolved at the end of the ball. | The handler can run before or after the release frame's rAF. Late resolution makes the order irrelevant. |
+| T3 | Controller presses use **`gamepad.timestamp` bracketed by the previous and current poll times**. If the stamp falls outside the bracket (stale, or a different time base), the midpoint is used. | Some browsers don't update the stamp. The bracket bounds the error to one poll interval in the worst case. |
+| T4 | **Occlusion is drawn by the renderer** (the frame is cleared to black), not by a DOM overlay. The actual occlusion time is recorded with each ball. | The blackout is exactly frame-aligned and auditable. |
+| T5 | Bounce and footstep sounds are **scheduled ahead and corrected for `outputLatency` and `baseLatency`**. | Android audio can lag 40–100 ms. A late thud would be a misleading timing cue. |
+| T6 | **Quality never changes during a delivery.** Pixel ratio and shadow tier change only between balls. | Resizing the drawing buffer causes a hitch, and that must never happen while the ball is in the air. |
+
+## Training science (26 Oct 2026)
+
+| # | Decision | Why |
+|---|---|---|
+| S1 | **Level rule changed:** the "last 8 ≥ 80% up / ≤ 50% down" rule is replaced by a **weighted up/down staircase** aiming at 85%: `d += 0.5 × (score − 0.85)`. You move up a step at d ≥ 1 and down at d < 0, restarting at 0.5. The same 28 steps are kept, in the same order. | Simulation (in `tests/game-test.mjs`) shows the v4 rule settles near **66%** success, below the 80–85% target CLAUDE.md asks for. The weighted staircase settles at **≈84%**, matching the 85% rule (Wilson et al. 2019). The progress to the next step is shown as a bar. |
+| S2 | **Guess rule:** a correct answer given before you could have used the ball's flight is a **guess**. That means response < (your reaction time, or 0.25 s if untested) + 0.05 s after release. A guess scores 0.5 (like "late") and earns no XP. The message says "Too quick — that was a guess." | Rewards only real reads. Even pure guessing on a 2-way choice is right 50% of the time. Bink's own issue is reading too early (0.13 s). |
+| S3 | **XP** is given only for a correct read that is neither late nor a guess. Correct reads in nets, the pressure over and trials earn 1.5×. Pace, occlusion and stage raise XP slightly, so harder balls are worth more. There is no XP for speed, for volume, or for finishing a session. | "Reward only correct early reads." Tested (`tests/game-test.mjs`): pressing fast earns 0 XP. Random guessing that waits long enough to dodge the guess rule earns about 69% of an honest 90% reader's XP, because good-length balls accept either foot. It also drops the guesser down the staircase to easier, lower-XP steps. |
+| S4 | **Faded feedback** (default "Auto"): every ball gets a full card + Hawk-Eye in the first third of each stage. After that, only errors and late answers get the full card; correct balls get a quick verdict. Nets, the pressure over and trials give feedback only at the end. | Guidance hypothesis (Salmoni, Schmidt & Walter 1984). It reduces dependence on augmented feedback as the skill is learned. Settings offer "Always" and "End only". |
+| S5 | **Hand cue strength halved** (release-angle cue ±5°, was ±10°; random ±3° kept). | Real release differences between lengths are small, and skilled batters only pick up length from pre-release cues partly, not perfectly (Müller, Abernethy & Farrow 2006). Halving it removes a possible "fake tell" while keeping the cue representative. The exact real-world size isn't known, so this is a judgement. |
+| S6 | **Daily session** = warm-up (8 balls, one step easier, full feedback, level fixed) → focus block (20 balls at your level, weakest length fed 50% of the time, level adapts) → pressure over (6 balls, nets rules, no feedback, level fixed). About 10 minutes. | Short daily practice. Mixed practice by default (Shea & Morgan 1979), with a focused dose on the weakest length, then a representative test under nets conditions. |
+| S7 | **Promotion trials use nets rules** (no feedback, bowlers' rhythm, real gap) and need ≥80% over 12 balls against a boss bowler. | Mirrors a real selection, so it's a test of reading, not of following feedback. |
+
+## Game and UI (26 Oct 2026)
+
+| # | Decision | Why |
+|---|---|---|
+| G1 | **Only one "level" idea is shown as a number:** the training step (L1–L4 with pace). Career tier is shown as a name (Club, District…). XP is a counter, not a third level. | Avoids confusing players with two or three different level numbers. |
+| G2 | **Day streak counts days with ≥20 balls.** The weekly goal is 5 practice days (Mon–Sun). | Encourages short daily sessions without punishing a rest day too hard. |
+| G3 | **Left-handers:** physics is solved in a "right-hander frame", and the world is mirrored for the camera and ball when batting left-handed. The bowler stays right-arm. Off-spin turns away from a left-hander and leg-spin turns in. | Real physics for both. One tested core. |
+| G4 | **Fonts and sounds are bundled or synthesised.** Nothing is fetched at runtime. | Truly offline. |
