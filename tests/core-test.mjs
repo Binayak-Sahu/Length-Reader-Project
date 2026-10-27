@@ -4,6 +4,7 @@ import { makeTraj, solveTraj, buildTraj, zones, Z_STUMPS, speedAt } from '../js/
 import { categorize, footFor, grade, gradeShot, idealShots, guessLimit, LATE_MARGIN } from '../js/core/rules.js';
 import { genBall, relCue } from '../js/core/bowling.js';
 import { mulberry32 } from './util.mjs';
+import { solve, frustum, screenCm, activeCalib } from '../js/core/calib.js';
 
 let fails = 0; const ok = (c, m) => { if (!c) { fails++; console.log('FAIL', m); } else console.log('ok  ', m); };
 const p0 = { x: -0.57, y: 2.16, z: 17.6 }, ps = { x: -0.4, y: 2.05, z: 17.9 };
@@ -96,6 +97,44 @@ console.log('— guess / late (presented times) —');
   ok(g5.fv === 'bad' && g5.guess, 'wrong foot and a guess: still wrong, flagged as a guess');
   const s1 = gradeShot(makeTraj(p0, 110, 3, 0), 'SD', 0.2, undefined, { guessBelow: lim });
   ok(s1.v === 'warn' && s1.guess && !s1.read, 'level 4: right shot but a guess → no XP');
+}
+
+
+console.log('— true life-size calibration (Bink: 27" upright, 59.8 × 33.6 cm, eyes 130 cm away, eye height 150 cm) —');
+{
+  const base = { orient: 'portrait', hCm: 59.8, wCm: 33.6, distCm: 130, eyeCm: 150 };
+  for (const bottomCm of [90, 100]) {
+    const c = Object.assign({ bottomCm }, base), s = solve(c);
+    console.log(`     bottom edge ${bottomCm} cm → vertical FOV ${s.vfov.toFixed(1)}° · horizontal ${s.hfov.toFixed(1)}° · bowler (1.85 m at 20 m) ${s.bowlerCm.toFixed(1)} cm tall = ${s.bowlerDeg.toFixed(2)}°`);
+    console.log(`       horizon (your eye line) ${s.horizonFromBottomCm.toFixed(1)} cm up from the bottom edge (screen extends ${s.up.toFixed(1)} cm above it) · release point ${s.releaseCm.toFixed(1)} cm above the eye line · hand at top ${s.armCm.toFixed(1)} cm`);
+    console.log(`       nearest ground visible ${s.nearGround.toFixed(2)} m from your eyes (pitch points beyond ~${s.nearPitchFromStumps.toFixed(1)} m from your stumps) · ${s.msg || 'no change needed'}`);
+  }
+  const s90 = solve(Object.assign({ bottomCm: 90 }, base)), s100 = solve(Object.assign({ bottomCm: 100 }, base));
+  ok(Math.abs(s100.bowlerDeg - 5.3) < 0.05, `a 1.85 m bowler at 20 m subtends ${s100.bowlerDeg.toFixed(2)}° (real life ≈ 5.3°)`);
+  ok(Math.abs(s100.bowlerCm - 12.0) < 0.1, `…which is ${s100.bowlerCm.toFixed(1)} cm on the screen at 1.3 m`);
+  ok(Math.abs(s100.releaseCm - 5.17) < 0.05, `release (2.2 m at 17.6 m) sits ${s100.releaseCm.toFixed(2)} cm above the eye line`);
+  ok(s90.raiseCm === 9 && /Raise your screen by 9 cm/.test(s90.msg), `bottom edge at 90 cm: "${s90.msg}"`);
+  ok(s100.raiseCm === 0 && !s100.msg, 'bottom edge at 100 cm: hand on screen, no warning');
+  ok(solve(Object.assign({ bottomCm: 160 }, base)).lowerCm > 0, 'screen entirely above the eyes → asks to lower it');
+  // off-axis frustum: a point at eye height is exactly on the horizon row; the edges are where the physical screen is
+  const c = Object.assign({ bottomCm: 100 }, base), f = frustum(c, 0.05);
+  const rowFrac = (y, z) => { const ys = (y - 1.5) / z * 0.05; return (ys - f.bottom) / (f.top - f.bottom); };   // 0 = bottom edge, 1 = top
+  ok(Math.abs(rowFrac(1.5, 50) - 50 / 59.8) < 1e-9, `eye-height point projects ${(rowFrac(1.5, 50) * 59.8).toFixed(1)} cm up the screen = the eye line`);
+  ok(Math.abs(rowFrac(2.2, 17.6) * 59.8 - (50 + screenCm(c, 2.2, 17.6))) < 1e-9, 'release point lands where the calibration screen says');
+  ok(Math.abs((f.right - f.left) / (f.top - f.bottom) - 33.6 / 59.8) < 1e-9, 'frustum aspect = physical screen aspect');
+  ok(activeCalib({ calib: { portrait: c } }, true) === c && activeCalib({ calib: { portrait: c } }, false) === null, 'one calibration per orientation');
+}
+
+console.log('— release heights (the real rig, posed at release) —');
+{
+  await import('./three-hook.mjs');
+  const THREE = await import('three'), { createBowler } = await import('../js/engine/bowler.js'), { BOWLERS } = await import('../js/core/bowling.js');
+  const { T_REL } = await import('../js/core/physics.js'), b = createBowler(new THREE.Scene()), v = new THREE.Vector3();
+  for (const p of BOWLERS) {
+    b.pose(T_REL, p, 0, 0); b.handWorld(v);
+    const [lo, hi] = p.spin ? [1.9, 2.0] : [2.1, 2.3];
+    ok(v.y >= lo && v.y <= hi, `${p.n} (size ${p.s}) releases at ${v.y.toFixed(2)} m (target ${lo}–${hi})`);
+  }
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASSED'); process.exit(fails ? 1 : 0);

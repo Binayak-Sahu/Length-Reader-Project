@@ -93,13 +93,16 @@ function drawProg(cv, D) {
 const FIELDS = [
   { k: 'hand', l: 'BATTING HAND', t: 'select', o: [['R', 'Right-handed'], ['L', 'Left-handed']], prof: true, h: 'Mirrors the off side, the camera and spin for left-handers. The bowler stays right-arm over.' },
   { k: 'maxKph', l: 'TOP PACE (KPH)', t: 'number', min: 80, max: 150, h: 'Each level climbs 80 → 120 kph, then the blackout starts. Caps the pace.' },
-  { k: 'trigger', l: 'TRIGGER BUTTON', t: 'check', h: 'Time your forward press: between the bowler’s back foot landing and release.' },
-  { k: 'view', l: 'VIEW', t: 'select', o: [['auto', 'Auto — fits flat or vertical screen'], ['wide', 'Wide — see more pitch'], ['tight', 'Tight'], ['life', 'Life-size — set screen and distance below']] },
-  { k: 'lifeCm', l: 'LIFE-SIZE: SCREEN HEIGHT (CM)', t: 'number', min: 10, max: 300, h: '27-inch vertical ≈ 60 · 27-inch flat ≈ 34' },
-  { k: 'lifeM', l: 'LIFE-SIZE: YOUR DISTANCE FROM SCREEN (M)', t: 'number', min: 0.5, max: 6, step: 0.1, h: 'Vertical 27-inch at 1.5 m feels close to real. Ball is shown at true size.' },
+  { k: 'trigger', l: 'TRIGGER BUTTON', t: 'check', h: 'Time your forward press: between the bowler’s back foot landing and release. Controller: LT · keyboard: Space · phone: first tap.' },
+  { k: 'view', l: 'VIEW', t: 'select', o: [['auto', 'Auto — fits flat or vertical screen'], ['wide', 'Wide — see more pitch'], ['tight', 'Tight'], ['life', 'Simple life-size (or use Calibrate my setup for true life-size)']], h: 'When you have calibrated, true life-size is used in every mode and these views are ignored.' },
+  { k: 'lifeCm', l: 'SIMPLE LIFE-SIZE: SCREEN HEIGHT (CM)', t: 'number', min: 10, max: 300, h: 'Height of the lit picture area. 27-inch 16:9: upright ≈ 59.8 · flat ≈ 33.6. Better: Calibrate my setup.' },
+  { k: 'lifeM', l: 'LIFE-SIZE: YOUR DISTANCE FROM SCREEN (M)', t: 'number', min: 0.5, max: 6, step: 0.1, h: 'Eyes to screen, standing in your stance.' },
   { k: 'boost', l: 'BALL SIZE BOOST', t: 'number', min: 1, max: 3, step: 0.1, h: 'Makes the ball easier to see on screen. 1 = true size. Its growth rate (a timing cue) is unchanged.' },
-  { k: 'ball', l: 'BALL', t: 'select', o: [['red', 'Red ball (white sight screen)'], ['white', 'White ball (black sight screen)']] },
-  { k: 'sight', l: 'SIGHT SCREEN', t: 'check', h: 'A screen behind the bowler, like most grounds. Turn it off if your nets don’t have one.' },
+  { k: 'ball', l: 'BALL', t: 'select', o: [['red', 'Red ball'], ['white', 'White ball']] },
+  { k: 'sight', l: 'SIGHT SCREEN', t: 'select', o: [['dark', 'Dark — best contrast, least glare'], ['white', 'White'], ['off', 'Off (no screen)']] },
+  { k: 'lenMarks', l: 'LENGTH MARKINGS ON THE PITCH', t: 'select', o: [['auto', 'Auto — Level 1 only'], ['on', 'Always'], ['off', 'Never']], h: 'Faint full / good / short bands for the ball’s pace.' },
+  { k: 'night', l: 'NIGHT MODE', t: 'check', h: 'Darker sky and floodlights: less glare in a dim room.' },
+  { k: 'stepCue', l: '“STEP, THEN PRESS” REMINDER', t: 'check', h: 'Level 1: a cue during the run-up to make the real step with every press.' },
   { k: 'gap', l: 'PAUSE BETWEEN BALLS (S)', t: 'number', min: 1, max: 10, step: 0.5 },
   { k: 'feedback', l: 'FEEDBACK', t: 'select', o: [['auto', 'Auto — fades as you master a stage'], ['always', 'Always — full card every ball'], ['end', 'End only — like nets']], h: 'Auto: full feedback early in each stage, then only on mistakes (helps you rely on your own read).' },
   { k: 'levelMode', l: 'LEVEL', t: 'select', o: [['auto', 'Auto — holds you near 85% right'], ...LEVELS.map((L, i) => [String(i), 'Fixed: ' + L.n])] },
@@ -117,7 +120,7 @@ const FIELDS = [
   { k: 'contrast', l: 'HIGH CONTRAST', t: 'check', h: 'Stronger outlines and solid panels. Verdicts always use shape as well as colour.' },
   { k: 'reduceMotion', l: 'REDUCE MOTION', t: 'check', h: 'No zoom or slide animations (the ball itself always moves, of course).' },
   { k: 'quality', l: 'GRAPHICS QUALITY', t: 'select', o: [['auto', 'Auto — keeps every frame on time'], ...TIERS.map(t => [t.id, t.id[0].toUpperCase() + t.id.slice(1)])], h: 'Auto lowers resolution or shadows between balls if frames are late. Never changes mid-delivery.' },
-  { k: 'overlay', l: 'FRAME-TIME OVERLAY', t: 'check', h: 'Debug: refresh rate, frame times, dropped frames. Shortcut: F2 or the ` key.' },
+  { k: 'overlay', l: 'FPS COUNTER / FRAME TIMES', t: 'check', h: 'Refresh rate, FPS, frame times and dropped frames. Shortcut: F2 or the ` key.' },
 ];
 export function renderSettings(onChange) {
   const { S, db } = app;

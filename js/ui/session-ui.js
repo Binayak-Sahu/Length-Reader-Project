@@ -17,6 +17,12 @@ export function bigMark(v) {
   const m = $('bigmark'); m.innerHTML = BADGE[v]; m.className = ''; void m.offsetWidth; m.className = 'show';
 }
 
+// "Step, then press" reminder (Level 1 option): shown during the run-up, gone before release.
+let stepTm = 0;
+export function stepCue() {
+  const el = $('stepcue'); show(el, true); clearTimeout(stepTm); stepTm = setTimeout(() => show(el, false), 2200);
+}
+
 // Speed gun: the release speed, shown after the ball (like the radar board at nets). Not a length cue.
 let speedTm = 0;
 export function speedGun(kph) {

@@ -1,13 +1,15 @@
 // What gets bowled: bowler profiles, ball generation and the release "hand cue". Pure; the RNG is injectable.
 import { zones } from './physics.js';
 
-// Bowlers: size, crease position (xo), how side-on (tw), arm timing (ao). Spinners have a short, slow run-up.
+// Bowlers: size, crease position (xo), how side-on (tw), arm angle at release (ao, degrees past vertical).
+// Release heights (measured in tests/core-test.mjs): pace 2.1–2.3 m scaled by the bowler's size; spin 1.9–2.0 m
+// (a lower, rounder arm). Spinners have a short, slow run-up.
 export const BOWLERS = [
-  { id: 'tall', n: 'Tall quick', s: 1.08, xo: 0, c: 0x1d2530, tw: 1, ao: 0 },
-  { id: 'skiddy', n: 'Skiddy', s: 0.92, xo: 0, c: 0x7a1d1d, tw: 0.8, ao: 8 },
-  { id: 'wide', n: 'Wide of crease', s: 1.0, xo: -0.35, c: 0x1d3d7a, tw: 0.6, ao: -4 },
-  { id: 'off', n: 'Off-spinner', s: 1.0, xo: 0.1, c: 0x14532d, tw: 0.5, ao: -8, spin: 'off' },
-  { id: 'leg', n: 'Leg-spinner', s: 0.96, xo: 0, c: 0x581c87, tw: 0.5, ao: -12, spin: 'leg' }];
+  { id: 'tall', n: 'Tall quick', s: 1.07, xo: 0, c: 0x1d2530, tw: 1, ao: 0 },
+  { id: 'skiddy', n: 'Skiddy', s: 1.01, xo: 0, c: 0x7a1d1d, tw: 0.8, ao: -4 },
+  { id: 'wide', n: 'Wide of crease', s: 1.02, xo: -0.35, c: 0x1d3d7a, tw: 0.6, ao: -4 },
+  { id: 'off', n: 'Off-spinner', s: 1.0, xo: 0.1, c: 0x14532d, tw: 0.5, ao: 26, spin: 'off' },
+  { id: 'leg', n: 'Leg-spinner', s: 0.99, xo: 0, c: 0x581c87, tw: 0.5, ao: 24, spin: 'leg' }];
 export const PACE = [0, 1, 2], SPINNERS = [3, 4];
 
 const rnd = (rng, a, b) => a + rng() * (b - a);

@@ -29,6 +29,29 @@ Your old bookmark (`…/length-reader.html`) opens the new app. The old v4 is ke
 - Back up any time with **More → Export data**.
 - The mirror's camera images stay in memory for the slow-mo replay. They are never saved or uploaded.
 
+## Set up a monitor for true life-size
+
+1. Go to **More → Settings → Calibrate my setup** and enter the numbers below. Use a tape measure.
+   - The visible screen height and width.
+   - Your eyes to the screen, standing in your stance.
+   - Your eye height in your stance.
+   - The height of the screen's bottom edge above the floor.
+2. Press **Visual check**: the pink ruler should look like a real 1 m stick 18 m away.
+
+A 27-inch monitor rotated upright is 59.8 × 33.6 cm. Example: eyes 150 cm high and 130 cm away.
+
+| Setting | Value |
+|---|---|
+| Screen bottom edge | 100 cm (top at 160 cm) |
+| Brightness | about 40%, room lights on |
+| Vertical view | 25.3° |
+| Bowler (1.85 m at 20 m) | 12.0 cm tall on screen |
+| Your eye line | 9.8 cm below the top of the screen |
+| Release point | 5.2 cm above your eye line |
+
+- At true size, balls pitching closer than about 5.3 m from your stumps bounce below the screen. You still see their flight.
+- If the screen is too low, the app tells you how many cm to raise it.
+
 ## Test it on your devices (5 minutes)
 
 **Samsung S25+**
