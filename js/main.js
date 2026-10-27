@@ -13,8 +13,9 @@ import { createTrajService } from './traj-service.js';
 import * as game from './game/game.js';
 import * as scr from './ui/screens.js';
 import * as menu from './ui/menus.js';
+import { openCalib, mapPedals } from './ui/calib.js';
 
-const VERSION = '5.1.0';
+const VERSION = '5.2.0';
 const qs = new URLSearchParams(location.search);
 
 // ---------- data ----------
@@ -39,7 +40,8 @@ const startTier = qs.get('tier') || (app.S.quality !== 'auto' ? app.S.quality : 
 app.quality = new QualityController(tierIndex(startTier), tierIndex(isTouch ? 'high' : 'ultra'));
 world.applyTier(QTIERS[app.quality.tier]);
 world.applyView(app.S, app.db.profile.hand);
-world.setBall(app.S.ball, app.S.sight);
+world.setBall(app.S.ball, app.S.sight); world.setNight(!!app.S.night);
+document.body.classList.toggle('life', world.calibrated);
 app.onBallStats = (st) => {
   if (app.S.quality !== 'auto') return;
   const nt = app.quality.onBall(st);
@@ -50,9 +52,12 @@ function applySettings(k) {
   if (k === 'quality') { if (app.S.quality !== 'auto') app.quality.tier = tierIndex(app.S.quality); world.applyTier(QTIERS[app.quality.tier]); }
   if (k === 'overlay') app.perf.setOverlay(app.S.overlay);
   applyA11y();
-  world.setBall(app.S.ball, app.S.sight);
+  world.setBall(app.S.ball, app.S.sight); world.setNight(!!app.S.night);
   world.applyView(app.S, app.db.profile.hand); needsRender = true;
+  document.body.classList.toggle('life', world.calibrated);
 }
+app.applySettings = applySettings;
+app.renderNow = () => { needsRender = true; world.render(world.camera, false); };
 function applyA11y() {
   document.documentElement.style.setProperty('--fs', String(app.S.textScale || 1));
   document.body.classList.toggle('contrast', !!app.S.contrast);
@@ -118,6 +123,10 @@ $('bHowBack').onclick = () => menu.renderMore();
 $('bControls').onclick = () => { $('controls').classList.toggle('hidden'); };
 $('bTrig').onclick = () => { app.S.trigger = !app.S.trigger; app.saveNow(); menu.renderMore(); };
 $('bSettings').onclick = () => scr.renderSettings(applySettings);
+app.openSettings = () => scr.renderSettings(applySettings);
+$('bCalib').onclick = () => openCalib();
+$('bPedals').onclick = () => mapPedals();
+$('bPedalsClear').onclick = () => { app.S.pedals = null; app.saveNow(); toast('Pedals cleared.'); };
 $('bSetBack').onclick = () => menu.renderMore();
 $('bExport').onclick = scr.doExport; $('bExport2').onclick = scr.doExport;
 $('bImport').onclick = () => $('fileIn').click();
@@ -168,7 +177,7 @@ function onPad(E, su, sd, ts, gp, sl, sr) {
 addEventListener('gamepadconnected', () => { if (app.state === 'more') menu.renderMore(); });
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && (game.G.state === 'run' || game.G.state === 'result')) game.togglePause(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && (game.G.state === 'run' || game.G.state === 'result')) game.togglePause(); });
-addEventListener('resize', () => { world.resize(); needsRender = true; });
+addEventListener('resize', () => { world.resize(); needsRender = true; document.body.classList.toggle('life', world.calibrated); });
 
 // ---------- loop ----------
 function loop(ts) {
@@ -214,7 +223,8 @@ app.toast = toast;
 // ---------- go ----------
 $('ver').textContent = 'v' + VERSION;
 world.bowler.pose(0, { s: 1, xo: 0, tw: 1, ao: 0 }, 0, 0);
-const onboardApi = { applyView: () => world.applyView(app.S, app.db.profile.hand), reaction: (cb) => reaction(cb), tutorial: () => start('tutorial'), home: goHome };
+const onboardApi = { applyView: () => world.applyView(app.S, app.db.profile.hand), reaction: (cb) => reaction(cb), tutorial: () => start('tutorial'), home: goHome,
+  calibrate: (cb) => openCalib(cb) };
 if (!app.db.profile.onboarded) menu.onboarding(0, onboardApi);
 else {
   goHome();

@@ -108,6 +108,10 @@ export function nextBall() {
   const job = traj.request(world.releasePoint(), g.kph, g.d, g.lx, g.opt);      // solved in the worker during the run-up
   world.bowler.pose(0, PROF, rel, jx); world.bowlerMoved(); world.ballToHand();
   world.ball.visible = true; world.ball.rotation.set(0, 0, 0);
+  // faint length markings: auto = Level 1 only
+  const marks = S.lenMarks === 'on' || (S.lenMarks === 'auto' && gm === 1);
+  if (marks) world.setLenMarks(g.kph, !!PROF.spin); else world.setLenMarks(null);
+  if (S.stepCue && gm === 1) ui.stepCue();
   G.cur = { g, job, tr: null, prof: PROF, rel, jx, occ, mode: gm, type, lvl, seg, fed: weak && g.cat === weak ? weak : null,
     trig: null, foot: null, played: false, shot: null, src: null, si: 0, sounds: false, lblOff: !!seg.labels };
   clock.reset();
@@ -165,9 +169,15 @@ export function act(k, ts, src, y, x) {
     else k = cur.foot ? 'P' : (y < 0.5 ? 'F' : 'B');
   }
   if (k === 'T') { if (S.trigger && cur.trig === null && tau < 0.25) { cur.trig = t; ui.flash('·', 'cT'); app.audio.tone(700, 700, 0.04, 'sine', 0.1); } return; }
+  if (k === 'L') {                       // explicit LEAVE (controller RT): locks the decision
+    if (cur.mode === 4) { if (cur.shot || cur.decided || tau < -0.1) return; cur.decided = true; cur.left = true; clock.stamp('leave', ts); }
+    else if ((cur.mode === 2 || cur.mode === 3) && cur.foot && !cur.played && !cur.left) { cur.left = true; clock.stamp('leave', ts); }
+    else return;
+    ui.flash('LEAVE', 'cL'); app.audio.tone(260, 260, 0.05, 'sine', 0.1); app.haptics.tap(); return;
+  }
   if (cur.mode === 4) {
     if (k === 'F') k = 'S:FD'; else if (k === 'B') k = 'S:BD';
-    if (k.startsWith('S:') && !cur.shot) {
+    if (k.startsWith('S:') && !cur.shot && !cur.decided) {
       if (tau < -0.1) return;
       const sh = k.slice(2); cur.shot = sh; cur.foot = SHOTS[sh].f; cur.played = true; cur.src = src; clock.stamp('foot', ts);
       ui.flash(SHOTS[sh].n.toUpperCase(), 'c' + cur.foot + ' small'); app.audio.tone(420, 420, 0.05, 'sine', 0.12); app.haptics.tap();
@@ -180,7 +190,7 @@ export function act(k, ts, src, y, x) {
     cur.foot = k; cur.src = src; clock.stamp('foot', ts);
     ui.flash(NAMES[k], 'c' + k); app.audio.tone(420, 420, 0.05, 'sine', 0.12); app.haptics.tap(); return;
   }
-  if (cur.foot && (cur.mode === 2 || cur.mode === 3) && !cur.played && tau <= (cur.tr ? cur.tr.tc : 0.6) + 0.05) {
+  if (cur.foot && (cur.mode === 2 || cur.mode === 3) && !cur.played && !cur.left && tau <= (cur.tr ? cur.tr.tc : 0.6) + 0.05) {
     cur.played = true; clock.stamp('play', ts); ui.flash('PLAY', 'cP'); app.audio.tone(300, 300, 0.05, 'sine', 0.1);
   }
 }
@@ -201,7 +211,7 @@ function finishBall() {
     trig: cur.trig === null ? null : +(cur.trig - T_REL).toFixed(3), tv: g.tg ? g.tg.v : null,
     foot: cur.foot, shot: cur.shot, rt: cur.foot && rt != null ? +rt.toFixed(3) : null,
     read: (cur.foot && rt != null && db.rtBase) ? +Math.max(0, rt - db.rtBase).toFixed(3) : null,
-    played: cur.played, fe: g.fe, fv: g.fv, pe: g.pe, pv: g.pv, v: g.v, sc: +g.sc.toFixed(3),
+    played: cur.played, left: cur.left || undefined, fe: g.fe, fv: g.fv, pe: g.pe, pv: g.pv, v: g.v, sc: +g.sc.toFixed(3),
     ok: g.read, xp, guess: g.guess || undefined, late: g.late || undefined, src: cur.src || undefined,
     hz: perf.hz, tbP: +tbP.toFixed(3), occA: occA == null ? undefined : +occA.toFixed(3), seg: sess.segI, tm: cur.g.tm || undefined,
   };
@@ -245,8 +255,9 @@ function finishBall() {
     $('rcHold').classList.remove('hidden'); $('rcNext').textContent = 'Next ▶';
     show('rctl', true); document.body.classList.add('result');
     $('rcRep').classList.toggle('hidden', !S.hawk); $('rcSlow').classList.toggle('hidden', !S.hawk);
-    if (S.hawk) { world.heStart(tr, 1500, performance.now()); wait = 1500; G.timer = setTimeout(() => { if (G.state === 'result') ui.showCard(card); }, wait); }
-    else ui.showCard(card);
+    const reveal = () => { ui.showCard(card); armCardHide(); };
+    if (S.hawk) { world.heStart(tr, 1500, performance.now()); wait = 1500; G.timer = setTimeout(() => { if (G.state === 'result') reveal(); }, wait); }
+    else reveal();
   }
   // sound, voice, haptics
   if (g.v === 'good') audio.good();
@@ -303,10 +314,18 @@ function hudUpdate() {
   ui.hudVisible('hAcc', !silent);
 }
 
+// Portrait / life-size: the compact card hides itself after 2.5 s (unless Hold), so the bowler's end stays clear.
+let cardTm = 0;
+function armCardHide() {
+  clearTimeout(cardTm);
+  if (!(innerHeight > innerWidth || app.world.calibrated)) return;
+  cardTm = setTimeout(() => { if (!G.held && G.state === 'result') show('card', false); }, 2500);
+}
+
 // ---------- hold / replay ----------
 function setHeld(on) {
   G.held = on; $('rcHold').textContent = on ? '▶ Play' : '⏸ Hold'; $('rcHold').classList.toggle('on', on);
-  if (on) clearTimeout(G.timer);
+  if (on) { clearTimeout(G.timer); clearTimeout(cardTm); }
   app.world.heHold(on, performance.now());
 }
 export function holdToggle() { if (G.state !== 'result' || G.wait) return; setHeld(!G.held); }
@@ -337,7 +356,7 @@ export function togglePause() {
 function cleanup() {
   const { world } = app;
   clearTimeout(G.timer); world.clearTrail(); world.heStop(); show('rctl', false); show('banner', false); document.body.classList.remove('result');
-  G.held = false; G.cur = null; G.wait = null; world.ball.visible = false; app.audio.cancel();
+  G.held = false; G.cur = null; G.wait = null; world.ball.visible = false; world.setLenMarks(null); app.audio.cancel();
   ['card', 'hud', 'hint', 'pause'].forEach(id => show(id, false)); document.body.classList.remove('insession');
   world.bowler.pose(0, PROF, 0, 0); world.bowlerMoved();
   hooks.leave();
@@ -364,6 +383,10 @@ export function stageName(i) { const L = LEVELS[clampLevel(i)]; return `L${L.m} 
 // ---------- in-session input (menus are handled in main.js) ----------
 const KEYMAP = { q: 'S:FL', w: 'S:FD', e: 'S:SD', a: 'S:PU', s: 'S:BD', d: 'S:BP', ' ': 'T', t: 'T', arrowleft: 'F', f: 'F', '4': 'F', arrowright: 'B', b: 'B', '6': 'B',
   arrowdown: 'P', arrowup: 'P', '5': 'P', '2': 'P', clear: 'P', enter: 'P' };
+export function pedalAction(code) {
+  const P = app.S.pedals; if (!P || !code) return null;
+  return code === P.F ? 'F' : code === P.B ? 'B' : code === P.P ? 'P' : null;
+}
 export function onKey(e) {
   const k = e.key.toLowerCase();
   if (G.state === 'intro') return true;
@@ -373,6 +396,8 @@ export function onKey(e) {
   }
   if (G.state !== 'run' && G.state !== 'result') return false;
   if (k === 'escape' || k === 'p') { togglePause(); return true; }
+  const ped = pedalAction(e.code);                       // USB foot pedals (mapped in Settings) come first
+  if (ped) { e.preventDefault(); if (G.state === 'run' && !e.repeat) act(ped, e.timeStamp, 'pedal'); return true; }
   if (G.state === 'run' && KEYMAP[k]) { e.preventDefault(); if (!e.repeat) act(KEYMAP[k], e.timeStamp, 'key'); }
   else if (G.state === 'result') {
     if (k === ' ' || k === 'enter' || k === 'n') { e.preventDefault(); nextBall(); }
@@ -399,13 +424,14 @@ export function onPad(E, su, sd, ts) {
   if (G.state === 'intro') return true;
   if (E[9]) { if (G.state === 'run' || G.state === 'result' || G.state === 'paused') { togglePause(); return true; } return false; }
   if (G.state === 'run') {
-    if (E[4] || E[5]) act('T', ts, 'pad');
+    if (E[6]) act('T', ts, 'pad');                                   // LT = trigger
+    if (E[7]) act('L', ts, 'pad');                                   // RT = leave
     if (G.cur && G.cur.mode === 4) {
-      const sh = E[3] ? 'FD' : E[2] ? 'SD' : E[6] ? 'FL' : E[0] ? 'BD' : E[1] ? 'BP' : E[7] ? 'PU' : su ? 'FD' : sd ? 'BD' : null;
+      const sh = E[3] ? 'FD' : E[2] ? 'SD' : E[4] ? 'FL' : E[0] ? 'BD' : E[1] ? 'BP' : E[5] ? 'PU' : su ? 'FD' : sd ? 'BD' : null;
       if (sh) act('S:' + sh, ts, 'pad');
     } else if (E[3] || E[12] || su) act('F', ts, 'pad');
     else if (E[0] || E[13] || sd) act('B', ts, 'pad');
-    else if (E[1] || E[2] || E[6] || E[7]) act('P', ts, 'pad');
+    else if (E[1] || E[2]) act('P', ts, 'pad');
     return true;
   }
   if (G.state === 'result') {

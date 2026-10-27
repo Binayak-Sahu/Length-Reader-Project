@@ -19,6 +19,7 @@
 <link rel="modulepreload" href="js/core/action.js">
 <link rel="modulepreload" href="js/core/badges.js">
 <link rel="modulepreload" href="js/core/bowling.js">
+<link rel="modulepreload" href="js/core/calib.js">
 <link rel="modulepreload" href="js/core/career.js">
 <link rel="modulepreload" href="js/core/levels.js">
 <link rel="modulepreload" href="js/core/match.js">
@@ -36,6 +37,7 @@
 <link rel="modulepreload" href="js/input.js">
 <link rel="modulepreload" href="js/main.js">
 <link rel="modulepreload" href="js/traj-service.js">
+<link rel="modulepreload" href="js/ui/calib.js">
 <link rel="modulepreload" href="js/ui/menus.js">
 <link rel="modulepreload" href="js/ui/screens.js">
 <link rel="modulepreload" href="js/ui/session-ui.js">
@@ -52,6 +54,7 @@
 </div>
 <div id="hint" class="hidden"></div>
 <div id="speed" class="hidden" aria-hidden="true"><small>SPEED GUN</small><b></b></div>
+<div id="stepcue" class="hidden" aria-hidden="true">STEP, THEN PRESS</div>
 <div id="flash" aria-hidden="true"></div>
 <div id="bigmark" aria-hidden="true"></div>
 <div id="banner" class="hidden" role="status"></div>
@@ -150,9 +153,9 @@
       <button class="tile hidden" id="bInstall"><b>Install app</b><span>Home screen · full screen · offline</span></button>
     </div>
     <div class="keys hidden" id="controls">
-      <div class="key kT"><b>TRIGGER</b><div>Optional · before release · RB/LB · Space · wheel click · phone: 1st tap</div></div>
-      <div class="key kF"><b>FEET (L1–3)</b><div>FRONT: Y · ← · left click · tap top half<br>BACK: A · → · right click · tap bottom half<br>L2–3: press again = PLAY · nothing = LEAVE</div></div>
-      <div class="key kP"><b>SHOTS (L4)</b><div>Front: Y defend · X drive · LT flick (W E Q)<br>Back: A defend · B punch · RT pull (S D A)<br>Phone: 6 tap zones · nothing = LEAVE</div></div>
+      <div class="key kT"><b>TRIGGER</b><div>Optional · before release · LT · Space · wheel click · phone: 1st tap</div></div>
+      <div class="key kF"><b>FEET (L1–3)</b><div>FRONT: Y · ← · left click · tap top half<br>BACK: A · → · right click · tap bottom half<br>L2–3: B/X or press again = PLAY · RT or nothing = LEAVE<br>USB pedals: Settings → Map my pedals</div></div>
+      <div class="key kP"><b>SHOTS (L4)</b><div>Front: Y defend · X drive · LB flick (W E Q)<br>Back: A defend · B punch · RB pull (S D A)<br>RT or nothing = LEAVE · Phone: 6 tap zones</div></div>
       <div class="key"><b>AFTER A BALL</b><div>A · Enter = next · Y · H = hold · B · R = replay · X · S = slow-mo<br>Menu · P · Esc = pause</div></div>
       <div class="key"><b>MENUS</b><div>D-pad / stick = move · A = choose · B = back · LB/RB = tabs</div></div>
     </div>
@@ -201,6 +204,13 @@
   </div>
 </div>
 
+<!-- CALIBRATION -->
+<div id="calib" class="screen hidden">
+  <div class="wrap narrow" id="calibBody"></div>
+</div>
+<div id="calCheck" class="hidden"><canvas id="calCanvas"></canvas><div id="calCheckTxt"></div></div>
+<div id="pedalMap" class="hidden" role="dialog" aria-label="Map pedals"><div id="pedalTxt"></div></div>
+
 <!-- ONBOARDING -->
 <div id="onboard" class="screen hidden">
   <div class="wrap narrow" id="obBody"></div>
@@ -219,6 +229,12 @@
       <button class="btn" id="bImport">Import data (v4 or v5 file)</button>
       <input type="file" id="fileIn" accept="application/json,.json" class="hidden">
       <a class="btn" href="legacy/v4.html">Open old v4</a>
+    </div>
+    <h2>Set-up</h2>
+    <div class="row">
+      <button class="btn go" id="bCalib">Calibrate my setup (true life-size)</button>
+      <button class="btn" id="bPedals">Map my pedals</button>
+      <button class="btn" id="bPedalsClear">Clear pedals</button>
     </div>
     <div class="row">
       <button class="btn" id="bSetBack">Done</button>

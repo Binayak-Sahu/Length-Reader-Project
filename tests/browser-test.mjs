@@ -168,7 +168,13 @@ await ctx.close();
   await q.click('#obNext');                                      // welcome → hand
   await q.click('[data-h="L"]');                                 // left-handed
   ok(await q.evaluate(() => window.__lr.app.db.profile.hand === 'L' && window.__lr.app.world.camera.position.x > 0), 'choosing left-handed mirrors the view straight away');
-  await q.click('#obNext');                                      // setup → reaction
+  await q.click('#obNext');                                      // setup → life-size calibration
+  await q.click('#obNext');                                      // open "Calibrate my setup"
+  await waitFor(q, () => !document.getElementById('calib').classList.contains('hidden'));
+  ok(await q.evaluate(() => /VERTICAL VIEW/.test(document.getElementById('calRes').textContent)), 'onboarding offers calibration with live results');
+  await q.click('#cSave');
+  await waitFor(q, () => document.querySelector('#onboard:not(.hidden)'));
+  ok(await q.evaluate(() => window.__lr.app.world.calibrated && !!window.__lr.app.S.calib.landscape), 'saving the calibration turns on true life-size');
   await q.click('#obSkip');                                      // skip the reaction test
   await q.click('#obNext');                                      // bowl the tutorial
   await waitFor(q, () => window.__lr.game.G.state === 'intro' && /BALL 1/.test(document.getElementById('banner').textContent));
@@ -203,6 +209,42 @@ await ctx.close();
   ok(await q.evaluate(() => window.__lr.app.state === 'home'), 'Esc goes back to Play');
   await q.keyboard.press('ArrowDown'); await q.keyboard.press('ArrowDown');
   ok(await q.evaluate(() => document.activeElement && document.activeElement.tagName === 'BUTTON' && document.activeElement.id !== 'bDaily'), 'arrow keys move focus around the menu (10-foot / controller style)');
+  await c.close();
+}
+
+// ---------- 8d. Bink's setup: 27" upright, calibrated true life-size; card, pedals, controller ----------
+{
+  const c = await browser.newContext({ viewport: { width: 540, height: 960 } });
+  const calib = { portrait: { orient: 'portrait', hCm: 59.8, wCm: 33.6, distCm: 130, eyeCm: 150, bottomCm: 100 } };
+  const q = await page(c, '?nosw', `localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false, feedback: 'always', levelMode: '9', calib: ${JSON.stringify(calib)} }, level: 9 }));`);
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  const g = await q.evaluate(() => { const w = window.__lr.app.world; return { cal: w.calibrated, eye: w.toScreen(0, 1.5, 300).y, rel: w.toScreen(0, 2.2, 17.75).y, H: innerHeight }; });
+  const eyeWant = 9.8 / 59.8 * g.H, relWant = eyeWant - 5.17 / 59.8 * g.H * (17.6 / 17.6);
+  ok(g.cal && Math.abs(g.eye - eyeWant) < 1, `calibrated: your eye line is drawn ${g.eye.toFixed(1)} px from the top (expected ${eyeWant.toFixed(1)} = 9.8 cm of 59.8)`);
+  ok(Math.abs(g.rel - (eyeWant - 5.21 / 59.8 * g.H)) < 2, `release point ${(g.eye - g.rel).toFixed(0)} px above the eye line (≈ 5.2 cm)`);
+  ok(await q.evaluate(() => window.__lr.app.world.ball.scale.x === 1), 'ball at true size when calibrated (no boost)');
+  // pedals (keyboard codes) + controller RT = leave in Level 2
+  await q.evaluate(() => { window.__lr.app.S.pedals = { F: 'KeyJ', B: 'KeyK', P: 'KeyL' }; });
+  await q.click('#bQuick');
+  await waitFor(q, () => window.__lr.game.G.state === 'run' && window.__lr.game.clock.relTs !== null);
+  await q.keyboard.press('k');
+  ok(await q.evaluate(() => window.__lr.game.G.cur.foot === 'B' && window.__lr.game.G.cur.src === 'pedal'), 'mapped BACK pedal moves the feet (timed like any key)');
+  await q.evaluate(() => { const E = new Uint8Array(32); E[7] = 1; window.__lr.game.onPad(E, false, false, performance.now()); const E2 = new Uint8Array(32); E2[1] = 1; window.__lr.game.onPad(E2, false, false, performance.now()); });
+  ok(await q.evaluate(() => { const c = window.__lr.game.G.cur; return c.left === true && c.played === false; }), 'controller RT = LEAVE, and a later play press is ignored');
+  await waitFor(q, () => !document.getElementById('card').classList.contains('hidden'), null, 20000);
+  const box = await q.evaluate(() => { const r = document.getElementById('card').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, H: innerHeight }; });
+  ok(box.top > box.H * 0.6, `portrait card sits in the lower third (top at ${(100 * box.top / box.H).toFixed(0)}% of the screen)`);
+  await q.waitForTimeout(2800);
+  ok(await q.evaluate(() => document.getElementById('card').classList.contains('hidden')), 'card hides itself after 2.5 s');
+  ok(await q.evaluate(() => window.__lr.game.G.sess.balls[0].left === true), 'ball record notes the explicit leave');
+  // LT = trigger
+  await q.evaluate(() => { window.__lr.app.S.trigger = true; window.__lr.game.nextBall(); });
+  await waitFor(q, () => { const c = window.__lr.game.clock; return window.__lr.game.G.state === 'run' && c.t0 && c.tau(performance.now()) > -0.25 && c.tau(performance.now()) < 0; });
+  await q.evaluate(() => { const E = new Uint8Array(32); E[6] = 1; window.__lr.game.onPad(E, false, false, performance.now()); });
+  ok(await q.evaluate(() => window.__lr.game.G.cur.trig !== null), 'controller LT = trigger');
+  // night mode + length marks
+  ok(await q.evaluate(() => { const a = window.__lr.app; a.S.night = true; a.S.lenMarks = 'on'; a.applySettings('night'); a.renderNow(); a.S.night = false; a.applySettings('night'); return true; }), 'night mode and length markings switch without errors');
+  await q.evaluate(() => window.__lr.game.abandonToHome());
   await c.close();
 }
 

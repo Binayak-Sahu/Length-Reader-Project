@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Z_STUMPS, R, bandsFor } from '../core/physics.js';
 import { TIERS } from '../core/quality.js';
 import { createBowler } from './bowler.js';
+import { activeCalib, frustum, canvasRect } from '../core/calib.js';
 
 const d2r = Math.PI / 180;
 // Batter's eye: 1.5 m (6 ft in stance), head on the off-stump line. In the right-hander frame off side = −x;
@@ -35,6 +36,31 @@ function radialTex(size, inner) {
   g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, size, size);
   return new THREE.CanvasTexture(cv);
 }
+// The net pitch: one 512×2048 canvas covering the whole strip (no tiling, so no repeating pattern):
+// a darker, worn club net-pitch colour, grain, cracks, worn length areas, footmarks at both ends and grass at the edges.
+// Canvas top = batter's end (z = -3.41), bottom = bowler's end (z = 21.09); x spans the 3.05 m width.
+function pitchTex() {
+  const W = 512, H = 2048, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d');
+  const Z0 = -3.41, L = 24.5, zy = z => (z - Z0) / L * H, xx = x => (x / 3.05 + 0.5) * W;
+  c.fillStyle = '#9a835c'; c.fillRect(0, 0, W, H);
+  const img = c.getImageData(0, 0, W, H), d = img.data;                                  // grain
+  for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 26; d[i] += n; d[i + 1] += n * 0.9; d[i + 2] += n * 0.7; }
+  c.putImageData(img, 0, 0);
+  const blot = (x, z, rx, rz, col, n) => { for (let i = 0; i < n; i++) { c.fillStyle = col; c.globalAlpha = 0.05 + Math.random() * 0.12;
+    c.beginPath(); c.ellipse(xx(x + (Math.random() - 0.5) * rx), zy(z + (Math.random() - 0.5) * rz), 4 + Math.random() * 14, 6 + Math.random() * 22, Math.random(), 0, 7); c.fill(); } c.globalAlpha = 1; };
+  blot(0, 4.5, 1.6, 5, '#6f5c3e', 260); blot(0, 13, 1.6, 5, '#6f5c3e', 220);              // worn length areas (both ends)
+  blot(-0.45, 18.1, 0.8, 2.6, '#5c4a31', 220); blot(0.35, 19.4, 0.6, 1.4, '#5c4a31', 120); // bowler's landing + follow-through
+  blot(-0.15, 0.3, 0.7, 1.4, '#5c4a31', 160); blot(-0.1, -0.6, 0.4, 0.6, '#4d3e29', 80);    // batter's front-foot area + guard
+  blot(0.2, 17.0, 0.7, 2.0, '#5c4a31', 90);                                              // other-end batter's marks
+  c.strokeStyle = 'rgba(60,45,28,.45)'; c.lineWidth = 1.2;                               // cracks
+  for (let i = 0; i < 70; i++) { let x = Math.random() * W, y = Math.random() * H; c.beginPath(); c.moveTo(x, y);
+    for (let k = 0; k < 6; k++) { x += (Math.random() - 0.5) * 30; y += (Math.random() - 0.5) * 40; c.lineTo(x, y); } c.stroke(); }
+  for (const side of [0, 1]) {                                                           // grass creeping in at the edges
+    for (let i = 0; i < 2600; i++) { const x = side ? W - Math.pow(Math.random(), 2.2) * 44 : Math.pow(Math.random(), 2.2) * 44, y = Math.random() * H;
+      c.fillStyle = `rgba(${60 + Math.random() * 30},${95 + Math.random() * 40},${45},${0.35 + Math.random() * 0.4})`; c.fillRect(x, y, 2, 3 + Math.random() * 5); } }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+
 // Flat rectangles on the ground merged into one mesh (one draw call for every crease line).
 function groundQuads(rects, y) {
   const pos = [], idx = [];
@@ -49,34 +75,44 @@ function groundQuads(rects, y) {
 export function createWorld(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', stencil: false });
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false;
+  // Filmic tone mapping: bright areas (the near pitch) roll off instead of clipping to a glaring white
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SKY); scene.fog = new THREE.Fog(SKY, 70, 190);
+  let skyMat = null;
   // Sky: a vertex-coloured dome (deeper blue overhead, hazy at the horizon) — one draw call, no texture
   { const g = new THREE.SphereGeometry(320, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), pos = g.attributes.position, col = [];
     const top = new THREE.Color(0x5d8fc4), hor = new THREE.Color(SKY), c = new THREE.Color();
     for (let i = 0; i < pos.count; i++) { const h = Math.max(0, pos.getY(i) / 320); c.copy(hor).lerp(top, Math.pow(h, 0.55)); col.push(c.r, c.g, c.b); }
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-    const sky = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
-    sky.position.z = 20; sky.renderOrder = -1; scene.add(sky); }
+    skyMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false });
+    const sky = new THREE.Mesh(g, skyMat); sky.position.z = 20; sky.renderOrder = -1; scene.add(sky); }
   const camera = new THREE.PerspectiveCamera(34, 1, 0.05, 400);
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
   // Lights (physically based units in r155+: ≈ π × the old r128 values)
-  scene.add(new THREE.HemisphereLight(0xe6eef6, 0x4b5a3c, 2.5));
-  const sun = new THREE.DirectionalLight(0xfff6e8, 3.0);
-  sun.target.position.set(0, 0, 24); sun.position.set(-7, 20, 18); scene.add(sun.target, sun);
+  const hemi = new THREE.HemisphereLight(0xe6eef6, 0x4b5a3c, 2.2); scene.add(hemi);
+  // Afternoon sun from behind the batter's off-side shoulder: long shadows toward the bowler (a depth cue)
+  const sun = new THREE.DirectionalLight(0xfff6e8, 2.6);
+  sun.target.position.set(0, 0, 24); sun.position.set(-7, 12, 15); scene.add(sun.target, sun);
   sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
   Object.assign(sun.shadow.camera, { left: -11, right: 11, top: 11, bottom: -11, near: 1, far: 50 });
   sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02;
-  const SUN_DIR = new THREE.Vector3(-7, 20, -6).normalize();
+  const SUN_DIR = new THREE.Vector3(-7, 12, -9).normalize();
 
   // Grass with mowing stripes (a depth cue), pitch, crease lines
   const gTex = noiseTex(128, 128, [70, 112, 58], 26, true); gTex.repeat.set(40, 45);
   const grass = new THREE.Mesh(new THREE.PlaneGeometry(160, 180), new THREE.MeshLambertMaterial({ map: gTex }));
   grass.rotation.x = -Math.PI / 2; grass.position.z = 20; grass.receiveShadow = true; scene.add(grass);
-  const pTex = noiseTex(128, 128, [196, 172, 124], 30, false); pTex.repeat.set(2, 14);
+  const pTex = pitchTex();
   const pitch = new THREE.Mesh(new THREE.PlaneGeometry(3.05, 24.5), new THREE.MeshLambertMaterial({ map: pTex }));
   pitch.rotation.x = -Math.PI / 2; pitch.position.set(0, 0.004, 8.84); pitch.receiveShadow = true; scene.add(pitch);
+  // Faint length markings (Settings → Length markings; auto = on in Level 1): full / good / short for this ball's pace
+  const lenGroup = new THREE.Group(); lenGroup.visible = false; scene.add(lenGroup);
+  const lenBands = [0, 1, 2].map(() => { const m = new THREE.Mesh(new THREE.PlaneGeometry(3.05, 1), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.16, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; lenGroup.add(m); return m; });
+  const lenLines = [0, 1].map(() => { const m = new THREE.Mesh(new THREE.PlaneGeometry(3.05, 0.03), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.position.y = 0.007; lenGroup.add(m); return m; });
   const lines = new THREE.Mesh(groundQuads([
     [3.66, 0.05, 0, 0], [3.66, 0.05, 0, 17.68], [2.64, 0.05, 0, Z_STUMPS], [2.64, 0.05, 0, 18.9],
     [0.05, 2.44, -1.32, Z_STUMPS], [0.05, 2.44, 1.32, Z_STUMPS], [0.05, 2.44, -1.32, 18.3], [0.05, 2.44, 1.32, 18.3]], 0.008),
@@ -94,15 +130,21 @@ export function createWorld(canvas) {
       for (const x of [-0.055, 0.055]) bails.setMatrixAt(j++, m.compose(new THREE.Vector3(x, 0.72, z), q, s));
     } }
   stumps.castShadow = true; scene.add(stumps, bails);
+  // The batter's own stumps' shadow (static decals along the sun direction; the shadow map only covers the bowler's end)
+  { const len = 0.711 * Math.hypot(SUN_DIR.x, SUN_DIR.z) / SUN_DIR.y, ang = Math.atan2(SUN_DIR.x, SUN_DIR.z);
+    const sh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.04, len), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }), 3);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ang).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2)), p = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
+    [-0.11, 0, 0.11].forEach((x, i) => sh.setMatrixAt(i, m.compose(p.set(x - SUN_DIR.x / SUN_DIR.y * 0.355, 0.006, Z_STUMPS - SUN_DIR.z / SUN_DIR.y * 0.355), q, one)));
+    scene.add(sh); }
 
   // Nets: two side nets (one texture) + instanced poles
   { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d');
     c.strokeStyle = 'rgba(30,34,38,0.9)'; c.lineWidth = 3; c.strokeRect(0, 0, 64, 64);
     const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = Math.min(8, maxAniso); t.repeat.set(26 / 0.14, 3.2 / 0.14);
-    const mat = new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+    const mat = new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false });
     const geo = new THREE.PlaneGeometry(26, 3.2);
     for (const x of [-1.75, 1.75]) { const n = new THREE.Mesh(geo, mat); n.rotation.y = Math.PI / 2; n.position.set(x, 1.6, 9); scene.add(n); }
-    const zs = []; for (let z = -4; z <= 22; z += 4.33) zs.push(z);
+    const zs = []; for (let z = -4; z <= 22; z += 3) zs.push(z);                      // a pole every 3 m: a strong depth cue
     const poles = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.03, 0.03, 3.3, 6), new THREE.MeshLambertMaterial({ color: 0x2a2f35 }), zs.length * 2);
     const m = new THREE.Matrix4(); let i = 0;
     for (const x of [-1.75, 1.75]) for (const z of zs) poles.setMatrixAt(i++, m.makeTranslation(x, 1.65, z));
@@ -123,18 +165,6 @@ export function createWorld(canvas) {
     const legs = new THREE.InstancedMesh(new THREE.BoxGeometry(0.18, 0.9, 0.5), legMat, 3), m = new THREE.Matrix4();
     [-4.5, 0, 4.5].forEach((x, i) => legs.setMatrixAt(i, m.makeTranslation(x, 0.45, 0.2))); sight.add(legs);
     sight.position.set(0, 0, 40); scene.add(sight); }
-  // Worn footmarks: the bowler's landing area and the batter's guard mark (one instanced decal)
-  { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d');
-    for (let i = 0; i < 90; i++) { const x = 32 + (Math.random() - 0.5) * 44, y = 32 + (Math.random() - 0.5) * 50, r = 2 + Math.random() * 5;
-      c.fillStyle = `rgba(${90 + Math.random() * 30},${70 + Math.random() * 20},${45},${0.12 + Math.random() * 0.2})`; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); }
-    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-    const marks = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshLambertMaterial({ map: t, transparent: true, depthWrite: false }), 3);
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2), p = new THREE.Vector3(), sc = new THREE.Vector3();
-    marks.setMatrixAt(0, m.compose(p.set(-0.45, 0.006, 18.0), q, sc.set(0.9, 2.4, 1)));
-    marks.setMatrixAt(1, m.compose(p.set(0.35, 0.006, 19.2), q, sc.set(0.7, 1.6, 1)));
-    marks.setMatrixAt(2, m.compose(p.set(-0.12, 0.006, -0.1), q, sc.set(0.6, 0.9, 1)));
-    marks.receiveShadow = true; scene.add(marks); }
-
   const bowler = createBowler(scene);
   // Cheap blob shadow under the bowler for low tiers (no shadow map)
   const blobTex = radialTex(64, 0.15);
@@ -212,8 +242,28 @@ export function createWorld(canvas) {
     for (const tx of [gTex, pTex]) { const a = Math.min(t.aniso, maxAniso); if (tx.anisotropy !== a) { tx.anisotropy = a; tx.needsUpdate = true; } }
     shadowDirty = true;
   }
+  // Where the canvas sits on the physical screen: all of it in full screen, otherwise an estimate (see core/calib.js).
+  function pxInfo() {
+    const full = !!document.fullscreenElement || (innerHeight >= screen.height - 2 && innerWidth >= screen.width - 2);
+    return { full, screenH: screen.height, availH: screen.availHeight, innerH: innerHeight, innerW: innerWidth };
+  }
+  let calibrated = false;
   function applyView(S, hand) {
     view = S; hx = hand === 'L' ? -1 : 1; frame.scale.x = hx;
+    const c = activeCalib(S, H > W);
+    calibrated = !!c;
+    if (calibrated) {
+      // True life-size: camera at the real eye, looking dead level; the frustum passes through the physical screen
+      // edges (off-axis), so the horizon is at the real eye line and everything subtends its real angle.
+      const near = 0.05, eyeY = c.eyeCm / 100, f = frustum(c, near, canvasRect(c, pxInfo()));
+      camera.position.set(EYE.x * hx, eyeY, EYE.z); camera.lookAt(EYE.x * hx, eyeY, EYE.z + 10); camera.updateMatrixWorld();
+      camera.aspect = W / H; camera.near = near; camera.far = 400;
+      camera.projectionMatrix.makePerspective(f.left, f.right, f.top, f.bottom, near, 400);
+      camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+      ball.scale.setScalar(1);                                            // true size: no boost
+      placeHe(W, H);
+      return;
+    }
     let v;
     if (S.view === 'life') {
       const h = Math.max(0.1, (+S.lifeCm || 60) / 100), dist = Math.max(0.5, +S.lifeM || 1.5);
@@ -242,12 +292,30 @@ export function createWorld(canvas) {
 
   return {
     renderer, scene, camera, heCam, bowler, ball, frame,
-    get tier() { return tier; }, get hx() { return hx; },
+    get tier() { return tier; }, get hx() { return hx; }, get calibrated() { return calibrated; }, pxInfo,
+    // Screen position (CSS px) of a world point as seen by the batter's camera.
+    toScreen(x, y, z) { v3.set(x, y, z).project(camera); return { x: (v3.x + 1) / 2 * W, y: (1 - v3.y) / 2 * H, behind: v3.z > 1 }; },
     applyTier, applyView, resize,
     // Ball colour and matching sight screen (red ball → white screen; white ball → black screen), or no screen.
-    setBall(colour, sightOn) {
+    // sightMode: 'dark' | 'white' | 'off' (older saves: true/false)
+    setBall(colour, sightMode) {
       ball.material.map = colour === 'white' ? whiteTex : ballTex; ball.material.needsUpdate = true;
-      sightMat.color.setHex(colour === 'white' ? 0x15171a : 0xf2f2ee); sight.visible = sightOn !== false; shadowDirty = true;
+      const mode = sightMode === false || sightMode === 'off' ? 'off' : sightMode === 'white' ? 'white' : 'dark';
+      sightMat.color.setHex(mode === 'white' ? 0xf2f2ee : 0x15171a); sight.visible = mode !== 'off'; shadowDirty = true;
+    },
+    // Night mode: dusk sky and floodlight-style light, much less glare
+    setNight(on) {
+      const skyC = on ? 0x26324a : SKY; scene.background.setHex(skyC); scene.fog.color.setHex(skyC);
+      skyMat.color.setHex(on ? 0x4a5670 : 0xffffff); hemi.intensity = on ? 0.9 : 2.2; hemi.color.setHex(on ? 0x9fb0d0 : 0xe6eef6);
+      sun.intensity = on ? 2.2 : 2.6; sun.color.setHex(on ? 0xf0f4ff : 0xfff6e8); renderer.toneMappingExposure = on ? 1.0 : 0.95; shadowDirty = true;
+    },
+    // Length markings for this pace (null = hide)
+    setLenMarks(kph, spin) {
+      if (kph == null) { lenGroup.visible = false; return; }
+      const B = bandsFor(kph, spin).slice(1, 4);                                    // full, good, short
+      B.forEach((b, i) => { const e = Math.min(b.b, 14), m = lenBands[i]; m.material.color.set(b.c); m.scale.y = Math.max(0.01, e - b.a);
+        m.position.set(0, 0.006, Z_STUMPS + (b.a + e) / 2); });
+      lenLines[0].position.z = Z_STUMPS + B[1].a; lenLines[1].position.z = Z_STUMPS + B[1].b; lenGroup.visible = true;
     },
     // Call after posing the bowler: the shadow map is redrawn on the next render only.
     bowlerMoved() { shadowDirty = true; },
@@ -259,7 +327,7 @@ export function createWorld(canvas) {
       bandsFor(tr.kph, tr.spin).forEach((b, i) => { const e = Math.min(b.b, 14), m = bandMeshes[i]; m.material.color.set(b.c);
         m.scale.y = Math.max(0.01, e - b.a); m.position.set(0, 0.01, Z_STUMPS + (b.a + e) / 2); });
       heLines[0].position.z = Z_STUMPS + tr.fmax; heLines[1].position.z = Z_STUMPS + tr.bmin;
-      heBands.visible = true; bowler.root.visible = false; bBlob.visible = false;
+      heBands.visible = true; lenGroup.visible = false; bowler.root.visible = false; bBlob.visible = false;
       he = { start: now, dur: dur || 1500, tr, frozen: null }; tGeo.setDrawRange(0, 0);
     },
     heStep(now) {

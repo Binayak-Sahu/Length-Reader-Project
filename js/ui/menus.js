@@ -6,7 +6,7 @@ import { totalXP, streak, week, WEEK_GOAL, dayKey } from '../core/progress.js';
 import { TIERS, BOSSES, careerState, bossFor } from '../core/career.js';
 
 export const TABS = ['home', 'career', 'progress', 'more'];
-const SCREENS = ['home', 'career', 'progress', 'more', 'settings', 'end', 'pause', 'rtest', 'howto', 'onboard'];
+const SCREENS = ['home', 'career', 'progress', 'more', 'settings', 'end', 'pause', 'rtest', 'howto', 'onboard', 'calib'];
 export function only(id) {
   for (const s of SCREENS) show(s, s === id);
   app.state = id || 'none';
@@ -89,13 +89,13 @@ export function renderCareer(onTrial, onBoss) {
 export function renderMore() {
   $('rtSub2').textContent = app.db.rtBase ? `Yours: ${Math.round(app.db.rtBase * 1000)} ms · test again` : 'Your button delay — do this first';
   const b = $('bTrig'); b.querySelector('b').textContent = 'Trigger: ' + (app.S.trigger ? 'ON' : 'OFF'); b.classList.toggle('gold', !!app.S.trigger);
-  $('padNote').innerHTML = app.pads.connected ? '<b>Controller connected.</b> D-pad to move around the menus, A to choose, B to go back, LB/RB to switch tabs.' : 'Xbox controller: plug it in and press any button.';
+  $('padNote').innerHTML = app.pads.connected ? '<b>Controller connected.</b> In play: LT = trigger · Y = front · A = back · B/X = play · RT = leave (L4: LB flick, RB pull). Menus: D-pad, A choose, B back, LB/RB tabs.' : 'Xbox controller: plug it in and press any button.';
   only('more');
 }
 
 // ---------- onboarding (first run) ----------
 export function onboarding(step, api) {
-  const { db } = app, el = $('obBody'), N = 5;
+  const { db } = app, el = $('obBody'), N = 6;
   const steps = `<div class="steps">${Array.from({ length: N }, (_, i) => `<i class="${i <= step ? 'on' : ''}"></i>`).join('')}</div>`;
   const next = (fn) => { const b = el.querySelector('#obNext'); if (b) b.onclick = fn; };
   const touch = document.body.classList.contains('touch');
@@ -115,16 +115,22 @@ export function onboarding(step, api) {
   } else if (step === 2) {
     el.innerHTML = `<div class="ob">${steps}<h1 class="display">Set up</h1>
       <div class="choices"><div class="choice${touch ? ' on' : ''}"><b>Phone</b><span>Prop it at eye height in landscape, an arm's length away. Stand in your stance. Tap the <b>top half</b> for FRONT, the <b>bottom half</b> for BACK.</span></div>
-      <div class="choice${touch ? '' : ' on'}"><b>PC</b><span>Stand 2.5–3 m back. Controller: <b>Y</b> = FRONT, <b>A</b> = BACK. Keyboard: <b>←</b> / <b>→</b>. Mouse: left / right click.</span></div></div>
+      <div class="choice${touch ? '' : ' on'}"><b>PC</b><span>Stand in your stance. Controller: <b>Y</b> = FRONT, <b>A</b> = BACK, <b>RT</b> = LEAVE, <b>LT</b> = trigger. USB foot pedals: Settings → Map my pedals. Keyboard: <b>←</b> / <b>→</b>. Mouse: left / right click.</span></div></div>
       <p class="lead" style="margin-top:2vh">Every time you press, make the real step too. Head still, eyes on the bowler's hand.</p>
       <div class="row"><button class="cta" id="obNext"><span class="ctaPlay"></span>Next</button></div></div>`;
     next(() => onboarding(3, api));
   } else if (step === 3) {
+    el.innerHTML = `<div class="ob">${steps}<h1 class="display">True life-size</h1>
+      <p class="lead">On a monitor? Measure your screen and where you stand (2 minutes, tape measure). The bowler then appears at his real size, with the horizon at your real eye line.</p>
+      <div class="row"><button class="cta" id="obNext"><span class="ctaPlay"></span>Calibrate my setup</button><button class="btn" id="obSkip">Skip (phone, or later)</button></div></div>`;
+    next(() => api.calibrate(() => onboarding(4, api)));
+    el.querySelector('#obSkip').onclick = () => onboarding(4, api);
+  } else if (step === 4) {
     el.innerHTML = `<div class="ob">${steps}<h1 class="display">Your button speed</h1>
       <p class="lead">8 presses when the screen turns green (30 seconds). The app subtracts this, so it can show how long you actually spent <b>reading</b> the ball — and spot guesses.</p>
       <div class="row"><button class="cta" id="obNext"><span class="ctaPlay"></span>Test now</button><button class="btn" id="obSkip">Skip for now</button></div></div>`;
-    next(() => api.reaction(() => onboarding(4, api)));
-    el.querySelector('#obSkip').onclick = () => onboarding(4, api);
+    next(() => api.reaction(() => onboarding(5, api)));
+    el.querySelector('#obSkip').onclick = () => onboarding(5, api);
   } else {
     el.innerHTML = `<div class="ob">${steps}<h1 class="display">4 practice balls</h1>
       <p class="lead">80 kph, full view. Watch the hand, then the ball. <b>Pitched up → FRONT. Short → BACK.</b> Before it bounces.</p>

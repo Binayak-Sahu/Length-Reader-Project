@@ -26,7 +26,7 @@ export const BOSSES = [
     trademark: { p: 0.35, varn: 'Googly', name: 'The googly' },
     blurb: 'Leg-spinner with a googly. Flight, dip and the one that turns back in.', skill: 'Forward to anything tossed up; back only when it’s clearly short.' },
   { id: 'express', tier: 5, n: 'The Express', unlock: 25, spec: { m: 4, k: 120, o: null },
-    prof: Object.assign({}, BOWLERS[0], { id: 'express', n: 'The Express', s: 1.1, c: 0x111827 }),
+    prof: Object.assign({}, BOWLERS[0], { id: 'express', n: 'The Express', s: 1.08, c: 0x111827 }),
     trademark: { p: 0.35, cat: 'Full', d: [2.5, 4.5], varn: 'Slower ball', name: 'Slower ball' },
     blurb: 'Top pace, then the slower ball out of the back of the hand.', skill: 'Pick the shot late enough to see the slower ball, early enough to get there.' },
 ];

@@ -118,6 +118,20 @@ Also read:
 
 **Scene (M3):** sky dome, sight screen (Settings → Ball / Sight screen), footmarks, speed gun after each ball, and seam wobble (cosmetic). None of these carries length information.
 
+**True life-size (v5.2):** Settings → Calibrate my setup (also offered in onboarding).
+
+- **How it works:** off-axis camera from the measured screen size, eye distance, eye height and screen bottom edge (`js/core/calib.js`). It is used in every mode once saved, one calibration per orientation.
+- **Bink's setup (27" upright, 59.8 × 33.6 cm):**
+  - Eyes 130 cm from the screen, eye height 150 cm.
+  - Screen bottom edge at **100 cm** (top at 160 cm).
+  - Gives a 25.3° vertical view, a 12.0 cm tall bowler, the eye line 9.8 cm below the top, and the release 5.2 cm above it.
+- **Limit:** full balls bounce below the screen at true size (the ground is visible from about 3.9 m).
+
+**Controls (v5.2):**
+
+- Controller: LT = trigger, RT = leave, B/X = play. L4: LB flick, RB pull.
+- USB foot pedals can be mapped in Settings.
+
 **Left-handers:** the batter frame and the camera are mirrored. The bowler stays right-arm. Off-spin turns away from left-handers.
 
 ## Decisions already made (don't reopen without new evidence; log changes in DECISIONS.md)
@@ -156,6 +170,7 @@ Also read:
   - Seam wobble, speed gun after each ball.
   - Better bowler body (rig unchanged, physics identical).
   - Docs, plus the device test checklist in the README.
+- **v5.2 shipped (27 Oct 2026):** true life-size calibration, darker worn pitch + tone mapping, night mode, dark sight screen, length marks, release heights fixed, portrait card, pedals, LT/RT.
 - **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
 - **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).
 - **Later (Bink paused it):** a PC mirror using the S25+ as a webcam, with pose checks on the big screen.
