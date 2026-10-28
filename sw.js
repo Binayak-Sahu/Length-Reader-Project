@@ -4,7 +4,7 @@
 // • MediaPipe (≈15 MB) is cached the first time the mirror uses it, in its own cache that survives app updates.
 // • A new version waits until the player taps "Reload" (never mid-session).
 // @stamp-start
-const VERSION = '6e6dfc67c123';
+const VERSION = '05c9749b6f64';
 const CORE = [
   './',
   'css/app.css',
@@ -31,6 +31,7 @@ const CORE = [
   'js/core/quality.js',
   'js/core/rules.js',
   'js/core/store.js',
+  'js/core/sync.js',
   'js/core/timing.js',
   'js/engine/bowler.js',
   'js/engine/perf.js',
@@ -39,6 +40,7 @@ const CORE = [
   'js/game/modes.js',
   'js/input.js',
   'js/main.js',
+  'js/sync-github.js',
   'js/traj-service.js',
   'js/traj-worker.js',
   'js/ui/calib.js',

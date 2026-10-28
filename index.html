@@ -28,6 +28,7 @@
 <link rel="modulepreload" href="js/core/quality.js">
 <link rel="modulepreload" href="js/core/rules.js">
 <link rel="modulepreload" href="js/core/store.js">
+<link rel="modulepreload" href="js/core/sync.js">
 <link rel="modulepreload" href="js/core/timing.js">
 <link rel="modulepreload" href="js/engine/bowler.js">
 <link rel="modulepreload" href="js/engine/perf.js">
@@ -36,6 +37,7 @@
 <link rel="modulepreload" href="js/game/modes.js">
 <link rel="modulepreload" href="js/input.js">
 <link rel="modulepreload" href="js/main.js">
+<link rel="modulepreload" href="js/sync-github.js">
 <link rel="modulepreload" href="js/traj-service.js">
 <link rel="modulepreload" href="js/ui/calib.js">
 <link rel="modulepreload" href="js/ui/menus.js">
@@ -149,13 +151,14 @@
       <button class="tile" id="bHow"><b>How it works</b><span>The science — and what a screen can't do</span></button>
       <button class="tile" id="bControls"><b>Controls</b><span>Phone · keyboard · mouse · Xbox controller</span></button>
       <button class="tile" id="bTrig"><b>Trigger: OFF</b><span>Time your forward press</span></button>
+      <button class="tile" id="bSync"><b>Sync phone + PC</b><span id="syncSub">One progress on all your devices</span></button>
       <button class="tile" id="bExport"><b>Export data</b><span>Back up your sessions</span></button>
       <button class="tile hidden" id="bInstall"><b>Install app</b><span>Home screen · full screen · offline</span></button>
     </div>
     <div class="keys hidden" id="controls">
       <div class="key kT"><b>TRIGGER</b><div>Optional · before release · LT · Space · wheel click · phone: 1st tap</div></div>
-      <div class="key kF"><b>FEET (L1–3)</b><div>FRONT: Y · ← · left click · tap top half<br>BACK: A · → · right click · tap bottom half<br>L2–3: B/X or press again = PLAY · RT or nothing = LEAVE<br>USB pedals: Settings → Map my pedals</div></div>
-      <div class="key kP"><b>SHOTS (L4)</b><div>Front: Y defend · X drive · LB flick (W E Q)<br>Back: A defend · B punch · RB pull (S D A)<br>RT or nothing = LEAVE · Phone: 6 tap zones</div></div>
+      <div class="key kF"><b>FEET (L1–3)</b><div>FRONT: X (or Y) · ← · left click · tap top half<br>BACK: B (or A) · → · right click · tap bottom half<br>L2–3: push the left stick (or press again) = PLAY · RT or nothing = LEAVE<br>USB pedals: Settings → Map my pedals</div></div>
+      <div class="key kP"><b>SHOTS (L4)</b><div>Controller, side-on: foot first, then the left stick<br>X front: ← drive · ↓ flick · ↑ defend (W E Q)<br>B back: ↑ punch · ↓ pull · → defend (S D A)<br>Foot with no stick = defend · RT or nothing = LEAVE · Left-handers: ← and → swap · Phone: 6 tap zones</div></div>
       <div class="key"><b>AFTER A BALL</b><div>A · Enter = next · Y · H = hold · B · R = replay · X · S = slow-mo<br>Menu · P · Esc = pause</div></div>
       <div class="key"><b>MENUS</b><div>D-pad / stick = move · A = choose · B = back · LB/RB = tabs</div></div>
     </div>
@@ -216,6 +219,33 @@
   <div class="wrap narrow" id="obBody"></div>
 </div>
 
+<!-- SYNC -->
+<div id="sync" class="screen hidden">
+  <div class="wrap narrow">
+    <div class="brand"><i></i>SYNC PHONE + PC</div>
+    <p class="lead">Your sessions, level, career and badges are merged across every device you connect. Nothing is lost: both sides are combined.</p>
+    <p class="note" id="syncState"></p>
+    <div id="syncSetup">
+      <h2>Connect (once on each device)</h2>
+      <ol class="syncSteps">
+        <li>On github.com: <b>Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token</b>.</li>
+        <li>Name it “Length Reader”, pick a long expiry, and under <b>Account permissions</b> set <b>Gists</b> to <b>Read and write</b>. Nothing else.</li>
+        <li>Generate, copy the token and paste it below. Use the same token on your phone and your PC.</li>
+      </ol>
+      <div class="field"><label for="syncTok">GITHUB TOKEN</label><input id="syncTok" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…"></div>
+      <div class="row"><button class="btn go" id="bSyncGo">Connect and sync</button></div>
+    </div>
+    <div class="row" id="syncOn">
+      <button class="btn go" id="bSyncNow">Sync now</button>
+      <button class="btn" id="bSyncOff">Disconnect this device</button>
+    </div>
+    <p class="note">Stays per device: settings, calibration, pedals and reaction time (they differ between phone and PC).<br>
+      Your data is saved as a secret gist in your own GitHub account. Secret gists are unlisted, not encrypted: anyone with the gist's link can read it, so don't share that link.
+      The token stays on this device. There are no accounts of ours and no tracking. It syncs when the app opens and after every session.</p>
+    <div class="row"><button class="btn" id="bSyncBack">Done</button></div>
+  </div>
+</div>
+
 <!-- SETTINGS -->
 <div id="settings" class="screen hidden">
   <div class="wrap">
@@ -223,7 +253,7 @@
     <div class="form" id="form"></div>
     <h2>Your data</h2>
     <p class="note" id="dataInfo"></p>
-    <p class="note">No accounts, ads or tracking. Nothing leaves this device unless you export it. The mirror's camera images stay in memory and are never saved or uploaded.</p>
+    <p class="note">No accounts, ads or tracking. Nothing leaves this device unless you export it or turn on Sync phone + PC (More). The mirror's camera images stay in memory and are never saved or uploaded.</p>
     <div class="row">
       <button class="btn" id="bExport2">Export data</button>
       <button class="btn" id="bImport">Import data (v4 or v5 file)</button>

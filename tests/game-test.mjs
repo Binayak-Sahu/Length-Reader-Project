@@ -11,6 +11,7 @@ import { BOSSES, careerState, recordTrial, TIERS } from '../js/core/career.js';
 import { checkBadges, BADGES } from '../js/core/badges.js';
 import { isHitting, categorize } from '../js/core/rules.js';
 import { mulberry32, makeOk, fakeStorage } from './util.mjs';
+import { syncPayload, mergeSynced } from '../js/core/sync.js';
 const { ok, done } = makeOk('game');
 
 console.log('— level staircase (85% rule) —');
@@ -94,6 +95,8 @@ const v4 = {
   const out = JSON.parse(JSON.stringify(exportData(db))), db2 = newDB();
   db.badges.first = '2026-10-26'; const out2 = JSON.parse(JSON.stringify(exportData(db)));
   ok(importData(db2, out2) === 2 && db2.badges.first && db2.level === 4, 'v5 export → import round trip (sessions, badges, level)');
+  { const a = newDB(), b = newDB(); a.level = 4; b.level = 9; mergeSynced(a, syncPayload(b)); const c = newDB(); c.level = 12; mergeSynced(c, syncPayload(b));
+    ok(a.level === 9 && c.level === 12, 'sync: old saves with no level date take the higher level'); }
   let threw = false; try { importData(newDB(), { hello: 1 }); } catch (e) { threw = true; } ok(threw, 'rejects files that are not Length Reader data');
   void out;
 }
@@ -184,5 +187,34 @@ console.log('— badges reward real skills only —');
   ok(!checkBadges(newDB(), s4).includes('pressure6'), '5/6 is not enough');
   const db2 = newDB(); db2.career.tier = 5; ok(checkBadges(db2, null).includes('selected'), 'reaching India A → Selected');
   ok(new Set(BADGES.map(b => b.id)).size === BADGES.length, `${BADGES.length} badges, unique ids`);
+}
+// ---------- sync between phone and PC ----------
+{
+  const ses = (d, n = 10) => ({ date: d, kind: 'session', n, score: 80, balls: Array.from({ length: n }, () => ({ ok: true, sc: 1 })) });
+  const phone = newDB(), pc = newDB();
+  phone.sessions = [ses('2026-10-20T10:00:00Z'), ses('2026-10-22T10:00:00Z')]; phone.level = 5; phone.levelAt = '2026-10-22T10:10:00Z';
+  phone.badges = { first: '2026-10-20T10:20:00Z' }; phone.career.tier = 2; phone.bosses = { b1: 70 };
+  phone.rtBase = 0.30; phone.settings.calib = { portrait: { hCm: 15 } }; phone.settings.maxKph = 100;
+  pc.sessions = [ses('2026-10-21T18:00:00Z'), ses('2026-10-22T10:00:00Z')]; pc.level = 8; pc.levelAt = '2026-10-25T18:00:00Z';
+  pc.badges = { first: '2026-10-21T18:20:00Z', back10: '2026-10-25T18:00:00Z' }; pc.career.tier = 1; pc.bosses = { b1: 85, b2: 60 };
+  pc.career.trials = [{ date: '2026-10-25T18:30:00Z', boss: 'b2', score: 60, passed: false }];
+  pc.rtBase = 0.262; pc.settings.calib = { portrait: { hCm: 59.8 } }; pc.settings.maxKph = 120;
+  const toPC = JSON.parse(JSON.stringify(syncPayload(phone)));     // phone pushes, PC pulls
+  const r = mergeSynced(pc, toPC);
+  ok(r.sessions === 1 && pc.sessions.length === 3, 'sync: sessions are combined, the shared one is not doubled');
+  ok(pc.sessions.map(s => s.date).join() === [...pc.sessions.map(s => s.date)].sort().join(), 'sync: sessions stay in date order');
+  ok(pc.level === 8, 'sync: the level changed most recently (PC) wins');
+  ok(pc.rtBase === 0.262 && pc.settings.calib.portrait.hCm === 59.8 && pc.settings.maxKph === 120, 'sync: reaction time, calibration and settings stay per device');
+  ok(pc.badges.first === '2026-10-20T10:20:00Z' && pc.badges.back10, 'sync: badges combined, first date kept');
+  ok(pc.career.tier === 2 && pc.bosses.b1 === 85 && pc.bosses.b2 === 60, 'sync: career tier and boss bests take the best of both');
+  const toPhone = JSON.parse(JSON.stringify(syncPayload(pc)));     // PC pushes the merged data, phone pulls
+  mergeSynced(phone, toPhone);
+  ok(phone.sessions.length === 3 && phone.level === 8 && phone.career.trials.length === 1 && phone.rtBase === 0.30, 'sync: phone ends with the same shared data, keeps its own reaction time');
+  const again = mergeSynced(phone, toPhone);
+  ok(again.sessions === 0 && !again.level && phone.sessions.length === 3, 'sync: merging twice adds nothing');
+  let threw = false; try { mergeSynced(newDB(), { app: 'other' }); } catch (e) { threw = true; } ok(threw, 'sync: a foreign file is refused');
+  const big = newDB(); big.sessions = Array.from({ length: 60 }, (_, i) => ses(new Date(Date.UTC(2026, 0, 1 + i)).toISOString(), 400));
+  const p = syncPayload(big, 200_000);
+  ok(JSON.stringify(p).length < 230_000 && p.data.sessions.length === 60 && big.sessions[0].balls.length === 400, 'sync: a big history is trimmed for upload (copy only, all sessions kept)');
 }
 done();
