@@ -18,7 +18,7 @@ export function newDB() {
     v: 5, created: new Date().toISOString(),
     profile: { hand: 'R', onboarded: false, seenV5: false },
     settings: Object.assign({}, DEF),
-    level: 0, levelD: 0.5, rtBase: null, cs: { pace: {}, spin: {} },
+    level: 0, levelD: 0.5, levelAt: null, rtBase: null, cs: { pace: {}, spin: {} },
     sessions: [], career: { tier: 0, trials: [] }, badges: {}, bosses: {},
     v3: { merged: false, last: null, count: 0 }, imports: [],
   };

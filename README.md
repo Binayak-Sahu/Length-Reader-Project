@@ -24,6 +24,7 @@ Your old bookmark (`…/length-reader.html`) opens the new app. The old v4 is ke
 ## Your data
 
 - Everything is saved in this browser, on this web address only. There are no accounts, ads or tracking.
+- **Phone + PC:** More → **Sync phone + PC** merges your sessions, level, career and badges through a secret gist in your own GitHub account. Paste the same token on each device (GitHub → Settings → Developer settings → Fine-grained tokens → Account permissions → Gists: Read and write). Settings, calibration and reaction time stay per device.
 - Your **v4 data on the same address** came across automatically: sessions, level, reaction time and settings. If you use v4 again, its new sessions are merged too.
 - Data from another address, like the old claude.ai copy, can't be read from here. Open that copy, tap **Export data**, then use **More → Settings → Import data** here. Both v4 and v5 files work.
 - Back up any time with **More → Export data**.
@@ -127,6 +128,7 @@ CI runs both test suites on every push and PR (`.github/workflows/ci.yml`).
 | Path | What |
 |---|---|
 | `index.html`, `css/app.css`, `fonts/` | App shell, styles, display font (Barlow Condensed, SIL OFL) |
+| `js/sync-github.js` | Optional sync through a secret gist (merge logic in `js/core/sync.js`) |
 | `js/core/` | Pure logic, tested in Node: `physics`, `rules` (grading), `bowling`, `levels` (85% staircase), `timing`, `progress` (XP, streaks), `badges`, `career` (ladder, bosses), `store` (saving, migration), `quality`, `action` (bowler keyframes) |
 | `js/engine/` | three.js: `world` (scene, ball, Hawk-Eye, sight screen), `bowler`, `perf` (frame-time overlay) |
 | `js/game/` | Session runner (`game.js`) and mode plans (`modes.js`) |

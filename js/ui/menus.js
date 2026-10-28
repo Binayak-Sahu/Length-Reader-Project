@@ -6,7 +6,7 @@ import { totalXP, streak, week, WEEK_GOAL, dayKey } from '../core/progress.js';
 import { TIERS, BOSSES, careerState, bossFor } from '../core/career.js';
 
 export const TABS = ['home', 'career', 'progress', 'more'];
-const SCREENS = ['home', 'career', 'progress', 'more', 'settings', 'end', 'pause', 'rtest', 'howto', 'onboard', 'calib'];
+const SCREENS = ['home', 'career', 'progress', 'more', 'settings', 'end', 'pause', 'rtest', 'howto', 'onboard', 'calib', 'sync'];
 export function only(id) {
   for (const s of SCREENS) show(s, s === id);
   app.state = id || 'none';
@@ -89,7 +89,8 @@ export function renderCareer(onTrial, onBoss) {
 export function renderMore() {
   $('rtSub2').textContent = app.db.rtBase ? `Yours: ${Math.round(app.db.rtBase * 1000)} ms · test again` : 'Your button delay — do this first';
   const b = $('bTrig'); b.querySelector('b').textContent = 'Trigger: ' + (app.S.trigger ? 'ON' : 'OFF'); b.classList.toggle('gold', !!app.S.trigger);
-  $('padNote').innerHTML = app.pads.connected ? '<b>Controller connected.</b> In play: LT = trigger · Y = front · A = back · B/X = play · RT = leave (L4: LB flick, RB pull). Menus: D-pad, A choose, B back, LB/RB tabs.' : 'Xbox controller: plug it in and press any button.';
+  if (app.syncView) app.syncView();
+  $('padNote').innerHTML = app.pads.connected ? '<b>Controller connected.</b> In play: LT = trigger · X = front · B = back · left stick = play (L4: stick picks the shot) · RT = leave. Menus: D-pad, A choose, B back, LB/RB tabs.' : 'Xbox controller: plug it in and press any button.';
   only('more');
 }
 
@@ -115,7 +116,7 @@ export function onboarding(step, api) {
   } else if (step === 2) {
     el.innerHTML = `<div class="ob">${steps}<h1 class="display">Set up</h1>
       <div class="choices"><div class="choice${touch ? ' on' : ''}"><b>Phone</b><span>Prop it at eye height in landscape, an arm's length away. Stand in your stance. Tap the <b>top half</b> for FRONT, the <b>bottom half</b> for BACK.</span></div>
-      <div class="choice${touch ? '' : ' on'}"><b>PC</b><span>Stand in your stance. Controller: <b>Y</b> = FRONT, <b>A</b> = BACK, <b>RT</b> = LEAVE, <b>LT</b> = trigger. USB foot pedals: Settings → Map my pedals. Keyboard: <b>←</b> / <b>→</b>. Mouse: left / right click.</span></div></div>
+      <div class="choice${touch ? '' : ' on'}"><b>PC</b><span>Stand in your stance. Controller, side-on: <b>X</b> = FRONT, <b>B</b> = BACK, left stick = play, <b>RT</b> = LEAVE, <b>LT</b> = trigger. USB foot pedals: Settings → Map my pedals. Keyboard: <b>←</b> / <b>→</b>. Mouse: left / right click.</span></div></div>
       <p class="lead" style="margin-top:2vh">Every time you press, make the real step too. Head still, eyes on the bowler's hand.</p>
       <div class="row"><button class="cta" id="obNext"><span class="ctaPlay"></span>Next</button></div></div>`;
     next(() => onboarding(3, api));

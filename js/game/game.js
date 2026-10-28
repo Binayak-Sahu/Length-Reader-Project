@@ -113,7 +113,7 @@ export function nextBall() {
   if (marks) world.setLenMarks(g.kph, !!PROF.spin); else world.setLenMarks(null);
   if (S.stepCue && gm === 1) ui.stepCue();
   G.cur = { g, job, tr: null, prof: PROF, rel, jx, occ, mode: gm, type, lvl, seg, fed: weak && g.cat === weak ? weak : null,
-    trig: null, foot: null, played: false, shot: null, src: null, si: 0, sounds: false, lblOff: !!seg.labels };
+    trig: null, foot: null, padFoot: null, played: false, shot: null, src: null, si: 0, sounds: false, lblOff: !!seg.labels };
   clock.reset();
   if (sess.zm !== gm) { ui.setZones(gm, S); sess.zm = gm; }
   G.state = 'run'; perf.ballStart(); hudUpdate();
@@ -170,13 +170,33 @@ export function act(k, ts, src, y, x) {
   }
   if (k === 'T') { if (S.trigger && cur.trig === null && tau < 0.25) { cur.trig = t; ui.flash('·', 'cT'); app.audio.tone(700, 700, 0.04, 'sine', 0.1); } return; }
   if (k === 'L') {                       // explicit LEAVE (controller RT): locks the decision
-    if (cur.mode === 4) { if (cur.shot || cur.decided || tau < -0.1) return; cur.decided = true; cur.left = true; clock.stamp('leave', ts); }
+    if (cur.mode === 4) { if (cur.shot || cur.decided || tau < -0.1) return; cur.decided = true; cur.left = true; cur.padFoot = null; clock.stamp('leave', ts); }
     else if ((cur.mode === 2 || cur.mode === 3) && cur.foot && !cur.played && !cur.left) { cur.left = true; clock.stamp('leave', ts); }
     else return;
     ui.flash('LEAVE', 'cL'); app.audio.tone(260, 260, 0.05, 'sine', 0.1); app.haptics.tap(); return;
   }
   if (cur.mode === 4) {
+    if (k.startsWith('PF:')) {                // controller foot first: the press is the read; the stick then picks the shot
+      if (cur.shot || cur.decided || cur.padFoot || tau < -0.1) return;
+      const f = k.slice(3); cur.padFoot = f; cur.foot = f; cur.src = src; clock.stamp('foot', ts);
+      ui.flash(NAMES[f], 'c' + f); app.audio.tone(420, 420, 0.05, 'sine', 0.12); app.haptics.tap(); return;
+    }
+    if (k.startsWith('ST:')) {
+      if (cur.shot || cur.decided) return;
+      const dir = k.slice(3), f = cur.padFoot || (dir === 'l' ? 'F' : dir === 'r' ? 'B' : null);
+      if (!f) return;
+      const sh = STICK[f][dir];
+      if (!cur.padFoot) k = 'S:' + sh;        // no foot pressed: the stick is the read
+      else {
+        cur.shot = sh; cur.played = true;
+        ui.flash(SHOTS[sh].n.toUpperCase(), 'c' + f + ' small'); app.audio.tone(380, 380, 0.04, 'sine', 0.1); return;
+      }
+    }
     if (k === 'F') k = 'S:FD'; else if (k === 'B') k = 'S:BD';
+    if (cur.padFoot && k.startsWith('S:') && !cur.shot && !cur.decided) {
+      const sh = k.slice(2); if (SHOTS[sh].f !== cur.padFoot) return;
+      cur.shot = sh; cur.played = true; ui.flash(SHOTS[sh].n.toUpperCase(), 'c' + cur.foot + ' small'); return;
+    }
     if (k.startsWith('S:') && !cur.shot && !cur.decided) {
       if (tau < -0.1) return;
       const sh = k.slice(2); cur.shot = sh; cur.foot = SHOTS[sh].f; cur.played = true; cur.src = src; clock.stamp('foot', ts);
@@ -199,6 +219,7 @@ export function act(k, ts, src, y, x) {
 function finishBall() {
   const { db, S, world, perf, audio, voice, haptics } = app, sess = G.sess, cur = G.cur, tr = cur.tr, seg = cur.seg;
   G.state = 'result'; world.ball.visible = false;
+  if (cur.mode === 4 && cur.padFoot && !cur.shot) { cur.shot = cur.padFoot === 'F' ? 'FD' : 'BD'; cur.played = true; }   // foot but no stick: a defensive shot
   app.onBallStats(perf.ballEnd());                                    // adaptive quality decides between balls
   const rt = clock.rtOf('foot'), tbP = clock.tbPresented(tr.tb), lim = guessLimit(db.rtBase), opt = { tbP, guessBelow: lim };
   const trigArg = S.trigger ? cur.trig : undefined;
@@ -373,7 +394,7 @@ export function endSession() {
   const rec = { id: s.start.toString(36), date: new Date(s.start).toISOString(), kind: s.kind, drill: s.plan.drill || null, match: s.match || null,
     n, score, peak: s.peak, end: s.level, bestStreak: s.best, balls: s.balls, xp: s.xp, sum: summarize(s.balls), boss: s.boss ? s.boss.id : undefined };
   db.sessions.push(rec);
-  if (S.levelMode === 'auto' && s.plan.segs.some(x => x.adapt)) { db.level = s.level; db.levelD = s.d; }
+  if (S.levelMode === 'auto' && s.plan.segs.some(x => x.adapt)) { if (db.level !== s.level) db.levelAt = new Date().toISOString(); db.level = s.level; db.levelD = s.d; }
   app.saveNow();
   G.state = 'end'; hooks.showEnd(s, score, rec);
 }
@@ -420,18 +441,32 @@ export function onPointer(e) {
   else if (!G.held && !G.wait) nextBall();                      // tap = next ball (nets: only the Ready button skips the wait)
   return true;
 }
-export function onPad(E, su, sd, ts) {
+// Side-on controller: X = front foot, B = back foot (Y / A and D-pad up / down are aliases). The left stick plays:
+// Levels 2–3 any push = play; Level 4 the direction picks the shot for the chosen foot (STICK). Left/right mirror for left-handers.
+export const STICK = { F: { l: 'SD', d: 'FL', u: 'FD', r: 'FD' }, B: { l: 'BD', d: 'PU', u: 'BP', r: 'BD' } };
+function stickDir(su, sd, sl, sr, gp) {
+  const n = (su ? 1 : 0) + (sd ? 1 : 0) + (sl ? 1 : 0) + (sr ? 1 : 0);
+  if (!n) return null;
+  if (n > 1 && gp && gp.axes) { const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0; return Math.abs(ax) >= Math.abs(ay) ? (ax < 0 ? 'l' : 'r') : (ay < 0 ? 'u' : 'd'); }
+  return sl ? 'l' : sr ? 'r' : sd ? 'd' : 'u';
+}
+export function onPad(E, su, sd, ts, gp, sl, sr) {
   if (G.state === 'intro') return true;
   if (E[9]) { if (G.state === 'run' || G.state === 'result' || G.state === 'paused') { togglePause(); return true; } return false; }
   if (G.state === 'run') {
     if (E[6]) act('T', ts, 'pad');                                   // LT = trigger
     if (E[7]) act('L', ts, 'pad');                                   // RT = leave
+    const foot = E[2] || E[3] || E[12] ? 'F' : E[1] || E[0] || E[13] ? 'B' : null;
+    let dir = stickDir(su, sd, sl, sr, gp);
+    if (dir && app.db.profile.hand === 'L') dir = dir === 'l' ? 'r' : dir === 'r' ? 'l' : dir;
     if (G.cur && G.cur.mode === 4) {
-      const sh = E[3] ? 'FD' : E[2] ? 'SD' : E[4] ? 'FL' : E[0] ? 'BD' : E[1] ? 'BP' : E[5] ? 'PU' : su ? 'FD' : sd ? 'BD' : null;
-      if (sh) act('S:' + sh, ts, 'pad');
-    } else if (E[3] || E[12] || su) act('F', ts, 'pad');
-    else if (E[0] || E[13] || sd) act('B', ts, 'pad');
-    else if (E[1] || E[2]) act('P', ts, 'pad');
+      if (foot) act('PF:' + foot, ts, 'pad');
+      if (E[4]) act('S:FL', ts, 'pad'); else if (E[5]) act('S:PU', ts, 'pad');
+      if (dir) act('ST:' + dir, ts, 'pad');
+    } else {
+      if (foot) act(foot, ts, 'pad');
+      if (dir) act('P', ts, 'pad');
+    }
     return true;
   }
   if (G.state === 'result') {

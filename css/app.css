@@ -212,6 +212,8 @@ h1.display{font-size:clamp(44px,6vw,92px);font-weight:800;letter-spacing:.005em;
 .chip{font-weight:700;letter-spacing:.05em}
 .screen.tabbed{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 .screen.tabbed .wrap{margin:0 auto}
+/* the scroll box is a flex column, whose bottom padding is not scrolled into view: a spacer keeps the last rows clear of #nav */
+.screen.tabbed .wrap::after{content:"";display:block;height:calc(110px + env(safe-area-inset-bottom,0px))}
 .topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .pills{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font:700 17px/1 var(--display);letter-spacing:.06em;white-space:nowrap}
@@ -353,3 +355,6 @@ body.calm .cta,body.calm .tile,body.calm .start{transition:none}
 }
 body.life #hud .chip{opacity:.7}
 body.life #hint{display:none}
+.syncSteps{color:#c3ccd6;line-height:1.55;padding-left:22px;margin:1vh 0 2vh}
+.syncSteps li{margin:6px 0}
+#sync .field{margin:1vh 0}

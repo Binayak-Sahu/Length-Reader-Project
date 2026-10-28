@@ -48,6 +48,7 @@ Also read:
   - Mode plans are in `js/game/modes.js`.
 - **No build step.** ES modules plus an import map. Vendored libraries are in `vendor/` and are re-created by `tools/vendor.sh`.
 - **Saved data:** `localStorage` key `lr5`.
+  - Sync (v5.3): `js/core/sync.js` (merge, tested in Node) and `js/sync-github.js` (gist client; token in key `lr5-sync`). More → Sync phone + PC.
   - v4's `lr_v3` is migrated, and later v4 sessions are merged on each start.
   - Import and export accept both v4 and v5 files.
 
@@ -127,9 +128,10 @@ Also read:
   - Gives a 25.3° vertical view, a 12.0 cm tall bowler, the eye line 9.8 cm below the top, and the release 5.2 cm above it.
 - **Limit:** full balls bounce below the screen at true size (the ground is visible from about 3.9 m).
 
-**Controls (v5.2):**
+**Controls (v5.3, side-on):**
 
-- Controller: LT = trigger, RT = leave, B/X = play. L4: LB flick, RB pull.
+- Controller: X = front foot, B = back foot (Y/A aliases). LT = trigger, RT = leave.
+- Left stick plays: L2–3 any push = play. L4 foot first, then the stick: front ← drive, ↓ flick, ↑ defence; back ↑ punch, ↓ pull, → defence. Mirrored for left-handers. No push = defence. LB flick, RB pull still work.
 - USB foot pedals can be mapped in Settings.
 
 **Left-handers:** the batter frame and the camera are mirrored. The bowler stays right-arm. Off-spin turns away from left-handers.
@@ -142,7 +144,7 @@ Also read:
 - Bouncers only appear at pace: physics only gets a ball head-high above about 110 kph.
 - Nets realism: bowlers rotate each ball, club-level accuracy, no per-ball feedback, real time between balls.
 - The hand cue is halved (±5° plus ±3° noise). See DECISIONS S5.
-- Privacy: on-device only. No accounts, ads or tracking.
+- Privacy: on-device by default. Optional sync to the player's own GitHub (secret gist, token per device; DECISIONS P1). No accounts of ours, ads or tracking.
 
 ## Bink's numbers (26 Oct 2026, from v4)
 
@@ -171,6 +173,7 @@ Also read:
   - Better bowler body (rig unchanged, physics identical).
   - Docs, plus the device test checklist in the README.
 - **v5.2 shipped (27 Oct 2026):** true life-size calibration, darker worn pitch + tone mapping, night mode, dark sight screen, length marks, release heights fixed, portrait card, pedals, LT/RT.
+- **v5.3 shipped (28 Oct 2026):** side-on controller (X front, B back, stick shots), sync phone + PC via his own GitHub gist, Progress table no longer hidden under the tab bar.
 - **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
 - **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).
 - **Later (Bink paused it):** a PC mirror using the S25+ as a webcam, with pose checks on the big screen.

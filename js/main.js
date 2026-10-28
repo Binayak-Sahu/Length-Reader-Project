@@ -14,8 +14,9 @@ import * as game from './game/game.js';
 import * as scr from './ui/screens.js';
 import * as menu from './ui/menus.js';
 import { openCalib, mapPedals } from './ui/calib.js';
+import { createSync } from './sync-github.js';
 
-const VERSION = '5.2.0';
+const VERSION = '5.3.0';
 const qs = new URLSearchParams(location.search);
 
 // ---------- data ----------
@@ -73,7 +74,7 @@ const TAB = { home: goHome, career: () => menu.renderCareer(id => start('trial',
 document.querySelectorAll('#nav button').forEach(b => b.onclick = () => { app.audio.click(); TAB[b.dataset.tab](); });
 function back() {
   const s = app.state;
-  if (s === 'settings' || s === 'howto') menu.renderMore();
+  if (s === 'settings' || s === 'howto' || s === 'sync') menu.renderMore();
   else if (s === 'career' || s === 'progress' || s === 'more' || s === 'end') goHome();
   else if (s === 'onboard') { /* stay: finish or skip onboarding */ }
 }
@@ -94,6 +95,7 @@ game.setHooks({
     if (s.kind === 'tutorial') db.profile.onboarded = true;
     extra.badges = checkBadges(db, rec);
     app.saveNow();
+    doSync(true);
     scr.renderEnd(s, score, rec, extra);
     if (extra.trial && extra.trial.promoted) { audio.fanfare(); haptics.reward(); app.voice.say(`Promoted to ${TIERS[extra.trial.tier]}!`); }
     else if (extra.badges.length) { audio.chime(); haptics.reward(); }
@@ -141,6 +143,46 @@ $('pBtn').onclick = () => game.togglePause();
 $('rcHold').onclick = game.holdToggle; $('rcRep').onclick = () => game.replay(false); $('rcSlow').onclick = () => game.replay(true); $('rcNext').onclick = () => game.nextBall();
 $('bResume').onclick = () => game.togglePause(); $('bEndNow').onclick = () => game.endSession(); $('bHome2').onclick = () => game.abandonToHome();
 
+// ---------- sync (optional, the player's own GitHub) ----------
+app.sync = createSync(window.localStorage);
+const ago = (iso) => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago'; };
+function syncView() {
+  const on = app.sync.on, st = app.sync.status;
+  show('syncSetup', !on); show('syncOn', on);
+  $('syncState').textContent = !on ? 'Not connected on this device.'
+    : (st.err ? 'Last try failed: ' + st.err + ' ' : '') + (st.last ? `Last synced ${ago(st.last)}. ${app.db.sessions.length} sessions in total.` : 'Connected. Not synced yet.');
+  $('syncSub').textContent = on ? (st.last ? 'On · synced ' + ago(st.last) : 'On') : 'One progress on all your devices';
+}
+app.syncView = syncView;
+// quiet = automatic (start, after a session): only a real problem or new data makes a toast
+function doSync(quiet) {
+  if (!app.sync.on) return Promise.resolve(null);
+  return app.sync.sync(app.db).then((r) => {
+    app.saveNow();
+    if (r && (r.sessions || r.level)) {
+      toast(`Synced: ${r.sessions} session${r.sessions === 1 ? '' : 's'} from your other device${r.level ? ', level updated' : ''}.`);
+      if (app.state === 'home') goHome(); else if (app.state === 'progress') TAB.progress();
+    } else if (!quiet) toast('Synced. Everything is up to date.');
+    if (app.state === 'sync' || app.state === 'more') syncView();
+    return r;
+  }).catch((e) => {
+    if (!quiet || !/^Offline/.test(e.message)) toast('Sync: ' + e.message);
+    if (app.state === 'sync' || app.state === 'more') syncView();
+    return null;
+  });
+}
+app.doSync = doSync;
+$('bSync').onclick = () => { menu.only('sync'); syncView(); };
+$('bSyncBack').onclick = () => menu.renderMore();
+$('bSyncGo').onclick = () => {
+  const t = $('syncTok').value.trim();
+  if (t.length < 20) { toast('Paste the whole token (it starts with github_pat_).'); return; }
+  app.sync.connect(t); $('syncTok').value = ''; syncView(); toast('Connecting…');
+  doSync(false);
+};
+$('bSyncNow').onclick = () => doSync(false);
+$('bSyncOff').onclick = () => { app.sync.disconnect(); syncView(); toast('This device is disconnected. Your data stays here and in your gist.'); };
+
 // ---------- input ----------
 const typing = () => { const a = document.activeElement; return a && (a.tagName === 'SELECT' || (a.tagName === 'INPUT' && a.type !== 'checkbox')); };
 function rtPress(ts) { scr.rtPress(ts); if (!scr.rtActive()) rtBack(); }
@@ -165,7 +207,7 @@ addEventListener('mousedown', (e) => { if (game.G.state === 'run' && e.button ==
 addEventListener('contextmenu', (e) => { if (game.G.state === 'run' || game.G.state === 'result') e.preventDefault(); });
 function onPad(E, su, sd, ts, gp, sl, sr) {
   if (scr.rtActive()) { rtPress(ts); return; }
-  if (game.onPad(E, su, sd, ts)) return;
+  if (game.onPad(E, su, sd, ts, gp, sl, sr)) return;
   // menus: D-pad / stick move, A choose, B back, LB/RB tabs, Menu = start the daily session from Play
   if (E[12] || su) menu.moveFocus('u'); else if (E[13] || sd) menu.moveFocus('d');
   else if (E[14] || sl) menu.moveFocus('l'); else if (E[15] || sr) menu.moveFocus('r');
@@ -232,6 +274,7 @@ else {
   else if (!app.db.profile.seenV5) toast('New: Daily session, career trials with boss bowlers, badges and offline install.');
 }
 app.db.profile.seenV5 = true; app.saveNow();
+syncView(); doSync(true);
 requestAnimationFrame(loop);
 // Test hook (headless browser tests): read-only peek at state.
 window.__lr = { app, game, menu, VERSION, KEY };

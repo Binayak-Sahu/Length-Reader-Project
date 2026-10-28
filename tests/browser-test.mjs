@@ -229,8 +229,8 @@ await ctx.close();
   await waitFor(q, () => window.__lr.game.G.state === 'run' && window.__lr.game.clock.relTs !== null);
   await q.keyboard.press('k');
   ok(await q.evaluate(() => window.__lr.game.G.cur.foot === 'B' && window.__lr.game.G.cur.src === 'pedal'), 'mapped BACK pedal moves the feet (timed like any key)');
-  await q.evaluate(() => { const E = new Uint8Array(32); E[7] = 1; window.__lr.game.onPad(E, false, false, performance.now()); const E2 = new Uint8Array(32); E2[1] = 1; window.__lr.game.onPad(E2, false, false, performance.now()); });
-  ok(await q.evaluate(() => { const c = window.__lr.game.G.cur; return c.left === true && c.played === false; }), 'controller RT = LEAVE, and a later play press is ignored');
+  await q.evaluate(() => { const E = new Uint8Array(32); E[7] = 1; window.__lr.game.onPad(E, false, false, performance.now()); const E2 = new Uint8Array(32); window.__lr.game.onPad(E2, false, true, performance.now(), null, false, false); });
+  ok(await q.evaluate(() => { const c = window.__lr.game.G.cur; return c.left === true && c.played === false; }), 'controller RT = LEAVE, and a later stick push (play) is ignored');
   await waitFor(q, () => !document.getElementById('card').classList.contains('hidden'), null, 20000);
   const box = await q.evaluate(() => { const r = document.getElementById('card').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, H: innerHeight }; });
   ok(box.top > box.H * 0.6, `portrait card sits in the lower third (top at ${(100 * box.top / box.H).toFixed(0)}% of the screen)`);
@@ -242,10 +242,117 @@ await ctx.close();
   await waitFor(q, () => { const c = window.__lr.game.clock; return window.__lr.game.G.state === 'run' && c.t0 && c.tau(performance.now()) > -0.25 && c.tau(performance.now()) < 0; });
   await q.evaluate(() => { const E = new Uint8Array(32); E[6] = 1; window.__lr.game.onPad(E, false, false, performance.now()); });
   ok(await q.evaluate(() => window.__lr.game.G.cur.trig !== null), 'controller LT = trigger');
+  // side-on L2: X = front foot, then any left-stick push = PLAY
+  await waitFor(q, () => window.__lr.game.G.state === 'result');
+  await q.evaluate(() => { window.__lr.app.S.trigger = false; window.__lr.game.nextBall(); });
+  await waitFor(q, () => { const c = window.__lr.game.clock; return window.__lr.game.G.state === 'run' && c.t0 && c.tau(performance.now()) > 0; });
+  await q.evaluate(() => { const E = new Uint8Array(32); E[2] = 1; window.__lr.game.onPad(E, false, false, performance.now(), null, false, false);
+    window.__lr.game.onPad(new Uint8Array(32), false, false, performance.now(), null, true, false); });
+  ok(await q.evaluate(() => { const c = window.__lr.game.G.cur; return c.foot === 'F' && c.played === true; }), 'side-on L2: X = FRONT, then a stick push = PLAY');
   // night mode + length marks
   ok(await q.evaluate(() => { const a = window.__lr.app; a.S.night = true; a.S.lenMarks = 'on'; a.applySettings('night'); a.renderNow(); a.S.night = false; a.applySettings('night'); return true; }), 'night mode and length markings switch without errors');
   await q.evaluate(() => window.__lr.game.abandonToHome());
   await c.close();
+}
+
+// ---------- 8e. side-on controller, Level 4 shots: foot button first, then the left stick ----------
+{
+  const c = await browser.newContext({ viewport: { width: 800, height: 450 } });
+  const q = await page(c, '?nosw', `localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false, feedback: 'always', hawk: false, levelMode: '23' }, level: 23 }));`);
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  await q.click('#bQuick');
+  const live = () => waitFor(q, () => { const g = window.__lr.game, c = g.clock; return g.G.state === 'run' && g.G.cur && g.G.cur.mode === 4 && c.t0 && c.tau(performance.now()) > 0; });
+  const pad = (btn, dir) => q.evaluate(([btn, dir]) => {
+    const E = new Uint8Array(32); if (btn != null) E[btn] = 1;
+    window.__lr.game.onPad(E, dir === 'u', dir === 'd', performance.now(), null, dir === 'l', dir === 'r');
+  }, [btn, dir]);
+  const cur = () => q.evaluate(() => { const c = window.__lr.game.G.cur; return { foot: c.foot, shot: c.shot, at: window.__lr.game.clock.marks.foot }; });
+  const next = async () => { await waitFor(q, () => window.__lr.game.G.state === 'result'); await q.evaluate(() => window.__lr.game.nextBall()); await live(); };
+  await live();
+  await pad(2, null); const r1 = await cur(); await q.waitForTimeout(30); await pad(null, 'l'); const r2 = await cur();
+  ok(r1.foot === 'F' && !r1.shot && r2.shot === 'SD' && r1.at != null && r2.at === r1.at, 'L4: X = front foot (timed), then stick ← = straight drive (the read time stays the foot press)');
+  await next(); await pad(1, null); await pad(null, 'd');
+  ok((await cur()).shot === 'PU', 'L4: B = back foot, then stick ↓ = pull');
+  await next(); await pad(2, null); await pad(null, 'd');
+  ok((await cur()).shot === 'FL', 'L4: X then stick ↓ = flick');
+  await next(); await pad(1, null); await pad(null, 'u');
+  ok((await cur()).shot === 'BP', 'L4: B then stick ↑ = back-foot punch');
+  await next(); await pad(1, null);
+  await waitFor(q, () => window.__lr.game.G.state === 'result');
+  ok(await q.evaluate(() => { const b = window.__lr.game.G.sess.balls; return b[b.length - 1].shot === 'BD'; }), 'L4: a foot with no stick push is graded as that foot\'s defence');
+  await q.evaluate(() => window.__lr.game.nextBall()); await live();
+  await pad(null, 'r');
+  ok((await cur()).shot === 'BD', 'L4: stick → with no foot first = back defence (unambiguous)');
+  await next(); await q.evaluate(() => { window.__lr.app.db.profile.hand = 'L'; }); await pad(2, null); await pad(null, 'r');
+  ok((await cur()).shot === 'SD', 'left-hander: stick → is the off-side drive (mirrored)');
+  await q.evaluate(() => window.__lr.game.abandonToHome());
+  await c.close();
+}
+
+// ---------- 8f. sync phone + PC through a (fake) GitHub gist; Progress table clears the tab bar ----------
+{
+  const gists = {}; let nid = 0; const calls = [];
+  const fakeGitHub = async (route) => {
+    const req = route.request(), u = new URL(req.url()), m = req.method();
+    calls.push({ m, path: u.pathname, auth: req.headers()['authorization'] });
+    if (req.headers()['authorization'] !== 'Bearer github_pat_TEST_TOKEN_1234567890') return route.fulfill({ status: 401, body: '{}' });
+    const json = (o, st = 200) => route.fulfill({ status: st, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(o) });
+    if (m === 'GET' && u.pathname === '/gists') return json(Object.values(gists).map(g => ({ id: g.id, files: { [g.name]: {} } })));
+    if (m === 'POST' && u.pathname === '/gists') { const b = JSON.parse(req.postData()), id = 'g' + (++nid), name = Object.keys(b.files)[0];
+      gists[id] = { id, name, content: b.files[name].content, public: b.public }; return json({ id }, 201); }
+    const g = gists[u.pathname.split('/')[2]];
+    if (!g) return json({}, 404);
+    if (m === 'GET') return json({ id: g.id, files: { [g.name]: { truncated: true, content: g.content.slice(0, 20), raw_url: 'https://gist.githubusercontent.com/raw/' + g.id } } });
+    if (m === 'PATCH') { const b = JSON.parse(req.postData()); g.content = b.files[g.name].content; return json({ id: g.id }); }
+    return route.fulfill({ status: 405, body: '' });
+  };
+  const fakeRaw = (route) => route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, body: gists[new URL(route.request().url()).pathname.split('/').pop()].content });
+  const ses = (d, sc) => ({ date: d, kind: 'session', n: 4, score: sc, xp: 40, balls: Array.from({ length: 4 }, () => ({ d: 8, lx: 0, kph: 100, lvl: 5, mode: 1, cat: 'Short', foot: 'B', fe: 'B', fv: 'good', v: 'good', sc: 1, ok: true, rt: 0.4 })) });
+  const day = (i) => new Date(Date.UTC(2026, 8, 1 + i, 9)).toISOString();
+  const device = async (vp, sessions, extra) => {
+    const c = await browser.newContext({ viewport: vp });
+    await c.route('https://api.github.com/**', fakeGitHub); await c.route('https://gist.githubusercontent.com/**', fakeRaw);
+    const q = await page(c, '?nosw', `if (!localStorage.getItem('lr5')) localStorage.setItem('lr5', ${JSON.stringify(JSON.stringify(Object.assign({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false }, sessions }, extra)))});`);
+    await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+    return { c, q };
+  };
+  const connect = async (q, tok) => {
+    await q.evaluate(() => window.__lr.menu.renderMore()); await q.click('#bSync');
+    await q.fill('#syncTok', tok); await q.click('#bSyncGo');
+  };
+  // phone: 3 sessions, level 5
+  const A = await device({ width: 412, height: 915 }, [0, 1, 2].map(i => ses(day(i), 70)), { level: 5, rtBase: 0.30 });
+  await connect(A.q, 'github_pat_WRONG_TOKEN_1234567890');
+  await waitFor(A.q, () => /rejected the token/.test(document.getElementById('syncState').textContent));
+  ok(true, 'sync: a wrong token gives a clear message (no crash)');
+  await A.q.click('#bSyncOff'); await connect(A.q, 'github_pat_TEST_TOKEN_1234567890');
+  await waitFor(A.q, () => /Last synced/.test(document.getElementById('syncState').textContent));
+  const g1 = Object.values(gists);
+  ok(g1.length === 1 && g1[0].public === false && g1[0].name === 'length-reader-sync.json', 'sync: first device creates one SECRET gist');
+  ok(await A.q.evaluate(() => !JSON.stringify(window.__lr.app.db).includes('github_pat_') && !localStorage.getItem('lr5').includes('github_pat_')), 'sync: the token is never stored in the saved data (or its export)');
+  // PC: 30 different sessions (so the Progress table scrolls), its own reaction time and calibration
+  const B = await device({ width: 1100, height: 620 }, Array.from({ length: 30 }, (_, i) => ses(day(10 + i), 85)), { level: 8, rtBase: 0.262, settings: { sound: false, voice: false, fullscreen: false, maxKph: 120 } });
+  await connect(B.q, 'github_pat_TEST_TOKEN_1234567890');
+  await waitFor(B.q, () => /Last synced/.test(document.getElementById('syncState').textContent));
+  const b = await B.q.evaluate(() => { const d = window.__lr.app.db; return { n: d.sessions.length, lvl: d.level, rt: d.rtBase, kph: d.settings.maxKph, toast: document.getElementById('toast').textContent }; });
+  ok(b.n === 33 && b.lvl === 8 && b.rt === 0.262 && b.kph === 120 && /3 sessions/.test(b.toast), `sync: PC pulls the phone's 3 sessions (now ${b.n}), keeps its own reaction time and settings; long gist read via raw_url`);
+  await A.q.click('#bSyncNow');
+  await waitFor(A.q, () => window.__lr.app.db.sessions.length === 33);
+  ok(await A.q.evaluate(() => window.__lr.app.db.level === 8 && window.__lr.app.db.rtBase === 0.30), 'sync: phone gets the PC sessions and the higher level, keeps its own reaction time');
+  const nPatch = calls.filter(x => x.m === 'PATCH').length;
+  await A.q.click('#bSyncNow'); await waitFor(A.q, () => /up to date/.test(document.getElementById('toast').textContent));
+  ok(calls.filter(x => x.m === 'PATCH').length === nPatch, 'sync: nothing changed → nothing written');
+  await A.c.setOffline(true); await A.q.click('#bSyncNow');
+  await waitFor(A.q, () => /Offline/.test(document.getElementById('toast').textContent));
+  ok(true, 'sync offline: a toast, no crash, data kept');
+  await A.c.close();
+  // Progress tab: the last "day by day" row scrolls fully above the tab bar
+  await B.q.click('#bSyncBack'); await B.q.click('#nav button[data-tab="progress"]');
+  await B.q.evaluate(() => { const s = document.getElementById('progress'); s.scrollTop = s.scrollHeight; });
+  await B.q.waitForTimeout(100);
+  const lay = await B.q.evaluate(() => { const rows = document.querySelectorAll('#progTable tbody tr'), r = rows[rows.length - 1].getBoundingClientRect(), n = document.getElementById('nav').getBoundingClientRect(); return { rows: rows.length, rowBottom: r.bottom, navTop: n.top }; });
+  ok(lay.rows >= 30 && lay.rowBottom <= lay.navTop, `Progress: last table row ends at ${lay.rowBottom.toFixed(0)} px, above the tab bar (${lay.navTop.toFixed(0)} px)`);
+  await B.c.close();
 }
 
 // ---------- 9. offline: install the service worker, go offline, reload ----------
