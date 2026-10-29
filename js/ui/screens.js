@@ -193,7 +193,7 @@ export function rtPress(ts) {
   } else if (RT.phase === 'done') rtClose();
 }
 function rtDone() {
-  const med = median(RT.times); app.db.rtBase = +(med / 1000).toFixed(3);
+  const med = median(RT.times); app.db.rtBase = +(med / 1000).toFixed(3); app.db.rtAt = new Date().toISOString();
   (app.db.rtTests = app.db.rtTests || []).push({ date: new Date().toISOString(), ms: Math.round(med) }); app.saveNow();
   RT.phase = 'done'; rtSet(Math.round(med) + ' ms', `Your button reaction (median of ${RTN}). The app subtracts this to show your real reading time, and anything quicker than this + 50 ms after release counts as a guess. Press any button to go back.`, false);
 }

@@ -2,7 +2,7 @@
 // Kept light: nothing here runs per frame except text changes when a value actually changes.
 import { app, $, show, VCOL, MARK, BADGE, esc } from '../app.js';
 import { zones, bandsFor } from '../core/physics.js';
-import { targetFor, SHOTS } from '../core/rules.js';
+import { targetAt, lateAt, SHOTS } from '../core/rules.js';
 
 const hudCache = {};
 function setHTML(id, html) { if (hudCache[id] !== html) { hudCache[id] = html; $(id).innerHTML = html; } }
@@ -41,9 +41,9 @@ export function setZones(mode, S) {
 }
 
 export function barHTML(tr, rt, v, tbP, rtBase, guessAt) {
-  const T = tr.ta, pc = x => Math.max(0, Math.min(100, 100 * x / T)).toFixed(1), tg = targetFor(tr.kph), base = rtBase || 0, tb = tbP != null ? tbP : tr.tb;
-  return `<div class="bb"><div class="bbT">${base ? `<i class="bbBase" style="width:${pc(guessAt || base)}%" title="too quick to be a read"></i>` : ''}<i class="bbTgt" style="left:${pc(tg)}%"></i><i class="bbBnc" style="left:${pc(tb)}%"></i>${rt != null ? `<i class="bbYou ${v}" style="left:${pc(Math.max(0, rt))}%"></i>` : ''}</div>
-  <div class="bbL"><span>You <b>${rt != null ? Math.max(0, rt).toFixed(2) + ' s' : '—'}</b></span><span class="g">Target ${tg.toFixed(2)}</span><span>Bounce ${tb.toFixed(2)}</span>${base && rt != null ? `<span>Reading <b>${Math.max(0, rt - base).toFixed(2)} s</b></span>` : ''}</div></div>`;
+  const T = tr.ta, pc = x => Math.max(0, Math.min(100, 100 * x / T)).toFixed(1), tg = targetAt(tr.kph, guessAt), base = rtBase || 0, tb = tbP != null ? tbP : tr.tb;
+  return `<div class="bb"><div class="bbT">${guessAt || base ? `<i class="bbBase" style="width:${pc(guessAt || base)}%" title="too quick to be a read"></i>` : ''}<i class="bbTgt" style="left:${pc(tg)}%"></i><i class="bbBnc" style="left:${pc(tb)}%"></i>${rt != null ? `<i class="bbYou ${v}" style="left:${pc(Math.max(0, rt))}%"></i>` : ''}</div>
+  <div class="bbL"><span>You <b>${rt != null ? Math.max(0, rt).toFixed(2) + ' s' : '—'}</b></span><span class="g">Target ${tg.toFixed(2)}</span><span>Bounce ${tb.toFixed(2)}</span>${guessAt ? `<span>Late after ${lateAt(tb, guessAt).toFixed(2)}</span>` : ''}${base && rt != null ? `<span>Reading <b>${Math.max(0, rt - base).toFixed(2)} s</b></span>` : ''}</div></div>`;
 }
 
 export function showCard(o) {

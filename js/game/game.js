@@ -231,6 +231,7 @@ function finishBall() {
   const rt = clock.rtOf('foot'), tbP = clock.tbPresented(tr.tb), lim = guessLimit(db.rtBase), opt = { tbP, guessBelow: lim };
   const trigArg = S.trigger ? cur.trig : undefined;
   const g = cur.mode === 4 ? gradeShot(tr, cur.shot, rt, trigArg, opt) : grade(tr, cur.foot, rt, cur.played, cur.mode, trigArg, opt);
+  if (g.guess && !db.rtAt) g.fmsg += ' · Do More → Reaction test with the controller you play with';
   const xp = g.read && !seg.sandbox ? xpForBall({ lvl: cur.lvl }, ctxMult(seg.xpCtx)) : 0;
   const occA = clock.occPresented();
   const rec = {
