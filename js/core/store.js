@@ -1,6 +1,7 @@
 // Saved data: shape, v4 migration, import/export, compaction. Pure apart from the storage object passed in
 // (window.localStorage in the app, a Map-backed fake in tests).
 import { summarize, sessionXP } from './progress.js';
+import { SB_DEF, sbClean } from './sandbox.js';
 
 export const KEY = 'lr5', V4_KEY = 'lr_v3', MAX_CHARS = 3_500_000;
 
@@ -11,6 +12,8 @@ export const DEF = {
   feedback: 'auto', quality: 'auto', overlay: false, haptics: true, textScale: 1, contrast: false, reduceMotion: false, ball: 'red',
   // v5.2: life-size calibration, pitch and input options
   sight: 'dark', calib: null, lenMarks: 'auto', night: false, pedals: null, stepCue: false, fpsOnly: false,
+  // v5.4: sandbox choices (per device)
+  sandbox: SB_DEF,
 };
 
 export function newDB() {
@@ -40,6 +43,7 @@ export function normalize(db) {
 function cleanSettings(s) {
   const out = Object.assign({}, DEF);
   for (const k in DEF) if (s && s[k] !== undefined && typeof s[k] === typeof DEF[k]) out[k] = s[k];
+  out.sandbox = sbClean(out.sandbox);
   return out;
 }
 

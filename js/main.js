@@ -16,7 +16,7 @@ import * as menu from './ui/menus.js';
 import { openCalib, mapPedals } from './ui/calib.js';
 import { createSync } from './sync-github.js';
 
-const VERSION = '5.3.0';
+const VERSION = '5.4.0';
 const qs = new URLSearchParams(location.search);
 
 // ---------- data ----------
@@ -74,7 +74,8 @@ const TAB = { home: goHome, career: () => menu.renderCareer(id => start('trial',
 document.querySelectorAll('#nav button').forEach(b => b.onclick = () => { app.audio.click(); TAB[b.dataset.tab](); });
 function back() {
   const s = app.state;
-  if (s === 'settings' || s === 'howto' || s === 'sync') menu.renderMore();
+  if (s === 'sandbox') { if (game.G.sbOpen) game.closeSandbox(); else goHome(); }
+  else if (s === 'settings' || s === 'howto' || s === 'sync') menu.renderMore();
   else if (s === 'career' || s === 'progress' || s === 'more' || s === 'end') goHome();
   else if (s === 'onboard') { /* stay: finish or skip onboarding */ }
 }
@@ -85,6 +86,7 @@ function start(kind, opts = {}) { last = { kind, opts }; game.startSession(kind,
 game.setHooks({
   enter() { menu.only(null); app.state = 'session'; },
   leave() { needsRender = true; },
+  sandbox() { scr.renderSandbox(true); },
   goHome,
   showEnd(s, score, rec) {
     const { db, audio, haptics } = app, extra = {};
@@ -104,6 +106,10 @@ game.setHooks({
 $('bDaily').onclick = () => start('daily');
 $('bStart').onclick = () => start('session');
 $('bQuick').onclick = () => start('quick');
+$('bSandbox').onclick = () => scr.renderSandbox(false);
+$('bSbGo').onclick = () => { if (game.G.sbOpen) game.closeSandbox(); else start('sandbox'); };
+$('bSbBack').onclick = () => goHome();
+$('bSbChange').onclick = () => game.openSandbox();
 $('bEndless').onclick = () => start('endless');
 $('bDrill').onclick = () => start('short');
 $('bSpin').onclick = () => start('spin');

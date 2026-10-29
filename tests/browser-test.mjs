@@ -355,6 +355,49 @@ await ctx.close();
   await B.c.close();
 }
 
+// ---------- 8g. sandbox: pick every ball, change it mid-session ----------
+{
+  const c = await browser.newContext({ viewport: { width: 1000, height: 600 } });
+  const q = await page(c, '?nosw', `localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false, feedback: 'always', hawk: false, gap: 0.8 }, level: 4, levelD: 0.5 }));`);
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  await q.click('#bSandbox');
+  ok(await q.evaluate(() => document.querySelectorAll('#sbRows .sbChip.on').length === 6 && [...document.querySelectorAll('#sbRows .sbChip.on')].every(b => b.dataset.v === 'rand')), 'sandbox screen: 6 rows, Random picked by default');
+  for (const [k, v] of [['bowler', 'pace'], ['kph', '120'], ['len', 'Short'], ['line', 'stumps'], ['occ', 'none'], ['task', '1']]) await q.click(`#sbRows .sbChip[data-k="${k}"][data-v="${v}"]`);
+  ok(await q.evaluate(() => { const s = window.__lr.app.S.sandbox; return s.bowler === 'pace' && s.kph === 120 && s.len === 'Short' && s.task === 1 && JSON.parse(localStorage.getItem('lr5')).settings.sandbox.kph === 120; }), 'sandbox choices are saved on this device');
+  await q.click('#bSbGo');
+  const balls = [];
+  for (let i = 0; i < 3; i++) {
+    await waitFor(q, (n) => { const g = window.__lr.game; return g.G.state === 'run' && g.G.cur && g.G.sess.balls.length === n; }, i);
+    balls.push(await q.evaluate(() => { const c = window.__lr.game.G.cur; return { spin: !!c.prof.spin, kph: c.g.kph, cat: c.g.cat, mode: c.mode, occ: c.occ }; }));
+    await q.keyboard.press('ArrowRight');
+    await waitFor(q, () => window.__lr.game.G.state === 'result', null, 20000);
+    await q.evaluate(() => window.__lr.game.nextBall());
+  }
+  ok(balls.every(b => !b.spin && b.cat === 'Short' && Math.abs(b.kph - 120) <= 3 && b.mode === 1 && b.occ === null), 'sandbox: every ball is the chosen one (pace, ~120 kph, short, feet, full view) — ' + balls.map(b => b.kph + ' ' + b.cat).join(', '));
+  ok(await q.evaluate(() => /SANDBOX/.test(document.getElementById('hLevel').textContent)), 'HUD shows the sandbox set-up');
+  // change the balls mid-session: C pauses and opens the panel; new choices from the next ball, same session
+  await waitFor(q, () => window.__lr.game.G.state === 'run');
+  await q.keyboard.press('c');
+  ok(await q.evaluate(() => window.__lr.game.G.sbOpen && !document.getElementById('sandbox').classList.contains('hidden') && window.__lr.game.G.state === 'paused'), 'C pauses and opens the sandbox panel');
+  await q.click('#sbRows .sbChip[data-k="bowler"][data-v="off"]'); await q.click('#sbRows .sbChip[data-k="len"][data-v="Full"]');
+  await q.click('#bSbGo');
+  ok(await q.evaluate(() => !window.__lr.game.G.sbOpen && document.getElementById('sandbox').classList.contains('hidden') && window.__lr.game.G.state === 'run'), 'resume: panel closes, the ball in flight carries on');
+  const before = await q.evaluate(() => window.__lr.game.G.sess.start);
+  await waitFor(q, () => window.__lr.game.G.state === 'result', null, 20000);
+  await q.evaluate(() => window.__lr.game.nextBall());
+  await waitFor(q, () => window.__lr.game.G.state === 'run' && window.__lr.game.G.cur);
+  ok(await q.evaluate((t) => { const g = window.__lr.game, c = g.G.cur; return c.prof.spin === 'off' && c.g.cat === 'Full' && g.G.sess.start === t; }, before), 'next ball is the off-spinner, pitched up — same session, no restart');
+  // controller View opens it too
+  await q.evaluate(() => { const E = new Uint8Array(32); E[8] = 1; window.__lr.game.onPad(E, false, false, performance.now()); });
+  ok(await q.evaluate(() => window.__lr.game.G.sbOpen), 'controller View button opens the panel');
+  await q.evaluate(() => { const E = new Uint8Array(32); E[8] = 1; window.__lr.game.onPad(E, false, false, performance.now()); });
+  ok(await q.evaluate(() => !window.__lr.game.G.sbOpen && window.__lr.game.G.state !== 'paused'), '…and closes it again');
+  await q.evaluate(() => window.__lr.game.endSession());
+  const end = await q.evaluate(() => { const d = window.__lr.app.db, s = d.sessions[d.sessions.length - 1]; return { kind: s.kind, xp: s.xp, lvl: d.level, d: d.levelD, n: s.n }; });
+  ok(end.kind === 'sandbox' && end.xp === 0 && end.lvl === 4 && end.d === 0.5 && end.n >= 4, `saved as a Sandbox session (${end.n} balls), 0 XP, level unchanged`);
+  await c.close();
+}
+
 // ---------- 9. offline: install the service worker, go offline, reload ----------
 const ctx2 = await browser.newContext({ viewport: { width: 640, height: 360 } });
 p = await page(ctx2, '', `if (!localStorage.getItem('lr5')) localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false } }));`);

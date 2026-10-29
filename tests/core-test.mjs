@@ -2,7 +2,8 @@
 // (Imports the app's pure core modules directly; the v4 checks are kept unchanged at the top.)
 import { makeTraj, solveTraj, buildTraj, zones, Z_STUMPS, speedAt } from '../js/core/physics.js';
 import { categorize, footFor, grade, gradeShot, idealShots, guessLimit, LATE_MARGIN } from '../js/core/rules.js';
-import { genBall, relCue } from '../js/core/bowling.js';
+import { genBall, relCue, catRanges } from '../js/core/bowling.js';
+import { sbResolve, sbClean, SB_ROWS, SB_DEF } from '../js/core/sandbox.js';
 import { mulberry32 } from './util.mjs';
 import { solve, frustum, screenCm, activeCalib } from '../js/core/calib.js';
 
@@ -135,6 +136,31 @@ console.log('— release heights (the real rig, posed at release) —');
     const [lo, hi] = p.spin ? [1.9, 2.0] : [2.1, 2.3];
     ok(v.y >= lo && v.y <= hi, `${p.n} (size ${p.s}) releases at ${v.y.toFixed(2)} m (target ${lo}–${hi})`);
   }
+}
+
+console.log('— sandbox: pick every ball —');
+{
+  const rng = mulberry32(7), S = { bouncerPct: 8, widePct: 22 };
+  const fixed = { bowler: 'pace', kph: 120, len: 'Short', line: 'stumps', occ: 'none', task: 1 };
+  const r = sbResolve(fixed, rng);
+  ok(r.spin === null && r.kph === 120 && r.cat === 'Short' && r.line === 'stumps' && r.occ === null && r.mode === 1, 'fixed choices are used as given');
+  const seen = {}; for (const row of SB_ROWS) seen[row.k] = new Set();
+  for (let i = 0; i < 600; i++) { const x = sbResolve(SB_DEF, rng); seen.bowler.add(x.spin || 'pace'); seen.kph.add(x.kph); seen.len.add(x.cat); seen.line.add(x.line); seen.occ.add(x.occ === null ? 'none' : x.occ); seen.task.add(x.mode); }
+  ok(SB_ROWS.every(row => row.o.every(([v]) => seen[row.k].has(v))), 'Random rolls every option in every row (600 balls)');
+  ok(sbResolve({ bowler: 'off', len: 'Bouncer' }, rng).cat === 'Short', 'a spinner asked for a bouncer bowls short instead');
+  ok(sbClean({ kph: 125, len: 'Yorker', task: 4 }).kph === 'rand' && sbClean({ task: 4 }).task === 4 && sbClean(null).len === 'rand', 'unknown choices fall back to Random');
+  let good = true, why = '';
+  for (const [kph, spin] of [[80, null], [120, null], [140, null], [80, 'off'], [80, 'leg']]) for (const cat of ['Full', 'Good', 'Short']) for (const line of ['stumps', 'pads', 'off']) for (const mode of [1, 2, 4]) {
+    for (let i = 0; i < 20; i++) {
+      const g = genBall(S, { kph, mode, spin, hand: 'R', force: { cat, line } }, rng), T = catRanges(g.kph, !!spin)[cat];
+      const L = { stumps: [-0.11, 0.11], pads: [-0.28, -0.14], off: [0.36, 0.7] }[line];
+      if (!(g.d >= T[0] && g.d <= T[1]) || !(g.lx >= L[0] && g.lx <= L[1])) { good = false; why = `${kph} ${spin} ${cat} ${line}: d ${g.d.toFixed(2)} lx ${g.lx.toFixed(2)}`; }
+    }
+  }
+  ok(good, 'forced length and line land inside their zones at 80/120/140 kph and for both spinners' + (why ? ' — ' + why : ''));
+  const b = genBall(S, { kph: 130, mode: 2, force: { cat: 'Bouncer', line: 'stumps' } }, rng), ft = genBall(S, { kph: 100, mode: 1, force: { cat: 'Full toss', line: 'stumps' } }, rng);
+  ok(b.d >= 11 && b.cat === 'Bouncer' && ft.d < 0 && ft.cat === 'Full toss', 'bouncer pitches 11–13 m out; full toss lands beyond the batter');
+  ok(genBall(S, { kph: 110, mode: 2, force: { cat: 'Good', line: 'off' } }, rng).cat === 'Wide off', 'outside off is reported as a leave ball');
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASSED'); process.exit(fails ? 1 : 0);

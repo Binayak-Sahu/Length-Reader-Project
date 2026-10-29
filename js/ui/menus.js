@@ -6,7 +6,7 @@ import { totalXP, streak, week, WEEK_GOAL, dayKey } from '../core/progress.js';
 import { TIERS, BOSSES, careerState, bossFor } from '../core/career.js';
 
 export const TABS = ['home', 'career', 'progress', 'more'];
-const SCREENS = ['home', 'career', 'progress', 'more', 'settings', 'end', 'pause', 'rtest', 'howto', 'onboard', 'calib', 'sync'];
+const SCREENS = ['home', 'career', 'progress', 'more', 'settings', 'end', 'pause', 'rtest', 'howto', 'onboard', 'calib', 'sync', 'sandbox'];
 export function only(id) {
   for (const s of SCREENS) show(s, s === id);
   app.state = id || 'none';

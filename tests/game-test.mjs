@@ -217,4 +217,18 @@ console.log('— badges reward real skills only —');
   const p = syncPayload(big, 200_000);
   ok(JSON.stringify(p).length < 230_000 && p.data.sessions.length === 60 && big.sessions[0].balls.length === 400, 'sync: a big history is trimmed for upload (copy only, all sessions kept)');
 }
+// ---------- sandbox sessions are kept but never counted ----------
+{
+  const day = new Date(2026, 9, 28, 12);
+  const mkB = () => ({ ok: true, sc: 1, v: 'good', fv: 'good', fe: 'B', foot: 'B', cat: 'Short', rt: 0.45, read: 0.2, occ: 0.1, xp: 0 });
+  const db = newDB();
+  db.sessions.push({ date: day.toISOString(), kind: 'sandbox', n: 40, score: 100, xp: 0, balls: Array.from({ length: 40 }, mkB) });
+  ok(streak(db, day) === 0 && !week(db, day).some(d => d.done), 'sandbox: 40 balls do not count as a practice day (streak, weekly goal)');
+  ok(progressData(db).length === 0, 'sandbox: not in the Progress day table');
+  ok(checkBadges(db, db.sessions[0], day).length === 0 && checkBadges(db, null, day).length === 0, 'sandbox: earns no badges');
+  ok(syncPayload(db).data.sessions.length === 1, 'sandbox: still saved and synced');
+  const { buildPlan } = await import('../js/game/modes.js');
+  const pl = buildPlan('sandbox');
+  ok(pl.segs.length === 1 && pl.segs[0].n === Infinity && !pl.segs[0].adapt && pl.segs[0].sandbox, 'sandbox plan: endless, never moves the level');
+}
 done();

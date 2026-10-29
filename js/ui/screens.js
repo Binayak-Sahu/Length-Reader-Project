@@ -10,6 +10,7 @@ import { TIERS } from '../core/quality.js';
 import { drawMap } from './session-ui.js';
 import { only } from './menus.js';
 import { BADGES, badgeSVG, badgeById } from '../core/badges.js';
+import { SB_ROWS, sbClean } from '../core/sandbox.js';
 export { only };
 
 // ---------- end of session ----------
@@ -66,6 +67,8 @@ export function renderProgress() {
   const cell = v => v == null ? '—' : `<span class="${v >= 80 ? 'g' : v >= 60 ? 'w' : 'b'}">${v}%</span>`;
   $('progTable').innerHTML = D.length ? `<table><thead><tr><th>Day</th><th>Balls</th><th>Score</th><th>Reading</th><th>Full</th><th>Short</th><th>Wide off</th><th>Spin</th><th>XP</th><th>Matches</th><th>Level</th></tr></thead><tbody>` +
     D.slice().reverse().map(r => `<tr><td>${r.k.slice(5)}</td><td>${r.n}</td><td>${cell(r.score)}</td><td>${r.read == null ? '—' : r.read.toFixed(2) + ' s'}</td><td>${cell(r.full)}</td><td>${cell(r.short)}</td><td>${cell(r.wide)}</td><td>${cell(r.spin)}</td><td>${r.xp || '—'}</td><td>${r.matches ? r.wins + '/' + r.matches + ' won' : '—'}</td><td>L${LEVELS[r.lvl].m} · ${LEVELS[r.lvl].k}</td></tr>`).join('') + '</tbody></table>' : '';
+  const wk = Date.now() - 7 * 864e5, sbB = app.db.sessions.filter(s => s.kind === 'sandbox' && Date.parse(s.date) >= wk).reduce((a, s) => a + (s.n || 0), 0);
+  $('sbNote').textContent = `Sandbox practice: ${sbB} ball${sbB === 1 ? '' : 's'} in the last 7 days (not counted above).`; show('sbNote', sbB > 0);
   $('badges').innerHTML = BADGES.map(b => { const on = !!app.db.badges[b.id];
     return `<div class="bdg${on ? '' : ' off'}">${badgeSVG(b, on)}<b>${esc(b.n)}</b><small>${esc(b.d)}${on ? '<br>✓ ' + new Date(app.db.badges[b.id]).toLocaleDateString() : ''}</small></div>`; }).join('');
   only('progress');
@@ -195,3 +198,23 @@ function rtDone() {
   RT.phase = 'done'; rtSet(Math.round(med) + ' ms', `Your button reaction (median of ${RTN}). The app subtracts this to show your real reading time, and anything quicker than this + 50 ms after release counts as a guess. Press any button to go back.`, false);
 }
 export function rtClose(back) { if (RT) clearTimeout(RT.timer); RT = null; (back || (() => {}))(); }
+
+// ---------- sandbox: pick every ball (a row of chips per choice; Random rolls again every ball) ----------
+export function renderSandbox(inSession) {
+  const S = app.S; S.sandbox = sbClean(S.sandbox);
+  const box = $('sbRows');
+  box.innerHTML = SB_ROWS.map(r => `<div class="sbRow"><label>${r.l}</label><div class="sbChips">` +
+    [['rand', 'Random']].concat(r.o).map(([v, t]) => `<button class="sbChip${S.sandbox[r.k] === v ? ' on' : ''}" data-k="${r.k}" data-v="${v}" aria-pressed="${S.sandbox[r.k] === v}">${esc(t)}</button>`).join('') +
+    `</div>${r.h ? `<div class="help">${esc(r.h)}</div>` : ''}</div>`).join('');
+  box.onclick = (e) => {
+    const b = e.target.closest('.sbChip'); if (!b) return;
+    const raw = b.dataset.v, row = SB_ROWS.find(r => r.k === b.dataset.k);
+    const opt = row.o.find(([v]) => String(v) === raw);
+    S.sandbox[row.k] = opt ? opt[0] : 'rand'; app.saveNow();
+    box.querySelectorAll(`.sbChip[data-k="${row.k}"]`).forEach(c => { const on = c === b; c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); });
+  };
+  $('bSbGo').textContent = inSession ? 'Resume ▶ (new balls from the next one)' : 'Bowl ▶';
+  $('bSbBack').classList.toggle('hidden', !!inSession);
+  only('sandbox');
+  if (inSession) app.state = 'sandbox';
+}
