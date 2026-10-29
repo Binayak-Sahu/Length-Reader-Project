@@ -20,13 +20,15 @@ export function catRanges(kph, spin) {
   return { Full: [1.2, f - 0.15], Good: [f + 0.1, b - 0.1], Short: [b + 0.25, b + (spin ? 2.8 : 3.3)] };
 }
 
-// c: { kph, mode, drill, spin ('off'|'leg'|null), weak (category to feed more), weakP, club, hand ('R'|'L'), trademark }
+// c: { kph, mode, drill, spin ('off'|'leg'|null), weak (category to feed more), weakP, club, hand ('R'|'L'), trademark,
+//      force: { cat: 'Full toss'|'Full'|'Good'|'Short'|'Bouncer', line: 'stumps'|'pads'|'off' } (sandbox) }
 // S: settings (widePct, bouncerPct).
 export function genBall(S, c, rng = Math.random) {
   const r_ = (a, b) => rnd(rng, a, b);
   const o = {}; let kph = c.kph + r_(-3, 3), cat, d, lx, special = null, varn = null;
   if (c.spin) { kph = r_(72, 88); o.spin = true; o.ev = 0.58; o.eh = 0.80; o.drift = r_(-0.4, 0.4); }
   const T = catRanges(kph, !!c.spin);
+  if (c.force) return forced(c, kph, o, rng);
   if (c.drill === 'short') cat = rng() < 0.6 ? 'Short' : (rng() < 0.5 ? 'Full' : 'Good');
   else if (c.weak && T[c.weak] && rng() < (c.weakP || 0.4)) cat = c.weak;
   else { const r = rng(); cat = r < 0.22 ? 'Full' : r < 0.62 ? 'Good' : 'Short'; }
@@ -84,6 +86,30 @@ export function genBall(S, c, rng = Math.random) {
   if (c.spin && !varn) varn = c.spin === 'off' ? 'Off-break' : 'Leg-break';
   o.varn = varn;
   return { d, lx, kph: Math.round(kph), opt: o, cat: special || cat, tm: tm ? tm.name || 'Trademark' : null };
+}
+
+// Sandbox: the player chose the length and line. Variations (swing, slower ball, spin) still follow the task mode.
+const LINES = { stumps: [-0.11, 0.11], pads: [-0.28, -0.14], off: [0.36, 0.7] };
+function forced(c, kph, o, rng) {
+  const r_ = (a, b) => rnd(rng, a, b), f = c.force;
+  let cat = f.cat; if (c.spin && cat === 'Bouncer') cat = 'Short';
+  const L = LINES[f.line] || LINES.stumps;
+  let lx = r_(L[0], L[1]), d, varn = null;
+  if (c.mode >= 3 && !c.spin) {
+    const r = rng();
+    if (r < 0.22) { varn = 'Slower ball'; kph -= r_(12, 18); }
+    else if (r < 0.45) { varn = 'Outswing'; o.swing = -r_(1.5, 3.5); }
+    else if (r < 0.65) { varn = 'Inswing'; o.swing = r_(1.5, 3.5); }
+  } else if (c.mode >= 3 && c.spin && rng() < 0.25) varn = 'Arm ball';
+  kph = Math.round(kph);
+  const T = catRanges(kph, !!c.spin);
+  if (cat === 'Bouncer') d = r_(11, 13);
+  else if (cat === 'Full toss') d = r_(-(1.2 + Math.max(0, Math.min(1, (kph - 80) / 40)) * 1.4), -0.6);
+  else d = r_(T[cat][0], T[cat][1]);
+  if (c.spin && varn !== 'Arm ball') o.seam = (c.spin === 'off' ? 1 : -1) * (c.hand === 'L' ? -1 : 1) * r_(0.6, 1.5);
+  if (c.spin && !varn) varn = c.spin === 'off' ? 'Off-break' : 'Leg-break';
+  o.varn = varn;
+  return { d, lx, kph: Math.round(kph), opt: o, cat: f.line === 'off' && cat !== 'Bouncer' ? 'Wide off' : cat, tm: null };
 }
 
 // Release "hand cue": fuller balls come out a touch later and flatter. Halved from v4 (±5°) plus ±3° noise, so it is

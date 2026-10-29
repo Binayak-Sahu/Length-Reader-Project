@@ -8,10 +8,11 @@
 //   xpCtx    XP multiplier context ('nets', 'pressure', 'trial', 'boss')
 //   fixed    {m, k, o} a fixed level spec (trials, bosses) instead of your level
 //   boss     boss bowler (profile + trademark ball)
+//   sandbox  the player picks every ball (settings.sandbox); never moves the level, earns no XP
 //   script   fixed balls for the tutorial ([{cat, d, lx}])      coach  a banner before each ball      labels  keep tap-zone labels on
 export function seg(o) {
   return Object.assign({ n: 50, name: '', adapt: true, levelDelta: 0, fb: 'auto', walk: false, drill: null, weakP: 0.4,
-    xpCtx: '', fixed: null, boss: null, intro: null, script: null, coach: null, labels: false }, o);
+    xpCtx: '', fixed: null, boss: null, intro: null, sandbox: false, script: null, coach: null, labels: false }, o);
 }
 
 export const MODE_INFO = {
@@ -23,6 +24,7 @@ export const MODE_INFO = {
   short: { title: 'Short-ball drill', sub: '30 balls · 60% short' },
   spin: { title: 'Spin drill', sub: '30 balls · off- and leg-spin' },
   match: { title: 'Match · 3 overs', sub: 'Chase a target · 3 wickets' },
+  sandbox: { title: 'Sandbox', sub: 'Pick every ball · keeps bowling' },
 };
 
 export function buildPlan(kind, opts = {}) {
@@ -44,6 +46,7 @@ export function buildPlan(kind, opts = {}) {
     case 'short': return { kind, title: 'Short-ball drill', drill: 'short', segs: [seg({ n: 30, adapt: false, drill: 'short', weakP: 0 })] };
     case 'spin': return { kind, title: 'Spin drill', drill: 'spin', segs: [seg({ n: 30, adapt: false, drill: 'spin', weakP: 0 })] };
     case 'match': return { kind, title: 'Match', match: true, segs: [seg({ n: 18, adapt: false, fb: 'full', weakP: 0 })] };
+    case 'sandbox': return { kind, title: 'Sandbox', segs: [seg({ n: Infinity, name: 'Sandbox', adapt: false, fb: 'full', weakP: 0, sandbox: true })] };
     case 'nets': return { kind, title: 'Nets session', drill: 'nets', segs: [seg({ n: 24, adapt: false, fb: 'end', walk: true, weakP: 0, xpCtx: 'nets', gap: S.netsGap })] };
     case 'trial': case 'boss': {
       const b = opts.boss;

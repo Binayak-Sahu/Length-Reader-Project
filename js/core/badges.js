@@ -1,6 +1,6 @@
 // Badges reward real skills — correct, on-time reads in specific situations — never volume or speed.
 // Pure: computed from ball records, so they can also be earned retroactively from imported or v4 history.
-import { isRead, streak, week, WEEK_GOAL } from './progress.js';
+import { isRead, streak, week, WEEK_GOAL, isSandbox } from './progress.js';
 
 export const BADGES = [
   { id: 'first', n: 'First Read', d: 'Your first correct, on-time read.', icon: 'eye', col: '#38bdf8' },
@@ -49,8 +49,9 @@ function sessionChecks(s) {
 }
 // Marks newly earned badges in db.badges and returns their ids. `s` = the session just finished (or null).
 export function checkBadges(db, s, now = new Date()) {
-  const got = new Set(s ? sessionChecks(s) : db.sessions.flatMap(sessionChecks));
-  const reads = db.sessions.reduce((a, x) => a + ((x.sum && x.sum.reads) || (x.balls || []).filter(isRead).length), 0);
+  const real = db.sessions.filter(x => !isSandbox(x));             // sandbox practice never earns badges
+  const got = new Set(s ? (isSandbox(s) ? [] : sessionChecks(s)) : real.flatMap(sessionChecks));
+  const reads = real.reduce((a, x) => a + ((x.sum && x.sum.reads) || (x.balls || []).filter(isRead).length), 0);
   if (reads >= 100) got.add('reads100');
   if (reads >= 1000) got.add('reads1000');
   if (week(db, now).filter(d => d.done).length >= WEEK_GOAL) got.add('week5');

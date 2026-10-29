@@ -11,16 +11,17 @@ import { BallClock } from '../core/timing.js';
 import { FOOT, FOOT_S } from '../core/action.js';
 import { xpForBall, ctxMult, summarize } from '../core/progress.js';
 import { buildPlan } from './modes.js';
+import { sbResolve, sbLabel } from '../core/sandbox.js';
 import * as ui from '../ui/session-ui.js';
 
 const NAMES = { F: 'FRONT', B: 'BACK', P: 'PLAY' };
 const LEAD_MS = 900;
 const rnd = (a, b) => a + Math.random() * (b - a);
 
-export const G = { state: 'home', sess: null, cur: null, held: false, last: null, wait: null, pause: null, timer: null };
+export const G = { state: 'home', sbOpen: false, sess: null, cur: null, held: false, last: null, wait: null, pause: null, timer: null };
 export const clock = new BallClock();
 let PROF = BOWLERS[0];
-let hooks = { showEnd() {}, goHome() {}, enter() {}, leave() {} };
+let hooks = { showEnd() {}, goHome() {}, enter() {}, leave() {}, sandbox() {} };
 export function setHooks(h) { hooks = h; }
 
 // ---------- session start ----------
@@ -91,16 +92,22 @@ export function nextBall() {
   if (seg.coach && seg.coach[sess.segN] && sess.coached !== sess.segN) { sess.coached = sess.segN; banner(seg.coach[sess.segN], 2600); return; }
   $('zones').classList.toggle('lbl', sess.balls.length < 3 || seg.labels);
   const perBall = !m && (seg.walk || S.rotate === 'ball');
-  if (perBall || sess.balls.length % 6 === 0) { sess.over++; PROF = pickBowler(seg); world.bowler.setKit(PROF.c); }
+  const sb = seg.sandbox ? sbResolve(S.sandbox) : null;        // sandbox: the player's choices, Random rows rolled per ball
+  if (sb) {
+    const want = sb.spin ? BOWLERS[sb.spin === 'off' ? SPINNERS[0] : SPINNERS[1]] : (PROF.spin ? BOWLERS[PACE[sess.over % 3]] : PROF);
+    if (want !== PROF || !sess.balls.length) { sess.over++; PROF = want; world.bowler.setKit(PROF.c); }
+    sess.sb = sb;
+  } else if (perBall || sess.balls.length % 6 === 0) { sess.over++; PROF = pickBowler(seg); world.bowler.setKit(PROF.c); }
   const lvl = clampLevel(sess.level + seg.levelDelta);
   const LV = seg.fixed ? { m: seg.fixed.m, k: seg.fixed.k, o: seg.fixed.o == null ? null : seg.fixed.o } : LEVELS[lvl];
-  const gm = m ? sess.mmode : (seg.drill === 'short' ? 1 : (seg.drill === 'spin' ? Math.max(1, LV.m) : LV.m));
+  const gm = sb ? sb.mode : m ? sess.mmode : (seg.drill === 'short' ? 1 : (seg.drill === 'spin' ? Math.max(1, LV.m) : LV.m));
   const type = PROF.spin ? 'spin' : 'pace';
   const weak = (S.smart && seg.weakP > 0 && !m) ? weakest(type, gm) : null;
-  const kph = m ? Math.max(100, Math.min(LEVELS[db.level].k, S.maxKph)) : Math.min(LV.k, S.maxKph);
-  const occ = m ? null : (seg.walk && !seg.fixed ? null : LV.o);
+  const kph = sb ? sb.kph : m ? Math.max(100, Math.min(LEVELS[db.level].k, S.maxKph)) : Math.min(LV.k, S.maxKph);
+  const occ = sb ? sb.occ : m ? null : (seg.walk && !seg.fixed ? null : LV.o);
   const g = genBall(S, { kph, mode: gm, drill: seg.drill, spin: PROF.spin || null, weak, weakP: seg.weakP, hand: db.profile.hand,
-    club: S.club && !['short', 'spin'].includes(seg.drill) && !seg.boss && !seg.script, trademark: seg.boss ? seg.boss.trademark : null });
+    club: S.club && !['short', 'spin'].includes(seg.drill) && !seg.boss && !seg.script, trademark: seg.boss ? seg.boss.trademark : null,
+    force: sb ? { cat: sb.cat, line: sb.line } : null });
   const sc = seg.script && seg.script[sess.segN];
   if (sc) { g.d = sc.d; g.lx = sc.lx || 0; g.cat = sc.cat; g.opt = { varn: null }; }
   const rel = relCue(g.d, !!PROF.spin), jx = rnd(-0.1, 0.1);
@@ -224,7 +231,7 @@ function finishBall() {
   const rt = clock.rtOf('foot'), tbP = clock.tbPresented(tr.tb), lim = guessLimit(db.rtBase), opt = { tbP, guessBelow: lim };
   const trigArg = S.trigger ? cur.trig : undefined;
   const g = cur.mode === 4 ? gradeShot(tr, cur.shot, rt, trigArg, opt) : grade(tr, cur.foot, rt, cur.played, cur.mode, trigArg, opt);
-  const xp = g.read ? xpForBall({ lvl: cur.lvl }, ctxMult(seg.xpCtx)) : 0;
+  const xp = g.read && !seg.sandbox ? xpForBall({ lvl: cur.lvl }, ctxMult(seg.xpCtx)) : 0;
   const occA = clock.occPresented();
   const rec = {
     d: +tr.d.toFixed(2), lx: +tr.lxArr.toFixed(3), lxB: +tr.lxB.toFixed(3), kph: cur.g.kph, occ: cur.occ, lvl: cur.lvl, mode: cur.mode,
@@ -238,7 +245,7 @@ function finishBall() {
   };
   sess.balls.push(rec); sess.segN++; sess.xp += xp;
   ui.speedGun(cur.g.kph);
-  feedLog(cur.type, rec.cat === 'Yorker' ? 'Full' : rec.cat, g.sc);
+  if (!seg.sandbox) feedLog(cur.type, rec.cat === 'Yorker' ? 'Full' : rec.cat, g.sc);
   sess.streak = g.v === 'good' ? sess.streak + 1 : 0; sess.best = Math.max(sess.best, sess.streak);
   const silent = seg.fb === 'end' || (S.feedback === 'end' && !sess.match);
   if (silent) {                         // nets rules: no verdict; the bowler walks back (or a short pause)
@@ -323,6 +330,7 @@ function hudUpdate() {
   const pace = PROF.spin ? 'spin' : Math.min(seg && seg.fixed ? seg.fixed.k : LV.k, S.maxKph) + ' kph';
   let lv;
   if (s.match) lv = `<small>MATCH</small>${s.match.runs}/${s.match.wk} · need ${Math.max(0, s.match.target - s.match.runs)} off ${18 - s.balls.length}`;
+  else if (seg && seg.sandbox && s.sb) lv = `<small>SANDBOX</small>${sbLabel(s.sb)} · ${['', 'feet', 'play/leave', '', 'shots'][s.sb.mode]} · ${s.sb.occ == null ? 'full view' : s.sb.occ === 0 ? 'black at release' : 'black +' + Math.round(s.sb.occ * 1000) + ' ms'} <span class="sbKey">· C / View = change</span>`;
   else if (s.boss) lv = `<small>${s.kind === 'trial' ? 'TRIAL' : 'BOSS'}</small>${s.boss.n} · ${pace}`;
   else if (silent) lv = `<small>NETS</small>L${LV.m} · ${pace} · no feedback`;
   else if (seg && seg.drill) lv = `<small>DRILL</small>${seg.drill === 'spin' ? 'SPIN' : 'SHORT BALLS · ' + pace}`;
@@ -361,6 +369,7 @@ export function replay(slow) {
 export function togglePause() {
   const { world, audio } = app;
   if (G.state === 'paused') {
+    if (G.sbOpen) { G.sbOpen = false; show('sandbox', false); app.state = 'session'; }
     show('pause', false); document.body.classList.add('insession');
     const now = performance.now();
     if (G.pause.was === 'run') { clock.resume(now); G.state = 'run'; if (G.cur) G.cur.sounds = false; }
@@ -372,10 +381,21 @@ export function togglePause() {
   if (G.state === 'run') clock.pause(G.pause.at);
   audio.cancel();
   G.state = 'paused'; show('pause', true); document.body.classList.remove('insession');
+  show('bSbChange', isSandbox());
   world.ball.visible = G.pause.was === 'run' && !!G.cur;
 }
+// Sandbox: change the balls mid-session. The session pauses; the new choices apply from the next ball.
+const isSandbox = () => !!(G.sess && G.sess.kind === 'sandbox');
+export function openSandbox() {
+  if (!isSandbox()) return;
+  if (G.state === 'run' || G.state === 'result') togglePause();
+  if (G.state !== 'paused') return;
+  G.sbOpen = true; show('pause', false); hooks.sandbox(true);
+}
+export function closeSandbox() { if (G.sbOpen && G.state === 'paused') togglePause(); }
 function cleanup() {
   const { world } = app;
+  G.sbOpen = false; show('sandbox', false);
   clearTimeout(G.timer); world.clearTrail(); world.heStop(); show('rctl', false); show('banner', false); document.body.classList.remove('result');
   G.held = false; G.cur = null; G.wait = null; world.ball.visible = false; world.setLenMarks(null); app.audio.cancel();
   ['card', 'hud', 'hint', 'pause'].forEach(id => show(id, false)); document.body.classList.remove('insession');
@@ -411,12 +431,18 @@ export function pedalAction(code) {
 export function onKey(e) {
   const k = e.key.toLowerCase();
   if (G.state === 'intro') return true;
+  if (G.state === 'paused' && G.sbOpen) {                // the sandbox panel works like a menu
+    if (k === 'escape' || k === 'c') { e.preventDefault(); closeSandbox(); return true; }
+    return false;
+  }
   if (G.state === 'paused') {
+    if (k === 'c' && isSandbox()) { e.preventDefault(); openSandbox(); return true; }
     if (k === ' ' || k === 'enter' || k === 'p') { e.preventDefault(); togglePause(); } else if (k === 'e') endSession(); else if (k === 'h') { abandonToHome(); }
     return true;
   }
   if (G.state !== 'run' && G.state !== 'result') return false;
   if (k === 'escape' || k === 'p') { togglePause(); return true; }
+  if (k === 'c' && isSandbox()) { e.preventDefault(); openSandbox(); return true; }
   const ped = pedalAction(e.code);                       // USB foot pedals (mapped in Settings) come first
   if (ped) { e.preventDefault(); if (G.state === 'run' && !e.repeat) act(ped, e.timeStamp, 'pedal'); return true; }
   if (G.state === 'run' && KEYMAP[k]) { e.preventDefault(); if (!e.repeat) act(KEYMAP[k], e.timeStamp, 'key'); }
@@ -452,6 +478,8 @@ function stickDir(su, sd, sl, sr, gp) {
 }
 export function onPad(E, su, sd, ts, gp, sl, sr) {
   if (G.state === 'intro') return true;
+  if (G.sbOpen) { if (E[8] || E[9]) { closeSandbox(); return true; } return false; }     // panel open: menus handle the rest
+  if (E[8] && isSandbox() && (G.state === 'run' || G.state === 'result' || G.state === 'paused')) { openSandbox(); return true; }
   if (E[9]) { if (G.state === 'run' || G.state === 'result' || G.state === 'paused') { togglePause(); return true; } return false; }
   if (G.state === 'run') {
     if (E[6]) act('T', ts, 'pad');                                   // LT = trigger

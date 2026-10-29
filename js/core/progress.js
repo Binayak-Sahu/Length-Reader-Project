@@ -51,9 +51,10 @@ export function dayKey(d) {
 }
 
 // One row per day: score, reading time, by-length scores, matches, level reached, XP.
+export const isSandbox = (s) => s && s.kind === 'sandbox';
 export function progressData(db) {
   const by = {};
-  for (const s of db.sessions) { const k = dayKey(s.date); (by[k] = by[k] || []).push(s); }
+  for (const s of db.sessions) { if (isSandbox(s)) continue; const k = dayKey(s.date); (by[k] = by[k] || []).push(s); }
   return Object.keys(by).sort().map(k => {
     const ss = by[k], acc = { n: 0, sc: 0, read: [0, 0], cats: {}, spin: [0, 0] };
     for (const c of CATS) acc.cats[c] = [0, 0];
@@ -81,7 +82,7 @@ export function totalXP(db) { return db.sessions.reduce((a, s) => a + (s.xp || 0
 export const DAY_MIN_BALLS = 20;
 export function ballsByDay(db) {
   const m = {};
-  for (const s of db.sessions) { const k = dayKey(s.date); m[k] = (m[k] || 0) + (s.n || (s.balls ? s.balls.length : 0)); }
+  for (const s of db.sessions) { if (isSandbox(s)) continue; const k = dayKey(s.date); m[k] = (m[k] || 0) + (s.n || (s.balls ? s.balls.length : 0)); }
   return m;
 }
 // Consecutive practice days ending today (or yesterday, if today isn't done yet — the streak is still alive).

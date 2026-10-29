@@ -27,6 +27,7 @@
 <link rel="modulepreload" href="js/core/progress.js">
 <link rel="modulepreload" href="js/core/quality.js">
 <link rel="modulepreload" href="js/core/rules.js">
+<link rel="modulepreload" href="js/core/sandbox.js">
 <link rel="modulepreload" href="js/core/store.js">
 <link rel="modulepreload" href="js/core/sync.js">
 <link rel="modulepreload" href="js/core/timing.js">
@@ -119,6 +120,7 @@
       <button class="tile green" id="bMatch"><b>Match · 3 overs</b><span>Chase a target · 3 wickets</span></button>
       <button class="tile" id="bStart"><b>Classic 50</b><span>50 balls · adapts to you</span></button>
       <button class="tile" id="bQuick"><b>Quick 30</b><span>30 balls · adapts to you</span></button>
+      <button class="tile" id="bSandbox"><b>Sandbox</b><span>Pick every ball · keeps bowling · no level or XP</span></button>
       <button class="tile" id="bEndless"><b>Endless</b><span>Stop when you like</span></button>
     </div>
     <p class="note" id="setupTip"></p>
@@ -159,6 +161,7 @@
       <div class="key kT"><b>TRIGGER</b><div>Optional · before release · LT · Space · wheel click · phone: 1st tap</div></div>
       <div class="key kF"><b>FEET (L1–3)</b><div>FRONT: X (or Y) · ← · left click · tap top half<br>BACK: B (or A) · → · right click · tap bottom half<br>L2–3: push the left stick (or press again) = PLAY · RT or nothing = LEAVE<br>USB pedals: Settings → Map my pedals</div></div>
       <div class="key kP"><b>SHOTS (L4)</b><div>Controller, side-on: foot first, then the left stick<br>X front: ← drive · ↓ flick · ↑ defend (W E Q)<br>B back: ↑ punch · ↓ pull · → defend (S D A)<br>Foot with no stick = defend · RT or nothing = LEAVE · Left-handers: ← and → swap · Phone: 6 tap zones</div></div>
+      <div class="key"><b>SANDBOX</b><div>C · controller View = change the balls (pauses; applies from the next ball)</div></div>
       <div class="key"><b>AFTER A BALL</b><div>A · Enter = next · Y · H = hold · B · R = replay · X · S = slow-mo<br>Menu · P · Esc = pause</div></div>
       <div class="key"><b>MENUS</b><div>D-pad / stick = move · A = choose · B = back · LB/RB = tabs</div></div>
     </div>
@@ -217,6 +220,17 @@
 <!-- ONBOARDING -->
 <div id="onboard" class="screen hidden">
   <div class="wrap narrow" id="obBody"></div>
+</div>
+
+<!-- SANDBOX -->
+<div id="sandbox" class="screen hidden">
+  <div class="wrap narrow">
+    <div class="brand"><i></i>SANDBOX</div>
+    <p class="lead">Pick the balls. They keep coming until you change them. <b>Random</b> rolls again every ball.</p>
+    <div id="sbRows"></div>
+    <p class="note">Practice only: no level change, no XP, no streak or badges. Sessions are saved as “Sandbox” and synced.</p>
+    <div class="row"><button class="btn go" id="bSbGo">Bowl ▶</button><button class="btn" id="bSbBack">Back</button></div>
+  </div>
 </div>
 
 <!-- SYNC -->
@@ -285,6 +299,7 @@
     <div class="badges" id="badges"></div>
     <h2>Day by day</h2>
     <div class="panel tablewrap" id="progTable"></div>
+    <p class="note hidden" id="sbNote"></p>
   </div>
 </div>
 
@@ -294,6 +309,7 @@
     <h1>Paused</h1>
     <div class="row centered">
       <button class="btn" id="bResume">Resume (Space · A)</button>
+      <button class="btn go hidden" id="bSbChange">Change balls (C · View)</button>
       <button class="btn" id="bEndNow">End session (E)</button>
       <button class="btn" id="bHome2">Home (H · B)</button>
     </div>

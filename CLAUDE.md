@@ -103,6 +103,7 @@ Also read:
 - **Drills:** short-ball and spin.
 - **Match:** 3 overs, 3 wickets.
 - **Nets:** 24 balls, bowlers take turns, no feedback, real gap between balls.
+- **Sandbox (v5.4):** pick every ball (bowler, pace, length, line, blackout, task; each with Random). Endless; C / View / Pause → Change balls mid-session. Saved as `sandbox`, never counts (level, XP, streak, badges). `js/core/sandbox.js`, `genBall({force})`.
 - **Reaction test:** median of 8 presses; it uses the same frame-stamped pipeline as the game.
 
 **Feedback:**
@@ -174,6 +175,7 @@ Also read:
   - Docs, plus the device test checklist in the README.
 - **v5.2 shipped (27 Oct 2026):** true life-size calibration, darker worn pitch + tone mapping, night mode, dark sight screen, length marks, release heights fixed, portrait card, pedals, LT/RT.
 - **v5.3 shipped (28 Oct 2026):** side-on controller (X front, B back, stick shots), sync phone + PC via his own GitHub gist, Progress table no longer hidden under the tab bar.
+- **v5.4 shipped (29 Oct 2026):** Sandbox mode.
 - **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
 - **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).
 - **Later (Bink paused it):** a PC mirror using the S25+ as a webcam, with pose checks on the big screen.
