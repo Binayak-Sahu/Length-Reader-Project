@@ -398,6 +398,28 @@ await ctx.close();
   await c.close();
 }
 
+// ---------- 8h. personal too-quick line: fast presses that are right stop counting as guesses ----------
+{
+  const c = await browser.newContext({ viewport: { width: 1000, height: 600 } });
+  const balls = Array.from({ length: 60 }, (_, i) => ({ d: 8, lx: 0, kph: 100, lvl: 3, mode: 1, cat: 'Short', fe: i % 2 ? 'B' : 'F', foot: i % 2 ? 'B' : 'F', rt: 0.10 + (i % 10) * 0.02, fv: 'good', v: 'good', sc: 1, ok: true }));
+  const seed = { v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, rtBase: 0.216, rtAt: '2026-10-29T10:00:00Z',
+    settings: { sound: false, voice: false, fullscreen: false, feedback: 'always', hawk: false, sandbox: { bowler: 'pace', kph: 100, len: 'Short', line: 'stumps', occ: 'none', task: 1 } },
+    sessions: [{ date: '2026-10-29T10:00:00Z', kind: 'sandbox', n: 60, score: 100, xp: 0, balls }] };
+  const q = await page(c, '?nosw', `localStorage.setItem('lr5', ${JSON.stringify(JSON.stringify(seed))});`);
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  await q.click('#nav button[data-tab="progress"]');
+  ok(await q.evaluate(() => /learned from your results/.test(document.getElementById('rlNote').textContent)), 'Progress shows the evidence: ' + await q.evaluate(() => document.getElementById('rlNote').textContent));
+  await q.evaluate(() => window.__lr.menu.renderHome && window.__lr.game.startSession('sandbox'));
+  await waitFor(q, () => { const g = window.__lr.game, c = g.clock; return g.G.state === 'run' && c.relTs !== null && performance.now() - c.relTs > 160; });
+  await q.keyboard.press('ArrowRight');
+  await waitFor(q, () => window.__lr.game.G.state === 'result', null, 20000);
+  const r = await q.evaluate(() => { const b = window.__lr.game.G.sess.balls[0]; return { rt: b.rt, guess: !!b.guess, fv: b.fv, line: window.__lr.game.G.sess.pline.line }; });
+  ok(r.line <= 0.13 && !r.guess && r.fv === 'good', `with fast, accurate history (line ${r.line} s) a back-foot press at ${r.rt} s is a good read, not "too quick"`);
+  await q.evaluate(() => window.__lr.game.endSession());
+  ok(await q.evaluate(() => /too-quick line/.test(document.getElementById('eMeta').textContent)), 'end screen shows the too-quick line and the evidence');
+  await c.close();
+}
+
 // ---------- 9. offline: install the service worker, go offline, reload ----------
 const ctx2 = await browser.newContext({ viewport: { width: 640, height: 360 } });
 p = await page(ctx2, '', `if (!localStorage.getItem('lr5')) localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false } }));`);

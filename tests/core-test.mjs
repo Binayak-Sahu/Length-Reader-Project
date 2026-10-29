@@ -4,6 +4,7 @@ import { makeTraj, solveTraj, buildTraj, zones, Z_STUMPS, speedAt } from '../js/
 import { categorize, footFor, grade, gradeShot, idealShots, guessLimit, LATE_MARGIN, lateAt, targetAt, READ_WINDOW } from '../js/core/rules.js';
 import { genBall, relCue, catRanges } from '../js/core/bowling.js';
 import { sbResolve, sbClean, SB_ROWS, SB_DEF } from '../js/core/sandbox.js';
+import { personalLine, recentBalls, evidenceText } from '../js/core/readline.js';
 import { mulberry32 } from './util.mjs';
 import { solve, frustum, screenCm, activeCalib } from '../js/core/calib.js';
 
@@ -159,6 +160,30 @@ console.log('— a real read is always possible (Bink: "too quick" when moving a
   ok(Math.abs(guessLimit(0.45) - 0.35) < 1e-9 && Math.abs(guessLimit(0.12) - 0.23) < 1e-9, 'a slow or odd reaction test is clamped (guess line 0.23–0.35 s)');
   const gq = grade(t, 'B', 0.2, false, 1, undefined, { guessBelow: lim, tbP: t.tb });
   ok(gq.guess && /200 ms after release/.test(gq.fmsg) && /312 ms/.test(gq.fmsg), 'still a guess at 0.20 s, and the card says the numbers: ' + gq.fmsg);
+}
+
+console.log('— personal too-quick line, learned from your own balls —');
+{
+  const rng = mulberry32(11), mk = (rt, right) => { const fe = rng() < 0.5 ? 'F' : 'B'; return { fe, foot: right ? fe : (fe === 'F' ? 'B' : 'F'), rt, occ: null }; };
+  const fastReader = Array.from({ length: 60 }, () => { const rt = 0.08 + rng() * 0.25; return mk(rt, rng() < 0.95); });
+  const p1 = personalLine(fastReader, 0.216);
+  ok(p1.personal && p1.line <= 0.13, `fast presses that are 95% right: line drops to ${p1.line.toFixed(2)} s (default ${p1.def.toFixed(3)})`);
+  const guesser = Array.from({ length: 60 }, () => { const rt = 0.05 + rng() * 0.4; return mk(rt, rt > 0.27 ? rng() < 0.95 : rng() < 0.5); });
+  const p2 = personalLine(guesser, 0.216);
+  ok(!p2.personal || p2.line >= 0.24, `fast presses that are coin flips keep the line (${p2.line.toFixed(2)} s; fast ${Math.round(100 * p2.fastAcc)}% right)`);
+  const few = personalLine(fastReader.slice(0, 30), 0.216);
+  ok(!few.personal && few.line === few.def && /After 40 balls/.test(evidenceText(few)), 'fewer than 40 balls: the reaction-test line is kept');
+  const tooFast = Array.from({ length: 60 }, () => mk(0.02 + rng() * 0.05, true));
+  ok(personalLine(tooFast, 0.216).line >= 0.12, 'never below 0.12 s (human visual–motor limit)');
+  ok(personalLine(fastReader.map(b => Object.assign({}, b, { fe: 'FB' })), 0.216).n === 0, 'either-foot balls are not evidence');
+  const t = makeTraj(p0, 120, 9.4, 0);
+  ok(lateAt(t.tb, p1.line) - p1.line >= READ_WINDOW - 1e-9, 'the read window still holds with a personal line');
+  const g = grade(t, 'B', 0.15, false, 1, undefined, { guessBelow: p1.line, tbP: t.tb, ev: p1 });
+  ok(g.fv === 'good' && !g.guess, 'with a learned line, a right foot at 0.15 s is a good read');
+  const gg = grade(t, 'B', 0.08, false, 1, undefined, { guessBelow: p2.line, tbP: t.tb, ev: p2 });
+  ok(gg.guess && /right \d+% of the time/.test(gg.fmsg), 'a coin-flip guess says why: ' + gg.fmsg);
+  const ss = [{ balls: [1, 2] }, { balls: [3] }];
+  ok(recentBalls(ss, [4]).join() === '1,2,3,4', 'recent balls: newest last, current session included');
 }
 
 console.log('— sandbox: pick every ball —');
