@@ -1,7 +1,7 @@
 // Physics and grading tests — no dependencies. Run from the repo root:  node tests/core-test.mjs
 // (Imports the app's pure core modules directly; the v4 checks are kept unchanged at the top.)
 import { makeTraj, solveTraj, buildTraj, zones, Z_STUMPS, speedAt } from '../js/core/physics.js';
-import { categorize, footFor, grade, gradeShot, idealShots, guessLimit, LATE_MARGIN } from '../js/core/rules.js';
+import { categorize, footFor, grade, gradeShot, idealShots, guessLimit, LATE_MARGIN, lateAt, targetAt, READ_WINDOW } from '../js/core/rules.js';
 import { genBall, relCue, catRanges } from '../js/core/bowling.js';
 import { sbResolve, sbClean, SB_ROWS, SB_DEF } from '../js/core/sandbox.js';
 import { mulberry32 } from './util.mjs';
@@ -90,8 +90,10 @@ console.log('— guess / late (presented times) —');
   ok(g1.fv === 'warn' && g1.guess && !g1.read && g1.sc === 0.5, 'right foot at 0.25 s (faster than a real read) = guess: half score, no XP');
   const g2 = grade(t, 'B', 0.40, false, 1, undefined, { guessBelow: lim, tbP: t.tb });
   ok(g2.fv === 'good' && g2.read, 'right foot at 0.40 s = a real read');
-  const g3 = grade(t, 'B', t.tb + LATE_MARGIN + 0.005, false, 1, undefined, { guessBelow: lim, tbP: t.tb });
-  ok(g3.fv === 'warn' && g3.late && !g3.read, 'right foot just after bounce + 30 ms = late');
+  const g3 = grade(t, 'B', lateAt(t.tb, lim) + 0.005, false, 1, undefined, { guessBelow: lim, tbP: t.tb });
+  ok(g3.fv === 'warn' && g3.late && !g3.read, 'right foot just after the late line = late');
+  const slow = makeTraj(p0, 80, 3, 0);
+  ok(Math.abs(lateAt(slow.tb, lim) - (slow.tb + LATE_MARGIN)) < 1e-9, '80 kph full ball: late is still bounce + 30 ms');
   const g4 = grade(t, 'B', t.tb + 0.02, false, 1, undefined, { guessBelow: lim, tbP: t.tb + 0.008 });
   ok(g4.fv === 'good', 'late check uses the bounce as presented on screen (frame-quantised), not the physics time');
   const g5 = grade(t, 'F', 0.2, false, 1, undefined, { guessBelow: lim });
@@ -136,6 +138,27 @@ console.log('— release heights (the real rig, posed at release) —');
     const [lo, hi] = p.spin ? [1.9, 2.0] : [2.1, 2.3];
     ok(v.y >= lo && v.y <= hi, `${p.n} (size ${p.s}) releases at ${v.y.toFixed(2)} m (target ${lo}–${hi})`);
   }
+}
+
+console.log('— a real read is always possible (Bink: "too quick" when moving after release) —');
+{
+  let worst = 1, where = '';
+  for (const rt of [0.262, 0.35, null]) for (const [k, spin] of [[80, false], [100, false], [120, false], [140, false], [80, true]]) {
+    const [f, b] = zones(k, spin), lim = guessLimit(rt);
+    for (const d of [2, f - 0.3, (f + b) / 2, b + 1, spin ? b + 2 : 12]) {
+      const t = makeTraj(spin ? ps : p0, k, d, 0, spin ? { spin: true, ev: 0.58, eh: 0.8 } : {});
+      const win = lateAt(t.tb, lim) - lim; if (win < worst) { worst = win; where = `${k} kph ${spin ? 'spin' : 'pace'} ${d.toFixed(1)} m rt ${rt}`; }
+      const fe = footFor(t), foot = fe === 'FB' ? 'F' : fe, g = grade(t, foot, lim + 0.06, false, 1, undefined, { guessBelow: lim, tbP: t.tb });
+      if (g.guess || g.late) { worst = -1; where = `answer at line + 60 ms graded ${g.guess ? 'guess' : 'late'} (${k} kph ${d.toFixed(1)} m)`; }
+      if (targetAt(k, lim) <= lim) { worst = -1; where = `target inside the too-quick zone at ${k} kph`; }
+    }
+  }
+  ok(worst >= READ_WINDOW - 1e-9, `≥150 ms between "too quick" and "late" at every pace and length, target after the line (worst ${(worst * 1000).toFixed(0)} ms${where ? ', ' + where : ''})`);
+  const t = makeTraj(p0, 120, 9.4, 0), lim = guessLimit(0.262), g = grade(t, 'B', 0.33, false, 1, undefined, { guessBelow: lim, tbP: t.tb });
+  ok(g.fv === 'good' && g.read, `120 kph short ball, back foot 0.33 s after release (reaction 262 ms) = good read (was: ${t.tb.toFixed(2)} s bounce left 12 ms)`);
+  ok(Math.abs(guessLimit(0.45) - 0.35) < 1e-9 && Math.abs(guessLimit(0.12) - 0.23) < 1e-9, 'a slow or odd reaction test is clamped (guess line 0.23–0.35 s)');
+  const gq = grade(t, 'B', 0.2, false, 1, undefined, { guessBelow: lim, tbP: t.tb });
+  ok(gq.guess && /200 ms after release/.test(gq.fmsg) && /312 ms/.test(gq.fmsg), 'still a guess at 0.20 s, and the card says the numbers: ' + gq.fmsg);
 }
 
 console.log('— sandbox: pick every ball —');

@@ -3,11 +3,21 @@ import { T_BFC, T_REL } from './physics.js';
 
 export const LATE_MARGIN = 0.03;      // answering after the bounce + 30 ms = late (scores half)
 export const GUESS_MARGIN = 0.05;     // answering sooner than your reaction time + 50 ms after release = a guess
+export const READ_WINDOW = 0.15;      // "late" never starts sooner than 150 ms after the guess line (a real read must be possible)
+export const RT_CLAMP = [0.18, 0.30]; // a slow or stale reaction test can't push the guess line past 0.35 s
 export const DEFAULT_RT = 0.25;       // assumed button reaction time until the reaction test is done
 
 export function targetFor(kph) { return Math.max(0.25, 0.35 - (kph - 80) * 0.0025); }   // decision target, s after release
 // Earliest response (s after release) that could have used the ball's flight. Anything sooner is a guess.
-export function guessLimit(rtBase) { return (rtBase > 0.1 ? rtBase : DEFAULT_RT) + GUESS_MARGIN; }
+export function guessLimit(rtBase) {
+  const rt = rtBase > 0.1 ? Math.max(RT_CLAMP[0], Math.min(RT_CLAMP[1], rtBase)) : DEFAULT_RT;
+  return rt + GUESS_MARGIN;
+}
+// Late = after the bounce as shown + 30 ms, but never inside the first 150 ms after the guess line. At 120 kph a short
+// ball bounces ~0.29 s after release, so without this floor there was no time left between "too quick" and "late".
+export function lateAt(tb, guessBelow) { return Math.max(tb + LATE_MARGIN, guessBelow != null ? guessBelow + READ_WINDOW : 0); }
+// The decide-by target shown on the card: never inside the "too quick" zone.
+export function targetAt(kph, guessBelow) { return Math.max(targetFor(kph), guessBelow != null ? guessBelow + 0.05 : 0); }
 
 export function categorize(tr) {
   if (tr.yC >= 1.30) return 'Bouncer';
@@ -31,10 +41,16 @@ export function gradeTrig(t) {
 export function timingOf(tr, rt, opt) {
   const tb = opt && opt.tbP != null ? opt.tbP : tr.tb;
   if (rt == null) return { late: false, guess: false };
-  return { late: rt > tb + LATE_MARGIN, guess: !!(opt && opt.guessBelow != null && rt < opt.guessBelow) };
+  const gb = opt && opt.guessBelow != null ? opt.guessBelow : null;
+  return { late: rt > lateAt(tb, gb), guess: gb != null && rt < gb };
 }
 
 const GUESS_MSG = 'Too quick — that was a guess. Watch it out of the hand';
+function guessMsg(rt, opt) {
+  if (rt == null || !opt || opt.guessBelow == null) return GUESS_MSG;
+  const ms = (x) => Math.round(x * 1000);
+  return `Too quick — you moved ${ms(rt)} ms after release; your earliest real read is ${ms(opt.guessBelow)} ms (reaction ${ms(opt.guessBelow - GUESS_MARGIN)} + 50). Watch the first part of the flight`;
+}
 
 // mode 1 = feet only; 2 and 3 = feet + play/leave (3 adds variety balls)
 export function grade(tr, foot, rtFoot, played, mode, trig, opt) {
@@ -47,7 +63,7 @@ export function grade(tr, foot, rtFoot, played, mode, trig, opt) {
       : `Pitched ${tr.d.toFixed(1)} m away — too far to reach, go back and across`;
     if (tm.guess) fmsg += ' (and that was a guess)';
   }
-  else if (tm.guess) { fv = 'warn'; fsc = 0.5; fmsg = GUESS_MSG; }
+  else if (tm.guess) { fv = 'warn'; fsc = 0.5; fmsg = guessMsg(rtFoot, opt); }
   else if (tm.late) { fv = 'warn'; fsc = 0.5; fmsg = 'Right foot, but late — move earlier'; }
   else { fv = 'good'; fsc = 1; fmsg = fe === 'FB' ? 'In the channel — either foot is fine' : 'Right foot movement'; }
   let pe = null, pv = null, pmsg = '';
@@ -98,7 +114,7 @@ export function gradeShot(tr, shot, rt, trig, opt) {
     msg = s === 'LV' ? (I.hitting ? 'Never leave a ball hitting the stumps' : I.why)
       : ((fe !== 'FB' && SHOTS[s].f && SHOTS[s].f !== fe) ? 'Wrong foot — ' : 'Wrong shot — ') + I.why.toLowerCase();
   }
-  if (v === 'good' && shot && tm.guess) { v = 'warn'; sc = 0.5; msg = GUESS_MSG; }
+  if (v === 'good' && shot && tm.guess) { v = 'warn'; sc = 0.5; msg = guessMsg(rt, opt); }
   else if (v === 'good' && shot && tm.late) { v = 'warn'; sc = 0.6; msg = 'Right shot, but late — decide earlier'; }
   const read = v === 'good';
   const tg = trig === undefined ? null : gradeTrig(trig);
