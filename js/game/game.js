@@ -12,6 +12,7 @@ import { FOOT, FOOT_S } from '../core/action.js';
 import { xpForBall, ctxMult, summarize } from '../core/progress.js';
 import { buildPlan } from './modes.js';
 import { sbResolve, sbLabel } from '../core/sandbox.js';
+import { personalLine, recentBalls } from '../core/readline.js';
 import * as ui from '../ui/session-ui.js';
 
 const NAMES = { F: 'FRONT', B: 'BACK', P: 'PLAY' };
@@ -38,6 +39,7 @@ export function startSession(kind, opts = {}) {
     sess.match = { runs: 0, wk: 0, target: 14 + Math.floor(Math.random() * 9) };
     sess.mmode = db.level >= STAGE_START[4] ? 4 : (db.level >= STAGE_START[3] ? 3 : 2);
   }
+  sess.pline = personalLine(recentBalls(db.sessions), db.rtBase);
   hooks.enter();
   show('hud', true); show('hint', true); document.body.classList.add('insession');
   if (S.fullscreen && !document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
@@ -228,7 +230,7 @@ function finishBall() {
   G.state = 'result'; world.ball.visible = false;
   if (cur.mode === 4 && cur.padFoot && !cur.shot) { cur.shot = cur.padFoot === 'F' ? 'FD' : 'BD'; cur.played = true; }   // foot but no stick: a defensive shot
   app.onBallStats(perf.ballEnd());                                    // adaptive quality decides between balls
-  const rt = clock.rtOf('foot'), tbP = clock.tbPresented(tr.tb), lim = guessLimit(db.rtBase), opt = { tbP, guessBelow: lim };
+  const rt = clock.rtOf('foot'), tbP = clock.tbPresented(tr.tb), lim = sess.pline ? sess.pline.line : guessLimit(db.rtBase), opt = { tbP, guessBelow: lim, ev: sess.pline };
   const trigArg = S.trigger ? cur.trig : undefined;
   const g = cur.mode === 4 ? gradeShot(tr, cur.shot, rt, trigArg, opt) : grade(tr, cur.foot, rt, cur.played, cur.mode, trigArg, opt);
   if (g.guess && !db.rtAt) g.fmsg += ' · Do More → Reaction test with the controller you play with';
@@ -245,6 +247,7 @@ function finishBall() {
     hz: perf.hz, tbP: +tbP.toFixed(3), occA: occA == null ? undefined : +occA.toFixed(3), seg: sess.segI, tm: cur.g.tm || undefined,
   };
   sess.balls.push(rec); sess.segN++; sess.xp += xp;
+  if (sess.balls.length % 10 === 0) sess.pline = personalLine(recentBalls(db.sessions, sess.balls), db.rtBase);   // keeps learning
   ui.speedGun(cur.g.kph);
   if (!seg.sandbox) feedLog(cur.type, rec.cat === 'Yorker' ? 'Full' : rec.cat, g.sc);
   sess.streak = g.v === 'good' ? sess.streak + 1 : 0; sess.best = Math.max(sess.best, sess.streak);

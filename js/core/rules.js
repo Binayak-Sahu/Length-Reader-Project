@@ -49,7 +49,9 @@ const GUESS_MSG = 'Too quick — that was a guess. Watch it out of the hand';
 function guessMsg(rt, opt) {
   if (rt == null || !opt || opt.guessBelow == null) return GUESS_MSG;
   const ms = (x) => Math.round(x * 1000);
-  return `Too quick — you moved ${ms(rt)} ms after release; your earliest real read is ${ms(opt.guessBelow)} ms (reaction ${ms(opt.guessBelow - GUESS_MARGIN)} + 50). Watch the first part of the flight`;
+  const ev = opt.ev, why = ev && ev.n >= 40 && ev.nFast >= 5 ? ` — your presses this early are right ${Math.round(100 * ev.fastAcc)}% of the time (${ev.nFast} balls)`
+    : ev && ev.personal ? '' : ` (reaction ${ms(opt.guessBelow - GUESS_MARGIN)} + 50; after 40 balls it is learned from your results)`;
+  return `Too quick — you moved ${ms(rt)} ms after release; your too-quick line is ${ms(opt.guessBelow)} ms${why}. Watch the first part of the flight`;
 }
 
 // mode 1 = feet only; 2 and 3 = feet + play/leave (3 adds variety balls)

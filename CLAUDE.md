@@ -71,7 +71,7 @@ Also read:
 **Grading** (`js/core/rules.js`): as v4 (Full = forward, Good = either, Short = back; Bouncer: `yC ≥ 1.30`; Wide off: `lxArr > 0.30`; Full toss: `d < 0`), plus:
 
 - **Late:** after the bounce *as presented on screen* + 0.03 s, but never sooner than the guess line + 0.15 s (v5.4.1: at pace the old rules left no window). Scores half.
-- **Guess:** a correct answer given sooner than (reaction time + 0.05 s) after release; reaction time clamped to 0.18–0.30 s. Scores half, earns no XP.
+- **Guess:** a correct answer given sooner than (reaction time + 0.05 s) after release; reaction time clamped to 0.18–0.30 s. From v5.5 the line is personal: learned from the last 60 balls (earliest press time with ≥85% right feet, needs 40 balls, floor 0.12 s; `js/core/readline.js`). Scores half, earns no XP.
 - **Level 2+:** play or leave. You must play anything hitting (`|lx| ≤ 0.13` and `yA ≤ 0.78`).
 - **Level 4 shot menu:** front defence, straight drive, flick, back defence, back-foot punch, pull, leave.
 
@@ -175,7 +175,7 @@ Also read:
   - Docs, plus the device test checklist in the README.
 - **v5.2 shipped (27 Oct 2026):** true life-size calibration, darker worn pitch + tone mapping, night mode, dark sight screen, length marks, release heights fixed, portrait card, pedals, LT/RT.
 - **v5.3 shipped (28 Oct 2026):** side-on controller (X front, B back, stick shots), sync phone + PC via his own GitHub gist, Progress table no longer hidden under the tab bar.
-- **v5.4 shipped (29 Oct 2026):** Sandbox mode. **v5.4.1:** timing fix ("too quick" at pace).
+- **v5.4 shipped (29 Oct 2026):** Sandbox mode. **v5.4.1:** timing fix ("too quick" at pace). **v5.5:** personal too-quick line from his own results.
 - **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
 - **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).
 - **Later (Bink paused it):** a PC mirror using the S25+ as a webcam, with pose checks on the big screen.

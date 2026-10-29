@@ -11,6 +11,7 @@ import { drawMap } from './session-ui.js';
 import { only } from './menus.js';
 import { BADGES, badgeSVG, badgeById } from '../core/badges.js';
 import { SB_ROWS, sbClean } from '../core/sandbox.js';
+import { personalLine, recentBalls, evidenceText } from '../core/readline.js';
 export { only };
 
 // ---------- end of session ----------
@@ -28,6 +29,7 @@ export function renderEnd(s, score, rec, extra = {}) {
     + (pl.length ? ` · play/leave right ${Math.round(100 * pl.filter(x => x.pv === 'good').length / pl.length)}%` : '')
     + (trg.length ? ` · trigger on time ${Math.round(100 * trg.filter(x => x.tv === 'good').length / trg.length)}%` : '')
     + (gs ? ` · ${gs} guess${gs > 1 ? 'es' : ''} (too quick to be a read)` : '')
+    + `<br>${esc(evidenceText(personalLine(recentBalls(app.db.sessions), app.db.rtBase)))}`
     + (avg != null ? ` · avg feet decision ${avg.toFixed(2)} s after release` + (app.db.rtBase ? ` (reading ${Math.max(0, avg - app.db.rtBase).toFixed(2)} s)` : '') : '');
   const cats = ['Full toss', 'Yorker', 'Full', 'Good', 'Short', 'Bouncer', 'Wide off', 'vs Spin', 'Variety balls'];
   $('eBars').innerHTML = cats.map(c => {
@@ -68,6 +70,7 @@ export function renderProgress() {
   $('progTable').innerHTML = D.length ? `<table><thead><tr><th>Day</th><th>Balls</th><th>Score</th><th>Reading</th><th>Full</th><th>Short</th><th>Wide off</th><th>Spin</th><th>XP</th><th>Matches</th><th>Level</th></tr></thead><tbody>` +
     D.slice().reverse().map(r => `<tr><td>${r.k.slice(5)}</td><td>${r.n}</td><td>${cell(r.score)}</td><td>${r.read == null ? '—' : r.read.toFixed(2) + ' s'}</td><td>${cell(r.full)}</td><td>${cell(r.short)}</td><td>${cell(r.wide)}</td><td>${cell(r.spin)}</td><td>${r.xp || '—'}</td><td>${r.matches ? r.wins + '/' + r.matches + ' won' : '—'}</td><td>L${LEVELS[r.lvl].m} · ${LEVELS[r.lvl].k}</td></tr>`).join('') + '</tbody></table>' : '';
   const wk = Date.now() - 7 * 864e5, sbB = app.db.sessions.filter(s => s.kind === 'sandbox' && Date.parse(s.date) >= wk).reduce((a, s) => a + (s.n || 0), 0);
+  $('rlNote').textContent = evidenceText(personalLine(recentBalls(app.db.sessions), app.db.rtBase));
   $('sbNote').textContent = `Sandbox practice: ${sbB} ball${sbB === 1 ? '' : 's'} in the last 7 days (not counted above).`; show('sbNote', sbB > 0);
   $('badges').innerHTML = BADGES.map(b => { const on = !!app.db.badges[b.id];
     return `<div class="bdg${on ? '' : ' off'}">${badgeSVG(b, on)}<b>${esc(b.n)}</b><small>${esc(b.d)}${on ? '<br>✓ ' + new Date(app.db.badges[b.id]).toLocaleDateString() : ''}</small></div>`; }).join('');
