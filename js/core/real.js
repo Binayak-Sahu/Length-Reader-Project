@@ -19,14 +19,6 @@ export const TAP_LAG = 0.12;    // human tap delay (s of real time) taken off a 
 export const SESSION = 20;      // balls per session
 export const MIN_GAP = 1.0;     // two releases closer than this (s) are the same ball
 
-// Suggested batter's-eye net videos (untagged). Bink checks the angle and tags the balls himself.
-export const SUGGESTED = [
-  { id: 'ZRsME7iKznA', title: 'Facing 80 mph – helmet cam, nets' },
-  { id: '1b9H52E-3g4', title: 'Full batting session – helmet cam' },
-  { id: '5BN_Vknawy0', title: 'Facing balls up to 140 kph' },
-  { id: 'EKqPzA-JDK4', title: 'Facing side-arm 70 mph+ – nets' },
-];
-
 /** YouTube video id from a link or a bare id; null if it isn't one. */
 export function parseYouTubeId(s) {
   s = String(s || '').trim();
@@ -55,9 +47,9 @@ export function parseStart(s) {
   } catch { return 0; }
 }
 
-export const emptyDb = () => ({ v: 1, videos: SUGGESTED.map(v => ({ ...v, balls: [] })), level: 1, sessions: [] });
+export const emptyDb = () => ({ v: 1, videos: [], level: 1, sessions: [] });
 
-/** Load and repair saved data. Bad or missing data → a fresh library with the suggested videos. */
+/** Load and repair saved data. Bad or missing data → an empty library. */
 export function load(storage) {
   let d = null;
   try { d = JSON.parse(storage.getItem(KEY)); } catch { d = null; }

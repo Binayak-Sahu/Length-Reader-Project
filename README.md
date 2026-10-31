@@ -22,6 +22,15 @@ A cricket batting trainer that teaches one skill: **read the length early and mo
 
 Your old bookmark (`…/length-reader.html`) opens the new app. The old v4 is kept at `…/legacy/v4.html`.
 
+## Real bowlers
+
+More → **Real bowlers**. Paste a YouTube link of a net session filmed from behind the batter or a helmet camera.
+
+1. **Tag it once:** play at ½×, press **R** the moment the ball leaves the hand, nudge with **,** and **.** until the frame is right, press **Watch it pitch**, then **1 / 2 / 3** for full / good / short.
+2. **Train:** Start. The bowler runs in, the screen goes dark at the cut, you call **1 / 2 / 3** (Xbox X / Y / B), then see the rest of the ball.
+
+Videos need the internet. Some owners block playing outside YouTube; the app marks those so you can remove them.
+
 ## Your data
 
 - Everything is saved in this browser, on this web address only. There are no accounts, ads or tracking.
@@ -136,6 +145,7 @@ CI runs both test suites on every push and PR (`.github/workflows/ci.yml`).
 | `js/ui/` | Menus and tabs (`menus.js`), screens (`screens.js`), in-session UI (`session-ui.js`) |
 | `js/traj-worker.js` | Trajectory solver worker |
 | `mirror.html` | Phone batting mirror (MediaPipe pose, local files) |
+| `real.html`, `js/core/real.js` | Real bowlers: tag YouTube net videos, then call the length at a blackout |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Offline + install |
 | `vendor/` | Vendored libraries (see `vendor/VERSIONS.txt`) |
 | `legacy/v4.html` | The previous version, kept as a fallback |

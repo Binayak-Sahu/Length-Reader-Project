@@ -1,5 +1,5 @@
 // Real bowlers (real.html) logic. Run from the repo root:  node tests/real-test.mjs
-import { parseYouTubeId, parseStart, load, save, addBall, tapToRelease, cutTime, makeDeck, tagCounts, summary, nextLevel, emptyDb, KEY, SUGGESTED, fmtTime } from '../js/core/real.js';
+import { parseYouTubeId, parseStart, load, save, addBall, tapToRelease, cutTime, makeDeck, tagCounts, summary, nextLevel, emptyDb, KEY, fmtTime } from '../js/core/real.js';
 import { makeOk, fakeStorage, mulberry32 } from './util.mjs';
 const { ok, done } = makeOk('real');
 
@@ -16,8 +16,8 @@ ok(parseStart(`https://youtu.be/${ID}?t=95`) === 95 && parseStart(`https://www.y
 {
   const st = fakeStorage();
   const d = load(st);
-  ok(d.videos.length === SUGGESTED.length && d.videos.every(v => v.balls.length === 0) && d.level === 1, 'first run: suggested videos, untagged, level 1');
-  ok(load(fakeStorage({ [KEY]: '{not json' })).videos.length === SUGGESTED.length, 'broken data → fresh library, no crash');
+  ok(d.videos.length === 0 && d.level === 1, 'first run: empty library, level 1');
+  ok(load(fakeStorage({ [KEY]: '{not json' })).videos.length === 0, 'broken data → fresh library, no crash');
   const bad = { videos: [{ id: ID, title: 'a', start: 12, balls: [{ t: 9, len: 'S' }, { t: 3, len: 'F' }, { t: -1, len: 'F' }, { t: 5, len: 'X' }, null] }, { id: ID, balls: [] }, { id: 'nope' }], level: 9, sessions: [{ n: 3, right: 2 }, {}] };
   const r = load(fakeStorage({ [KEY]: JSON.stringify(bad) }));
   ok(r.videos.length === 1 && r.videos[0].balls.map(b => b.t).join() === '3,9' && r.videos[0].start === 12, 'repair: bad balls, duplicate and invalid videos dropped; balls sorted; start kept');
