@@ -10,7 +10,7 @@ const check = process.argv.includes('--check');
 const walk = (d) => fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d), { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]) : [];
 
 const files = [
-  'index.html', 'length-reader.html', 'mirror.html', 'manifest.webmanifest', 'legacy/v4.html',
+  'index.html', 'length-reader.html', 'mirror.html', 'real.html', 'manifest.webmanifest', 'legacy/v4.html',
   ...walk('css'), ...walk('js'), ...walk('icons'), ...walk('fonts'),
   'vendor/three/three.module.min.js',
 ].filter(f => fs.existsSync(path.join(ROOT, f))).map(f => f.split(path.sep).join('/')).sort();

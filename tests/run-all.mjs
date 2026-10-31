@@ -1,7 +1,7 @@
 // Runs every Node test (no browser needed) and checks the service-worker stamp.
 // Usage: node tests/run-all.mjs        (browser tests: node tests/browser-test.mjs)
 import { spawnSync } from 'node:child_process';
-const runs = [['tests/core-test.mjs'], ['tests/timing-test.mjs'], ['tests/game-test.mjs'], ['tools/stamp.mjs', '--check']];
+const runs = [['tests/core-test.mjs'], ['tests/timing-test.mjs'], ['tests/game-test.mjs'], ['tests/real-test.mjs'], ['tools/stamp.mjs', '--check']];
 let failed = 0;
 for (const args of runs) {
   const r = spawnSync(process.execPath, args, { encoding: 'utf8' });

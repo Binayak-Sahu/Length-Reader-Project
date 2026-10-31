@@ -4,7 +4,7 @@
 // • MediaPipe (≈15 MB) is cached the first time the mirror uses it, in its own cache that survives app updates.
 // • A new version waits until the player taps "Reload" (never mid-session).
 // @stamp-start
-const VERSION = 'f74cd2965d0f';
+const VERSION = '6951b517d46f';
 const CORE = [
   './',
   'css/app.css',
@@ -30,6 +30,7 @@ const CORE = [
   'js/core/progress.js',
   'js/core/quality.js',
   'js/core/readline.js',
+  'js/core/real.js',
   'js/core/rules.js',
   'js/core/sandbox.js',
   'js/core/store.js',
@@ -53,6 +54,7 @@ const CORE = [
   'length-reader.html',
   'manifest.webmanifest',
   'mirror.html',
+  'real.html',
   'vendor/three/three.module.min.js',
 ];
 // @stamp-end

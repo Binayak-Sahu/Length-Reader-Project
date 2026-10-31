@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07090c">
+<meta name="color-scheme" content="dark">
+<title>Real Bowlers</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+/* Layout: library list (tag videos, start) → full-width video stage with one control bar under it → session summary */
+@font-face{font-family:"Barlow Condensed";font-weight:700;font-display:swap;src:url(fonts/barlow-condensed-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:800;font-display:swap;src:url(fonts/barlow-condensed-latin-800-normal.woff2) format("woff2")}
+:root{
+  --bg:#07090c;--panel:#10151c;--panel2:#161d26;--line:rgba(255,255,255,.1);
+  --text:#eef2f6;--muted:#8d99a8;--good:#22c55e;--warn:#f5a524;--bad:#ef4444;--accent:#38bdf8;--gold:#fde68a;
+  --full:#7dd3fc;--goodlen:#86efac;--short:#c4b5fd;
+  --disp:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:"Segoe UI Variable Display","Segoe UI",Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+.hidden{display:none!important}
+.num{font-variant-numeric:tabular-nums}
+
+/* Library */
+#lib{max-width:900px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px));display:grid;gap:22px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-family:var(--disp);font-weight:800;font-size:30px;letter-spacing:.08em}
+.brand small{display:block;font-family:inherit;font-weight:700;font-size:14px;letter-spacing:.14em;color:var(--muted)}
+.back{color:var(--muted);text-decoration:none;font-weight:600;padding:10px 0}
+h2{font-family:var(--disp);font-weight:800;font-size:20px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:10px}
+.note{color:var(--muted);font-size:14px;line-height:1.5;max-width:65ch}
+.go{display:grid;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px}
+.counts{display:flex;flex-wrap:wrap;gap:8px}
+.pill{padding:5px 12px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-weight:700;font-size:14px}
+.pill.F{color:var(--full)}.pill.G{color:var(--goodlen)}.pill.S{color:var(--short)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;flex-wrap:wrap}
+.seg button{padding:10px 16px;font-weight:700;min-height:44px}
+.seg button[aria-pressed="true"]{background:#1e3a4c;color:var(--accent)}
+.big{padding:14px 26px;border-radius:14px;background:#15803d;font-weight:800;font-size:18px;letter-spacing:.04em;min-height:52px}
+.big:disabled{background:var(--panel2);color:var(--muted);cursor:default}
+.btn{padding:9px 14px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-weight:650;min-height:42px}
+.btn.danger{color:#fca5a5}
+.vids{display:grid;gap:10px}
+.vid{display:grid;grid-template-columns:120px 1fr auto;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px}
+.vid img{width:120px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#000;display:block}
+.vid .t{min-width:0}
+.vid b{display:block;font-weight:650;overflow-wrap:anywhere}
+.vid span{color:var(--muted);font-size:13px}
+.vid .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.vid.blocked{opacity:.6}
+@media (max-width:560px){.vid{grid-template-columns:90px 1fr}.vid img{width:90px}.vid .acts{grid-column:1/-1;justify-content:flex-start}}
+.add{display:flex;gap:8px;flex-wrap:wrap}
+.add input{flex:1 1 260px;min-width:0;padding:11px 14px;border-radius:10px;background:var(--panel2);border:1px solid var(--line)}
+#addMsg{font-size:14px;color:var(--warn);min-height:1.2em}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600}
+
+/* Stage */
+#stage{position:fixed;inset:0;display:flex;flex-direction:column;background:#000;padding-top:env(safe-area-inset-top,0px)}
+#frame{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+#box{position:relative;width:min(100%,calc((100vh - 170px) * 16 / 9));aspect-ratio:16/9;max-height:100%}
+#yt,#yt iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+#shield{position:absolute;inset:0;z-index:2}
+#black{position:absolute;inset:0;z-index:3;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-align:center;padding:16px}
+#black b{font-family:var(--disp);font-weight:800;font-size:clamp(28px,4vw,64px);letter-spacing:.06em}
+#black span{color:var(--muted);font-size:clamp(14px,1.3vw,22px)}
+#black.call b{color:var(--gold)}
+#mark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4;pointer-events:none;font-family:var(--disp);font-weight:800;font-size:clamp(40px,7vw,130px);letter-spacing:.04em;text-shadow:0 2px 20px #000;text-align:center;line-height:1}
+#mark small{display:block;font-size:.32em;letter-spacing:.1em;color:var(--text);margin-top:.4em}
+#bar{background:var(--panel);border-top:1px solid var(--line);padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row.sp{justify-content:space-between}
+.calls{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.call{padding:14px 10px;border-radius:14px;font-family:var(--disp);font-weight:800;font-size:clamp(20px,2vw,34px);letter-spacing:.06em;background:var(--panel2);border:2px solid var(--line);min-height:56px}
+.call small{display:block;font-family:"Segoe UI",system-ui,sans-serif;font-weight:600;font-size:12px;letter-spacing:.06em;color:var(--muted)}
+.call.F{color:var(--full)}.call.G{color:var(--goodlen)}.call.S{color:var(--short)}
+.call:disabled{opacity:.35;cursor:default}
+.call.picked{border-color:currentColor}
+.chip{padding:6px 12px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-weight:700;font-size:14px}
+#seek{flex:1 1 200px;min-width:0;accent-color:var(--accent)}
+.balls{display:flex;gap:6px;flex-wrap:wrap;max-height:76px;overflow:auto}
+.ball{padding:4px 9px;border-radius:999px;border:1px solid var(--line);font-size:13px;font-weight:700;background:var(--panel2)}
+.ball.F{color:var(--full)}.ball.G{color:var(--goodlen)}.ball.S{color:var(--short)}
+.hint{color:var(--muted);font-size:13px}
+.step{color:var(--gold);font-weight:700}
+#pend{border:1px solid #a16207;background:rgba(120,80,0,.18);border-radius:12px;padding:10px;display:grid;gap:8px}
+
+/* Summary */
+#done{max-width:640px;margin:0 auto;padding:calc(30px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px));display:grid;gap:18px}
+#dPct{font-family:var(--disp);font-weight:800;font-size:72px;line-height:1}
+#dMsg{font-size:16px;line-height:1.5}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<!-- LIBRARY -->
+<main id="lib">
+  <div class="top">
+    <div class="brand">REAL BOWLERS<small>Read the length from real net videos</small></div>
+    <a class="back" href="./">← Length Reader</a>
+  </div>
+
+  <section class="go">
+    <div class="counts" id="counts"></div>
+    <div>
+      <h2>Level</h2>
+      <div class="seg" id="lvl" role="group" aria-label="Level"></div>
+      <p class="note" id="lvlNote" style="margin-top:8px"></p>
+    </div>
+    <div class="row"><button class="big" id="start">Start 20 balls</button><span class="hint" id="startHint"></span></div>
+  </section>
+
+  <section>
+    <h2>Videos</h2>
+    <p class="note" style="margin-bottom:12px">Tag each video once: tap when the ball leaves the hand, then say where it pitched. Use videos filmed from behind the batter or a helmet camera, so the bowler runs in at you.</p>
+    <div class="vids" id="vids"></div>
+    <div style="margin-top:14px">
+      <div class="add"><input id="url" type="url" placeholder="Paste a YouTube link" autocomplete="off" aria-label="YouTube link"><button class="btn" id="addBtn">Add video</button></div>
+      <p id="addMsg"></p>
+    </div>
+  </section>
+
+  <section id="histSec" class="hidden">
+    <h2>Recent sessions</h2>
+    <table class="num"><thead><tr><th>Date</th><th>Level</th><th>Right</th><th>Short read</th><th>Call time</th></tr></thead><tbody id="hist"></tbody></table>
+  </section>
+
+  <section>
+    <h2>Keys</h2>
+    <p class="note"><b>Training:</b> 1 / F = Full, 2 / G = Good, 3 / S = Short, Space = next ball, Esc = stop. Xbox: X Full, Y Good, B Short, A next.<br>
+    <b>Tagging:</b> Space play/pause, R = ball released, ← → jump 2 s, , and . nudge the release, 1 2 3 = length, Backspace = undo last.</p>
+  </section>
+</main>
+
+<!-- VIDEO STAGE -->
+<div id="stage" class="hidden">
+  <div id="frame"><div id="box">
+    <div id="yt"></div>
+    <div id="shield"></div>
+    <div id="black"><b id="bTxt">Loading…</b><span id="bSub"></span></div>
+    <div id="mark" class="hidden"></div>
+  </div></div>
+  <div id="bar">
+    <!-- training -->
+    <div id="trainBar" class="hidden">
+      <div class="row sp"><span class="chip num" id="tProg">Ball 1 / 20</span><span class="chip num" id="tScore">0 right</span><button class="btn" id="tStop">Stop</button></div>
+      <div class="calls" style="margin-top:10px">
+        <button class="call F" data-c="F">FULL<small>1 · X · forward</small></button>
+        <button class="call G" data-c="G">GOOD<small>2 · Y</small></button>
+        <button class="call S" data-c="S">SHORT<small>3 · B · back</small></button>
+      </div>
+      <div class="row" style="margin-top:10px"><button class="big hidden" id="tNext">Next ball (Space)</button><span class="hint" id="tHint"></span></div>
+    </div>
+    <!-- tagging -->
+    <div id="tagBar" class="hidden">
+      <div class="row sp"><b id="gTitle" style="min-width:0;overflow-wrap:anywhere"></b><button class="btn" id="gDone">Done</button></div>
+      <div class="row">
+        <button class="btn" id="gBack" title="Back 2 s">−2 s</button>
+        <button class="btn" id="gPlay" style="min-width:90px">Play</button>
+        <button class="btn" id="gFwd" title="Forward 2 s">+2 s</button>
+        <input type="range" id="seek" min="0" max="100" step="0.01" value="0" aria-label="Video position">
+        <span class="chip num" id="gTime">0:00.00</span>
+        <div class="seg" id="rate" role="group" aria-label="Speed"><button data-r="0.25">¼×</button><button data-r="0.5">½×</button><button data-r="1">1×</button></div>
+      </div>
+      <div id="gIdle" class="row"><button class="big" id="gMark">Ball released (R)</button><span class="hint">Play at ½× and tap the moment the ball leaves the hand.</span></div>
+      <div id="pend" class="hidden">
+        <div class="row"><span class="step">1. Check the frame:</span><span class="hint">the ball should be just leaving the hand.</span>
+          <button class="btn" id="nB">◀ earlier (,)</button><button class="btn" id="nF">later (.) ▶</button><span class="chip num" id="pT"></span></div>
+        <div class="row"><span class="step">2.</span><button class="btn" id="pWatch">Watch it pitch</button>
+          <span class="step">3. Where did it pitch?</span>
+          <button class="btn" data-l="F" style="color:var(--full)">Full (1)</button><button class="btn" data-l="G" style="color:var(--goodlen)">Good (2)</button><button class="btn" data-l="S" style="color:var(--short)">Short (3)</button>
+          <button class="btn" id="pCancel">Not a ball</button></div>
+      </div>
+      <div class="row"><span class="hint">Tagged:</span><div class="balls num" id="gBalls"></div><button class="btn hidden" id="gUndo">Undo last</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- SUMMARY -->
+<main id="done" class="hidden">
+  <div class="brand">SESSION DONE</div>
+  <div><div id="dPct" class="num"></div><p class="note" id="dSub"></p></div>
+  <table class="num"><thead><tr><th>Length</th><th>Right</th></tr></thead><tbody id="dBy"></tbody></table>
+  <p id="dMsg"></p>
+  <div class="row"><button class="big" id="dAgain">Another 20</button><button class="btn" id="dLib">Back to videos</button></div>
+</main>
+
+<script type="module">
+import { LENS, LEN_NAME, LEN_FOOT, LEVELS, LEAD, REVEAL, SESSION, parseYouTubeId, parseStart, load, save, addBall, tapToRelease, cutTime, makeDeck, tagCounts, summary, nextLevel, fmtTime } from './js/core/real.js';
+
+const $ = (id) => document.getElementById(id);
+const store = (() => { try { return window.localStorage; } catch { return { getItem: () => null, setItem: () => {} }; } })();
+let db = load(store);
+const persist = () => save(store, db);
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ---------- library ----------
+function renderLib() {
+  const c = tagCounts(db.videos);
+  $('counts').innerHTML = `<span class="pill num">${c.total} balls tagged</span><span class="pill F num">${c.F} full</span><span class="pill G num">${c.G} good</span><span class="pill S num">${c.S} short</span>`;
+  $('lvl').innerHTML = LEVELS.map(l => `<button data-lv="${l.n}" aria-pressed="${l.n === db.level}">${l.n} · ${l.name}</button>`).join('');
+  $('lvlNote').textContent = LEVELS.find(l => l.n === db.level).note + '. The level moves up at 85% and down below 60%.';
+  $('start').disabled = c.total < 5;
+  $('start').textContent = `Start ${Math.min(SESSION, Math.max(c.total, 0))} balls`;
+  $('startHint').textContent = c.total < 5 ? `Tag at least 5 balls first (${c.total} so far).` : (c.S < 2 || c.F < 2 ? 'Tag a mix of full and short balls so the test is fair.' : '');
+  $('vids').innerHTML = db.videos.map((v, i) => {
+    const n = { F: 0, G: 0, S: 0 }; v.balls.forEach(b => n[b.len]++);
+    return `<div class="vid${v.blocked ? ' blocked' : ''}"><img alt="" loading="lazy" src="https://i.ytimg.com/vi/${v.id}/mqdefault.jpg">
+      <div class="t"><b>${esc(v.title)}</b><span class="num">${v.blocked ? 'Can’t play outside YouTube. Remove it.' : v.balls.length ? `${v.balls.length} balls · ${n.F} full · ${n.G} good · ${n.S} short` : 'Not tagged yet'}</span></div>
+      <div class="acts">${v.blocked ? '' : `<button class="btn" data-tag="${i}">${v.balls.length ? 'Edit tags' : 'Tag balls'}</button>`}<a class="btn" style="text-decoration:none;color:inherit" target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=${v.id}">YouTube</a><button class="btn danger" data-del="${i}">Remove</button></div></div>`;
+  }).join('') || '<p class="note">No videos yet. Paste a YouTube link below.</p>';
+  const hs = db.sessions.slice(-8).reverse();
+  $('histSec').classList.toggle('hidden', !hs.length);
+  $('hist').innerHTML = hs.map(s => `<tr><td>${new Date(s.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</td><td>${s.level}</td><td>${s.right}/${s.n} (${s.pct}%)</td><td>${s.byS ? `${s.byS[0]}/${s.byS[1]}` : '–'}</td><td>${s.medianMs != null ? s.medianMs + ' ms' : '–'}</td></tr>`).join('');
+}
+$('lvl').addEventListener('click', e => { const b = e.target.closest('[data-lv]'); if (!b) return; db.level = +b.dataset.lv; persist(); renderLib(); });
+$('vids').addEventListener('click', e => {
+  const t = e.target.closest('[data-tag]'), d = e.target.closest('[data-del]');
+  if (t) openTag(+t.dataset.tag);
+  if (d) {
+    const i = +d.dataset.del, v = db.videos[i];
+    if (v.balls.length && d.dataset.sure !== '1') { d.dataset.sure = '1'; d.textContent = `Remove ${v.balls.length} tags?`; return; }
+    db.videos.splice(i, 1); persist(); renderLib();
+  }
+});
+function addVideo() {
+  const raw = $('url').value, id = parseYouTubeId(raw);
+  if (!id) { $('addMsg').textContent = 'That isn’t a YouTube link. Copy it from the address bar or Share → Copy link.'; return; }
+  if (db.videos.some(v => v.id === id)) { $('addMsg').textContent = 'That video is already in the list.'; return; }
+  db.videos.push({ id, title: 'New video', balls: [], start: parseStart(raw) });
+  persist(); $('url').value = ''; $('addMsg').textContent = ''; renderLib();
+  openTag(db.videos.length - 1);
+}
+$('addBtn').onclick = addVideo;
+$('url').addEventListener('keydown', e => { if (e.key === 'Enter') addVideo(); });
+
+// ---------- YouTube player ----------
+let P = null, ready = false, curId = null, onReady = null;
+const PS = { ENDED: 0, PLAYING: 1, PAUSED: 2, BUFFERING: 3, CUED: 5 };
+let pstate = -1;
+function loadApi() {
+  return new Promise((res, rej) => {
+    if (window.YT && window.YT.Player) return res();
+    window.onYouTubeIframeAPIReady = () => res();
+    const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; s.onerror = () => rej(new Error('offline'));
+    document.head.appendChild(s);
+    setTimeout(() => rej(new Error('timeout')), 15000);
+  });
+}
+async function ensurePlayer(id, start) {
+  if (P && ready) {
+    if (curId !== id) { curId = id; P.cueVideoById({ videoId: id, startSeconds: start }); await waitFor(() => pstate === PS.CUED || pstate === PS.PAUSED, 8000); }
+    return;
+  }
+  await loadApi();
+  curId = id;
+  await new Promise((res) => {
+    onReady = res;
+    P = new YT.Player('yt', {
+      host: 'https://www.youtube-nocookie.com', videoId: id,
+      playerVars: { controls: 0, disablekb: 1, rel: 0, playsinline: 1, modestbranding: 1, iv_load_policy: 3, fs: 0, start: Math.floor(start || 0), origin: location.origin },
+      events: {
+        onReady: () => { ready = true; onReady && onReady(); },
+        onStateChange: (e) => { pstate = e.data; if (mode === 'tag') $('gPlay').textContent = pstate === PS.PLAYING ? 'Pause' : 'Play'; },
+        onError: (e) => { if (e.data === 101 || e.data === 150 || e.data === 100) markBlocked(); },
+      },
+    });
+  });
+}
+const waitFor = (fn, ms) => new Promise(res => { const t0 = performance.now(); (function poll() { if (fn() || performance.now() - t0 > ms) res(); else setTimeout(poll, 50); })(); });
+const now = () => (P && ready ? P.getCurrentTime() : 0);
+function markBlocked() {
+  const v = db.videos.find(x => x.id === curId); if (v) { v.blocked = true; persist(); }
+  black(true, 'This video can’t play here', 'Its owner only allows it on YouTube. Remove it and try another.');
+  if (mode === 'train') { deck = deck.filter(b => b.id !== curId); setTimeout(() => nextBall(), 2500); }
+}
+
+// ---------- stage helpers ----------
+let mode = null; // 'tag' | 'train'
+function black(on, txt = '', sub = '', cls = '') { $('bTxt').textContent = txt; $('bSub').textContent = sub; $('black').className = on ? cls : 'hidden'; }
+function showMark(html, color) { const m = $('mark'); m.innerHTML = html; m.style.color = color || 'var(--text)'; m.classList.remove('hidden'); }
+const hideMark = () => $('mark').classList.add('hidden');
+function show(which) { for (const s of ['lib', 'stage', 'done']) $(s).classList.toggle('hidden', s !== which); }
+const lenColor = { F: 'var(--full)', G: 'var(--goodlen)', S: 'var(--short)' };
+
+// ---------- tagging ----------
+let tagV = null, pending = null, rate = 0.5;
+async function openTag(i) {
+  tagV = db.videos[i]; mode = 'tag'; pending = null;
+  show('stage'); $('tagBar').classList.remove('hidden'); $('trainBar').classList.add('hidden');
+  $('shield').classList.remove('hidden');
+  black(true, 'Loading video…');
+  try { await ensurePlayer(tagV.id, tagV.start || 0); } catch { black(true, 'YouTube didn’t load', 'Check the internet connection, then try again.'); return; }
+  if (tagV.blocked) return;
+  black(false);
+  const t = P.getVideoData && P.getVideoData().title;
+  if (t && (tagV.title === 'New video' || !tagV.title)) { tagV.title = t; persist(); }
+  $('gTitle').textContent = tagV.title;
+  setRate(rate); renderTag();
+}
+function setRate(r) { rate = r; try { P.setPlaybackRate(r); } catch {} for (const b of $('rate').children) b.setAttribute('aria-pressed', String(+b.dataset.r === r)); }
+function renderTag() {
+  $('gBalls').innerHTML = tagV.balls.map((b, k) => `<button class="ball ${b.len}" data-k="${k}" title="Jump here">${fmtTime(b.t)} ${b.len}</button>`).join('') || '<span class="hint">none yet</span>';
+  $('gUndo').classList.toggle('hidden', !tagV.balls.length);
+  $('pend').classList.toggle('hidden', !pending); $('gIdle').classList.toggle('hidden', !!pending);
+  if (pending) $('pT').textContent = 'release ' + fmtTime(pending.t);
+}
+function markRelease() {
+  if (!P || pending) return;
+  const t = tapToRelease(now(), pstate === PS.PLAYING ? rate : 0);
+  P.pauseVideo(); pending = { t }; P.seekTo(t, true); renderTag();
+}
+function nudge(d) { if (!pending) return; pending.t = Math.max(0, Math.round((pending.t + d) * 1000) / 1000); P.pauseVideo(); P.seekTo(pending.t, true); renderTag(); }
+function setLen(len) {
+  if (!pending) return;
+  addBall(tagV, pending.t, len); persist();
+  const after = pending.t + 2.5; pending = null; renderTag();
+  P.seekTo(after, true); P.playVideo();
+}
+$('gMark').onclick = markRelease;
+$('nB').onclick = () => nudge(-0.04); $('nF').onclick = () => nudge(0.04);
+$('pWatch').onclick = () => { if (!pending) return; P.seekTo(pending.t, true); P.playVideo(); };
+$('pCancel').onclick = () => { pending = null; renderTag(); P.playVideo(); };
+$('pend').addEventListener('click', e => { const b = e.target.closest('[data-l]'); if (b) setLen(b.dataset.l); });
+$('gPlay').onclick = () => (pstate === PS.PLAYING ? P.pauseVideo() : P.playVideo());
+$('gBack').onclick = () => P.seekTo(Math.max(0, now() - 2), true);
+$('gFwd').onclick = () => P.seekTo(now() + 2, true);
+$('rate').addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (b) setRate(+b.dataset.r); });
+$('seek').addEventListener('input', e => { const d = P && P.getDuration ? P.getDuration() : 0; if (d) P.seekTo(d * e.target.value / 100, true); });
+$('gBalls').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (!b) return; const ball = tagV.balls[+b.dataset.k]; P.pauseVideo(); P.seekTo(ball.t, true); });
+$('gUndo').onclick = () => { tagV.balls.pop(); persist(); renderTag(); };
+$('gDone').onclick = closeStage;
+function closeStage() { try { P && P.pauseVideo(); } catch {} mode = null; pending = null; hideMark(); show('lib'); renderLib(); }
+
+// ---------- training ----------
+let lastCutErr = null, deck = [], idx = 0, answers = [], cur = null, phase = 'idle', armed = false, tCut = 0, loadT0 = 0;
+async function startSession() {
+  deck = makeDeck(db.videos, SESSION); if (deck.length < 5) return;
+  idx = -1; answers = []; mode = 'train';
+  show('stage'); $('trainBar').classList.remove('hidden'); $('tagBar').classList.add('hidden'); $('shield').classList.remove('hidden');
+  black(true, 'Loading…');
+  try { await ensurePlayer(deck[0].id, Math.max(0, deck[0].t - LEAD)); } catch { black(true, 'YouTube didn’t load', 'Check the internet connection, then try again.'); return; }
+  try { P.setPlaybackRate(1); } catch {}
+  nextBall();
+}
+async function nextBall() {
+  hideMark(); idx++;
+  if (idx >= deck.length) return finish();
+  cur = { ...deck[idx], cut: cutTime(deck[idx].t, db.level) };
+  setCalls(false); $('tNext').classList.add('hidden'); $('tHint').textContent = '';
+  $('tProg').textContent = `Ball ${idx + 1} / ${deck.length}`;
+  $('tScore').textContent = `${answers.filter(a => a.call === a.len).length} right`;
+  black(true, `Ball ${idx + 1}`, 'Watch the hand', '');
+  phase = 'load'; armed = false; loadT0 = performance.now();
+  await ensurePlayer(cur.id, Math.max(0, cur.t - LEAD));
+  if (mode !== 'train') return;
+  P.mute(); P.seekTo(Math.max(0, cur.t - LEAD), true); P.playVideo();
+  phase = 'run';
+}
+function onCut() {
+  phase = 'call'; tCut = performance.now(); lastCutErr = now() - cur.cut;
+  black(true, 'Full, good or short?', '', 'call');
+  try { P.pauseVideo(); } catch {}
+  setCalls(true);
+}
+function answer(c) {
+  if (phase !== 'call') return;
+  const ms = Math.round(performance.now() - tCut);
+  answers.push({ len: cur.len, call: c, ms, t: cur.t, id: cur.id });
+  setCalls(false, c); phase = 'reveal'; armed = false;
+  black(false);
+  P.seekTo(cur.cut, true); P.unMute(); P.playVideo();
+}
+function onRevealEnd() {
+  phase = 'result'; try { P.pauseVideo(); } catch {}
+  const a = answers[answers.length - 1], right = a.call === a.len;
+  showMark(`${right ? '✓' : '✗'} ${LEN_NAME[a.len].toUpperCase()}<small>${right ? 'Right' : `You said ${LEN_NAME[a.call].toLowerCase()} · this was ${LEN_FOOT[a.len]}`} · ${a.ms} ms</small>`, right ? 'var(--good)' : 'var(--bad)');
+  $('tScore').textContent = `${answers.filter(x => x.call === x.len).length} right`;
+  $('tNext').classList.remove('hidden'); $('tNext').textContent = idx + 1 >= deck.length ? 'See results (Space)' : 'Next ball (Space)';
+}
+function setCalls(on, picked) { document.querySelectorAll('.call').forEach(b => { b.disabled = !on; b.classList.toggle('picked', b.dataset.c === picked); }); }
+document.querySelector('.calls').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) answer(b.dataset.c); });
+$('tNext').onclick = () => { if (phase === 'result') nextBall(); };
+$('tStop').onclick = () => { phase = 'idle'; if (answers.length >= 5) finish(); else closeStage(); };
+function finish() {
+  phase = 'idle'; mode = null; try { P.pauseVideo(); P.unMute(); } catch {}
+  const s = summary(answers), before = db.level, after = nextLevel(before, s);
+  db.sessions.push({ date: new Date().toISOString(), level: before, n: s.n, right: s.right, pct: s.pct, byS: s.by.S, wentForwardToShort: s.wentForwardToShort, medianMs: s.medianMs });
+  db.level = after; persist();
+  $('dPct').textContent = s.pct + '%';
+  $('dSub').textContent = `${s.right} of ${s.n} right · level ${before} (${LEVELS[before - 1].name})${s.medianMs != null ? ` · typical call time ${s.medianMs} ms` : ''}`;
+  $('dBy').innerHTML = LENS.map(l => `<tr><td style="color:${lenColor[l]}">${LEN_NAME[l]}</td><td>${s.by[l][1] ? `${s.by[l][0]} / ${s.by[l][1]}` : '–'}</td></tr>`).join('');
+  const msgs = [];
+  if (s.wentForwardToShort) msgs.push(`You called <b>full on ${s.wentForwardToShort} short ball${s.wentForwardToShort > 1 ? 's' : ''}</b>. In the nets that's going forward to a short one, so keep watching the hand a fraction longer.`);
+  if (after > before) msgs.push(`Moving up to <b>level ${after} (${LEVELS[after - 1].name})</b>.`);
+  else if (after < before) msgs.push(`Dropping to <b>level ${after}</b> for now. Get it back above 85%.`);
+  else if (s.n >= 10) msgs.push(`Staying on level ${before}. 85% moves you up.`);
+  $('dMsg').innerHTML = msgs.join(' ');
+  show('done');
+}
+$('start').onclick = startSession;
+$('dAgain').onclick = startSession;
+$('dLib').onclick = () => { show('lib'); renderLib(); };
+
+// ---------- frame loop: cut detection, reveal end, seek bar, gamepad ----------
+let padPrev = [];
+function loop() {
+  if (P && ready) {
+    const t = now();
+    if (mode === 'train') {
+      if (phase === 'load' && performance.now() - loadT0 > 20000) black(true, 'Video is taking too long', 'Check the internet, or press Stop.');
+      if (phase === 'run' && pstate === PS.PLAYING) {
+        if (!armed && t < cur.cut - 0.3 && t >= cur.t - LEAD - 1) { armed = true; black(false); }
+        else if (armed && t >= cur.cut) onCut();
+      }
+      if (phase === 'reveal' && pstate === PS.PLAYING) {
+        if (!armed && t >= cur.cut - 0.05 && t < cur.cut + 0.5) armed = true;
+        if (armed && t >= cur.cut + REVEAL) onRevealEnd();
+      }
+    } else if (mode === 'tag') {
+      $('gTime').textContent = fmtTime(t);
+      const d = P.getDuration ? P.getDuration() : 0;
+      if (d && document.activeElement !== $('seek')) $('seek').value = (100 * t / d).toFixed(2);
+    }
+  }
+  const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+  if (pads.length) {
+    const b = pads[0].buttons.map(x => x.pressed), hit = (i) => b[i] && !padPrev[i];
+    if (mode === 'train') { if (hit(2)) answer('F'); if (hit(3)) answer('G'); if (hit(1)) answer('S'); if (hit(0) && phase === 'result') nextBall(); }
+    else if (mode === 'tag') {
+      if (hit(0)) markRelease(); if (hit(4)) nudge(-0.04); if (hit(5)) nudge(0.04);
+      if (hit(2)) setLen('F'); if (hit(3)) setLen('G'); if (hit(1)) setLen('S');
+    } else if (!$('lib').classList.contains('hidden') && hit(0) && !$('start').disabled) startSession();
+    padPrev = b;
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ---------- keyboard ----------
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+  const k = e.key.toLowerCase();
+  if (mode === 'train') {
+    if (k === '1' || k === 'f') answer('F'); else if (k === '2' || k === 'g') answer('G'); else if (k === '3' || k === 's') answer('S');
+    else if ((k === ' ' || k === 'enter') && phase === 'result') { e.preventDefault(); nextBall(); }
+    else if (k === 'escape') $('tStop').click();
+    if (k === ' ') e.preventDefault();
+  } else if (mode === 'tag') {
+    if (k === ' ') { e.preventDefault(); $('gPlay').click(); }
+    else if (k === 'r') markRelease();
+    else if (k === ',') nudge(-0.04); else if (k === '.') nudge(0.04);
+    else if (pending && (k === '1' || k === '2' || k === '3')) setLen(LENS[+k - 1]);
+    else if (k === 'arrowleft') $('gBack').click(); else if (k === 'arrowright') $('gFwd').click();
+    else if (k === 'backspace' && !pending && tagV.balls.length) $('gUndo').click();
+    else if (k === 'escape') closeStage();
+  }
+});
+
+renderLib();
+window.__real = { get db() { return db; }, get phase() { return phase; }, get cutErr() { return lastCutErr; }, get cur() { return cur; }, get pending() { return pending; } };
+</script>
+</body>
+</html>

@@ -420,6 +420,55 @@ await ctx.close();
   await c.close();
 }
 
+// ---------- 8c. Real bowlers: a fake YouTube player (video time runs on the page clock) ----------
+{
+  const FAKE_YT = `window.YT = { Player: function (el, o) {
+    let t = 0, playing = false, last = performance.now(), rate = 1;
+    const tick = () => { const n = performance.now(); if (playing) t += (n - last) / 1000 * rate; last = n; };
+    const st = (d) => setTimeout(() => o.events.onStateChange({ data: d }), 0);
+    this.getCurrentTime = () => { tick(); return t; };
+    this.seekTo = (s) => { tick(); t = s; };
+    this.playVideo = () => { tick(); playing = true; st(1); };
+    this.pauseVideo = () => { tick(); playing = false; st(2); };
+    this.cueVideoById = (v) => { tick(); playing = false; t = v.startSeconds || 0; st(5); };
+    this.mute = () => {}; this.unMute = () => {}; this.setPlaybackRate = (r) => { tick(); rate = r; };
+    this.getDuration = () => 600; this.getVideoData = () => ({ title: 'Fake nets video' });
+    setTimeout(() => o.events.onReady(), 10);
+  } }; window.onYouTubeIframeAPIReady && window.onYouTubeIframeAPIReady();`;
+  const c = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  await c.route('https://www.youtube.com/iframe_api', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE_YT }));
+  await c.route('https://i.ytimg.com/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: '' }));
+  const seed = { v: 1, level: 1, sessions: [], videos: [{ id: 'aaaaaaaaaaa', title: 'Nets A', balls: [{ t: 4, len: 'S' }, { t: 8, len: 'F' }, { t: 12, len: 'G' }, { t: 16, len: 'S' }, { t: 20, len: 'F' }] }] };
+  const q = await page(c, 'real.html', `if(!sessionStorage.s){ localStorage.setItem('lr-real', ${JSON.stringify(JSON.stringify(seed))}); sessionStorage.s = 1; }`);
+  ok(await q.evaluate(() => document.querySelectorAll('.vid').length === 1 && !document.getElementById('start').disabled), 'real bowlers: library lists the tagged video and Start is on');
+  await q.click('#start');
+  const errs = [], key = { F: '1', G: '2', S: '3' }, wrong = { F: '3', G: '3', S: '1' };
+  for (let i = 0; i < 5; i++) {
+    await waitFor(q, () => window.__real.phase === 'call', null, 15000);
+    errs.push(await q.evaluate(() => window.__real.cutErr));
+    const len = await q.evaluate(() => window.__real.cur.len);
+    await q.keyboard.press(i < 4 ? key[len] : wrong[len]);
+    await waitFor(q, () => window.__real.phase === 'result', null, 15000);
+    await q.keyboard.press('Space');
+  }
+  ok(errs.every(e => e >= 0 && e < 0.06), `real bowlers: the screen goes dark within one frame of the cut point (late by ${errs.map(e => Math.round(e * 1000)).join(', ')} ms)`);
+  await waitFor(q, () => !document.getElementById('done').classList.contains('hidden'));
+  ok(await q.evaluate(() => { const s = window.__real.db.sessions; return s.length === 1 && s[0].right === 4 && s[0].n === 5 && document.getElementById('dPct').textContent === '80%'; }), 'real bowlers: 5 calls → session saved, 4 of 5 right (80%)');
+  // tagging: play, tap release, nudge, pick a length
+  await q.click('#dLib');
+  await q.click('[data-tag="0"]');
+  await waitFor(q, () => !document.getElementById('tagBar').classList.contains('hidden') && document.getElementById('black').classList.contains('hidden'));
+  await q.evaluate(() => { window.__real.db.videos[0].balls = []; });
+  await q.keyboard.press('Space');
+  await q.waitForTimeout(600);
+  await q.keyboard.press('r');
+  ok(await q.evaluate(() => !!window.__real.pending && window.__real.pending.t > 0.1), 'real bowlers: R marks a release and pauses there');
+  await q.keyboard.press('.');
+  await q.keyboard.press('3');
+  ok(await q.evaluate(() => { const b = window.__real.db.videos[0].balls; return b.length === 1 && b[0].len === 'S' && JSON.parse(localStorage.getItem('lr-real')).videos[0].balls.length === 1; }), 'real bowlers: nudge + length tags a ball and saves it');
+  await q.close(); await c.close();
+}
+
 // ---------- 9. offline: install the service worker, go offline, reload ----------
 const ctx2 = await browser.newContext({ viewport: { width: 640, height: 360 } });
 p = await page(ctx2, '', `if (!localStorage.getItem('lr5')) localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false } }));`);
