@@ -47,7 +47,21 @@ export function parseStart(s) {
   } catch { return 0; }
 }
 
-export const emptyDb = () => ({ v: 1, videos: [], level: 1, sessions: [] });
+// Videos Bink chose; added once to every library (removing one keeps it removed).
+export const STARTERS = [{ id: 'enRiR-kqxE4', title: 'Net session (Bink’s pick)' }];
+export const VIEWS = ['wide', 'portrait'];
+export const SHIFT_STEP = 0.1;
+export const clampShift = (x) => Math.max(-1, Math.min(1, Math.round((+x || 0) * 100) / 100));
+
+export const emptyDb = () => seedStarters({ v: 1, videos: [], level: 1, sessions: [], view: 'portrait', seeded: [] });
+/** Adds starter videos not added before (tracked in d.seeded). */
+export function seedStarters(d) {
+  for (const s of STARTERS) if (!d.seeded.includes(s.id)) {
+    d.seeded.push(s.id);
+    if (!d.videos.some(v => v.id === s.id)) d.videos.push({ id: s.id, title: s.title, balls: [] });
+  }
+  return d;
+}
 
 /** Load and repair saved data. Bad or missing data → an empty library. */
 export function load(storage) {
@@ -59,11 +73,13 @@ export function load(storage) {
     if (!v || !parseYouTubeId(v.id) || videos.some(x => x.id === v.id)) continue;
     const balls = (Array.isArray(v.balls) ? v.balls : []).filter(b => b && isFinite(b.t) && b.t >= 0 && LENS.includes(b.len))
       .map(b => ({ t: Math.round(b.t * 1000) / 1000, len: b.len })).sort((a, b) => a.t - b.t);
-    videos.push({ id: v.id, title: String(v.title || v.id).slice(0, 120), balls, ...(v.start > 0 ? { start: +v.start } : {}), ...(v.blocked ? { blocked: true } : {}) });
+    videos.push({ id: v.id, title: String(v.title || v.id).slice(0, 120), balls, ...(v.start > 0 ? { start: +v.start } : {}), ...(v.shift ? { shift: clampShift(v.shift) } : {}), ...(v.blocked ? { blocked: true } : {}) });
   }
   const level = LEVELS.some(l => l.n === d.level) ? d.level : 1;
   const sessions = (Array.isArray(d.sessions) ? d.sessions : []).filter(s => s && isFinite(s.n) && isFinite(s.right)).slice(-200);
-  return { v: 1, videos, level, sessions };
+  const view = VIEWS.includes(d.view) ? d.view : 'portrait';
+  const seeded = Array.isArray(d.seeded) ? d.seeded.filter(x => typeof x === 'string') : [];
+  return seedStarters({ v: 1, videos, level, sessions, view, seeded });
 }
 export function save(storage, d) { try { storage.setItem(KEY, JSON.stringify(d)); return true; } catch { return false; } }
 

@@ -29,6 +29,8 @@ More → **Real bowlers**. Paste a YouTube link of a net session filmed from beh
 1. **Tag it once:** play at ½×, press **R** the moment the ball leaves the hand, nudge with **,** and **.** until the frame is right, press **Watch it pitch**, then **1 / 2 / 3** for full / good / short.
 2. **Train:** Start. The bowler runs in, the screen goes dark at the cut, you call **1 / 2 / 3** (Xbox X / Y / B), then see the rest of the ball.
 
+**Portrait crop** (default) cuts both sides so the bowler fills an upright screen. If the bowler is off-centre, slide the crop with ◀ / ▶ (or [ ]) while tagging. Pick **Wide** to see the whole frame.
+
 Videos need the internet. Some owners block playing outside YouTube; the app marks those so you can remove them.
 
 ## Your data

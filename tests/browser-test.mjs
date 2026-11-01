@@ -438,7 +438,7 @@ await ctx.close();
   const c = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   await c.route('https://www.youtube.com/iframe_api', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE_YT }));
   await c.route('https://i.ytimg.com/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: '' }));
-  const seed = { v: 1, level: 1, sessions: [], videos: [{ id: 'aaaaaaaaaaa', title: 'Nets A', balls: [{ t: 4, len: 'S' }, { t: 8, len: 'F' }, { t: 12, len: 'G' }, { t: 16, len: 'S' }, { t: 20, len: 'F' }] }] };
+  const seed = { v: 1, level: 1, sessions: [], seeded: ['enRiR-kqxE4'], view: 'portrait', videos: [{ id: 'aaaaaaaaaaa', title: 'Nets A', balls: [{ t: 4, len: 'S' }, { t: 8, len: 'F' }, { t: 12, len: 'G' }, { t: 16, len: 'S' }, { t: 20, len: 'F' }] }] };
   const q = await page(c, 'real.html', `if(!sessionStorage.s){ localStorage.setItem('lr-real', ${JSON.stringify(JSON.stringify(seed))}); sessionStorage.s = 1; }`);
   ok(await q.evaluate(() => document.querySelectorAll('.vid').length === 1 && !document.getElementById('start').disabled), 'real bowlers: library lists the tagged video and Start is on');
   await q.click('#start');
@@ -459,6 +459,13 @@ await ctx.close();
   await q.click('[data-tag="0"]');
   await waitFor(q, () => !document.getElementById('tagBar').classList.contains('hidden') && document.getElementById('black').classList.contains('hidden'));
   await q.evaluate(() => { window.__real.db.videos[0].balls = []; });
+  {
+    const g = await q.evaluate(() => { const b = document.getElementById('box').getBoundingClientRect(), f = document.getElementById('yt').getBoundingClientRect(); return { r: b.width / b.height, fw: f.width / b.width, fc: (f.left + f.width / 2) - (b.left + b.width / 2) }; });
+    ok(Math.abs(g.r - 9 / 16) < 0.02 && Math.abs(g.fw - 3.1605) < 0.02 && Math.abs(g.fc) < 2, `portrait crop: 9:16 box, video 3.16× wider and centred (ratio ${g.r.toFixed(3)})`);
+    await q.keyboard.press(']'); await q.keyboard.press(']');
+    const sh = await q.evaluate(() => { const b = document.getElementById('box').getBoundingClientRect(), f = document.getElementById('yt').getBoundingClientRect(); return { s: window.__real.db.videos[0].shift, fc: (f.left + f.width / 2) - (b.left + b.width / 2) }; });
+    ok(sh.s === 0.2 && sh.fc < -5, 'portrait crop: ] moves the crop right and saves it per video');
+  }
   await q.keyboard.press('Space');
   await q.waitForTimeout(600);
   await q.keyboard.press('r');

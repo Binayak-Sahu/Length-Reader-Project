@@ -1,5 +1,5 @@
 // Real bowlers (real.html) logic. Run from the repo root:  node tests/real-test.mjs
-import { parseYouTubeId, parseStart, load, save, addBall, tapToRelease, cutTime, makeDeck, tagCounts, summary, nextLevel, emptyDb, KEY, fmtTime } from '../js/core/real.js';
+import { parseYouTubeId, parseStart, load, save, addBall, tapToRelease, cutTime, makeDeck, tagCounts, summary, nextLevel, emptyDb, KEY, fmtTime, STARTERS, clampShift } from '../js/core/real.js';
 import { makeOk, fakeStorage, mulberry32 } from './util.mjs';
 const { ok, done } = makeOk('real');
 
@@ -16,11 +16,15 @@ ok(parseStart(`https://youtu.be/${ID}?t=95`) === 95 && parseStart(`https://www.y
 {
   const st = fakeStorage();
   const d = load(st);
-  ok(d.videos.length === 0 && d.level === 1, 'first run: empty library, level 1');
-  ok(load(fakeStorage({ [KEY]: '{not json' })).videos.length === 0, 'broken data → fresh library, no crash');
-  const bad = { videos: [{ id: ID, title: 'a', start: 12, balls: [{ t: 9, len: 'S' }, { t: 3, len: 'F' }, { t: -1, len: 'F' }, { t: 5, len: 'X' }, null] }, { id: ID, balls: [] }, { id: 'nope' }], level: 9, sessions: [{ n: 3, right: 2 }, {}] };
+  ok(d.videos.length === STARTERS.length && d.videos[0].id === 'enRiR-kqxE4' && d.level === 1 && d.view === 'portrait', 'first run: Bink’s starter video, level 1, portrait view');
+  const removed = { videos: [], seeded: ['enRiR-kqxE4'] };
+  ok(load(fakeStorage({ [KEY]: JSON.stringify(removed) })).videos.length === 0, 'a removed starter video stays removed');
+  ok(load(fakeStorage({ [KEY]: JSON.stringify({ videos: [] }) })).videos.length === 1, 'an older empty library gets the starter added once');
+  ok(clampShift(1.7) === 1 && clampShift(-3) === -1 && clampShift('x') === 0 && clampShift(0.123) === 0.12, 'crop shift clamped to -1…1');
+  ok(load(fakeStorage({ [KEY]: '{not json' })).videos.length === STARTERS.length, 'broken data → fresh library, no crash');
+  const bad = { seeded: ['enRiR-kqxE4'], videos: [{ id: ID, title: 'a', start: 12, shift: 5, balls: [{ t: 9, len: 'S' }, { t: 3, len: 'F' }, { t: -1, len: 'F' }, { t: 5, len: 'X' }, null] }, { id: ID, balls: [] }, { id: 'nope' }], level: 9, sessions: [{ n: 3, right: 2 }, {}] };
   const r = load(fakeStorage({ [KEY]: JSON.stringify(bad) }));
-  ok(r.videos.length === 1 && r.videos[0].balls.map(b => b.t).join() === '3,9' && r.videos[0].start === 12, 'repair: bad balls, duplicate and invalid videos dropped; balls sorted; start kept');
+  ok(r.videos.length === 1 && r.videos[0].balls.map(b => b.t).join() === '3,9' && r.videos[0].start === 12 && r.videos[0].shift === 1, 'repair: bad balls, duplicate and invalid videos dropped; balls sorted; start kept');
   ok(r.level === 1 && r.sessions.length === 1, 'repair: unknown level → 1, bad sessions dropped');
   ok(save(st, r) && load(st).videos[0].balls.length === 2, 'save → load round trip');
   ok(save(fakeStorage({}, 10), r) === false, 'storage full → save reports failure, no throw');

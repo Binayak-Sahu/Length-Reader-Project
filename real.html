@@ -66,8 +66,11 @@ th{color:var(--muted);font-weight:600}
 /* Stage */
 #stage{position:fixed;inset:0;display:flex;flex-direction:column;background:#000;padding-top:env(safe-area-inset-top,0px)}
 #frame{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
-#box{position:relative;width:min(100%,calc((100vh - 170px) * 16 / 9));aspect-ratio:16/9;max-height:100%}
+#box{position:relative;width:min(100%,calc((100vh - 170px) * 16 / 9));aspect-ratio:16/9;max-height:100%;overflow:hidden;--sx:0}
 #yt,#yt iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+/* Portrait crop: the box is 9:16; the 16:9 player is 316% as wide, slid sideways by --sx (-1 left edge … 1 right edge) */
+#box.portrait{aspect-ratio:auto;max-height:none}
+#box.portrait #yt{inset:0 auto 0 auto;width:316.05%;left:calc(-108.02% * (1 + var(--sx)))}
 #shield{position:absolute;inset:0;z-index:2}
 #black{position:absolute;inset:0;z-index:3;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-align:center;padding:16px}
 #black b{font-family:var(--disp);font-weight:800;font-size:clamp(28px,4vw,64px);letter-spacing:.06em}
@@ -116,6 +119,11 @@ th{color:var(--muted);font-weight:600}
       <div class="seg" id="lvl" role="group" aria-label="Level"></div>
       <p class="note" id="lvlNote" style="margin-top:8px"></p>
     </div>
+    <div>
+      <h2>View</h2>
+      <div class="seg" id="view" role="group" aria-label="View"><button data-v="portrait">Portrait crop</button><button data-v="wide">Wide</button></div>
+      <p class="note" style="margin-top:8px">Portrait crop cuts both sides of the video so the bowler fills an upright screen. Move the crop per video while tagging.</p>
+    </div>
     <div class="row"><button class="big" id="start">Start 20 balls</button><span class="hint" id="startHint"></span></div>
   </section>
 
@@ -137,7 +145,7 @@ th{color:var(--muted);font-weight:600}
   <section>
     <h2>Keys</h2>
     <p class="note"><b>Training:</b> 1 / F = Full, 2 / G = Good, 3 / S = Short, Space = next ball, Esc = stop. Xbox: X Full, Y Good, B Short, A next.<br>
-    <b>Tagging:</b> Space play/pause, R = ball released, ← → jump 2 s, , and . nudge the release, 1 2 3 = length, Backspace = undo last.</p>
+    <b>Tagging:</b> Space play/pause, R = ball released, ← → jump 2 s, , and . nudge the release, 1 2 3 = length, Backspace = undo last, [ ] = move the portrait crop.</p>
   </section>
 </main>
 
@@ -169,6 +177,7 @@ th{color:var(--muted);font-weight:600}
         <button class="btn" id="gFwd" title="Forward 2 s">+2 s</button>
         <input type="range" id="seek" min="0" max="100" step="0.01" value="0" aria-label="Video position">
         <span class="chip num" id="gTime">0:00.00</span>
+        <span class="row" id="cropCtl"><button class="btn" id="cL" title="Move crop left ([)">◀ crop</button><button class="btn" id="cR" title="Move crop right (])">crop ▶</button></span>
         <div class="seg" id="rate" role="group" aria-label="Speed"><button data-r="0.25">¼×</button><button data-r="0.5">½×</button><button data-r="1">1×</button></div>
       </div>
       <div id="gIdle" class="row"><button class="big" id="gMark">Ball released (R)</button><span class="hint">Play at ½× and tap the moment the ball leaves the hand.</span></div>
@@ -195,7 +204,7 @@ th{color:var(--muted);font-weight:600}
 </main>
 
 <script type="module">
-import { LENS, LEN_NAME, LEN_FOOT, LEVELS, LEAD, REVEAL, SESSION, parseYouTubeId, parseStart, load, save, addBall, tapToRelease, cutTime, makeDeck, tagCounts, summary, nextLevel, fmtTime } from './js/core/real.js';
+import { clampShift, SHIFT_STEP, LENS, LEN_NAME, LEN_FOOT, LEVELS, LEAD, REVEAL, SESSION, parseYouTubeId, parseStart, load, save, addBall, tapToRelease, cutTime, makeDeck, tagCounts, summary, nextLevel, fmtTime } from './js/core/real.js';
 
 const $ = (id) => document.getElementById(id);
 const store = (() => { try { return window.localStorage; } catch { return { getItem: () => null, setItem: () => {} }; } })();
@@ -208,6 +217,7 @@ function renderLib() {
   const c = tagCounts(db.videos);
   $('counts').innerHTML = `<span class="pill num">${c.total} balls tagged</span><span class="pill F num">${c.F} full</span><span class="pill G num">${c.G} good</span><span class="pill S num">${c.S} short</span>`;
   $('lvl').innerHTML = LEVELS.map(l => `<button data-lv="${l.n}" aria-pressed="${l.n === db.level}">${l.n} · ${l.name}</button>`).join('');
+  for (const b of $('view').children) b.setAttribute('aria-pressed', String(b.dataset.v === db.view));
   $('lvlNote').textContent = LEVELS.find(l => l.n === db.level).note + '. The level moves up at 85% and down below 60%.';
   $('start').disabled = c.total < 5;
   $('start').textContent = `Start ${Math.min(SESSION, Math.max(c.total, 0))} balls`;
@@ -222,6 +232,23 @@ function renderLib() {
   $('histSec').classList.toggle('hidden', !hs.length);
   $('hist').innerHTML = hs.map(s => `<tr><td>${new Date(s.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</td><td>${s.level}</td><td>${s.right}/${s.n} (${s.pct}%)</td><td>${s.byS ? `${s.byS[0]}/${s.byS[1]}` : '–'}</td><td>${s.medianMs != null ? s.medianMs + ' ms' : '–'}</td></tr>`).join('');
 }
+$('view').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; db.view = b.dataset.v; persist(); renderLib(); });
+function applyView(v) {
+  const box = $('box'), port = db.view === 'portrait';
+  box.classList.toggle('portrait', port);
+  box.style.setProperty('--sx', port && v ? String(v.shift || 0) : '0');
+  $('cropCtl').classList.toggle('hidden', !port);
+  fitBox();
+}
+/* Size the box to the space above the control bar: 9:16 in portrait, 16:9 wide (CSS handles wide). */
+function fitBox() {
+  const box = $('box');
+  if (!box.classList.contains('portrait')) { box.style.width = box.style.height = ''; return; }
+  const f = $('frame'), W = f.clientWidth, H = f.clientHeight;
+  const h = Math.min(H, W * 16 / 9);
+  box.style.height = h + 'px'; box.style.width = (h * 9 / 16) + 'px';
+}
+function moveCrop(d) { if (!tagV || db.view !== 'portrait') return; tagV.shift = clampShift((tagV.shift || 0) + d); persist(); applyView(tagV); }
 $('lvl').addEventListener('click', e => { const b = e.target.closest('[data-lv]'); if (!b) return; db.level = +b.dataset.lv; persist(); renderLib(); });
 $('vids').addEventListener('click', e => {
   const t = e.target.closest('[data-tag]'), d = e.target.closest('[data-del]');
@@ -297,7 +324,7 @@ let tagV = null, pending = null, rate = 0.5;
 async function openTag(i) {
   tagV = db.videos[i]; mode = 'tag'; pending = null;
   show('stage'); $('tagBar').classList.remove('hidden'); $('trainBar').classList.add('hidden');
-  $('shield').classList.remove('hidden');
+  $('shield').classList.remove('hidden'); applyView(tagV);
   black(true, 'Loading video…');
   try { await ensurePlayer(tagV.id, tagV.start || 0); } catch { black(true, 'YouTube didn’t load', 'Check the internet connection, then try again.'); return; }
   if (tagV.blocked) return;
@@ -327,6 +354,7 @@ function setLen(len) {
   P.seekTo(after, true); P.playVideo();
 }
 $('gMark').onclick = markRelease;
+$('cL').onclick = () => moveCrop(-SHIFT_STEP); $('cR').onclick = () => moveCrop(SHIFT_STEP);
 $('nB').onclick = () => nudge(-0.04); $('nF').onclick = () => nudge(0.04);
 $('pWatch').onclick = () => { if (!pending) return; P.seekTo(pending.t, true); P.playVideo(); };
 $('pCancel').onclick = () => { pending = null; renderTag(); P.playVideo(); };
@@ -346,7 +374,7 @@ let lastCutErr = null, deck = [], idx = 0, answers = [], cur = null, phase = 'id
 async function startSession() {
   deck = makeDeck(db.videos, SESSION); if (deck.length < 5) return;
   idx = -1; answers = []; mode = 'train';
-  show('stage'); $('trainBar').classList.remove('hidden'); $('tagBar').classList.add('hidden'); $('shield').classList.remove('hidden');
+  show('stage'); $('trainBar').classList.remove('hidden'); $('tagBar').classList.add('hidden'); $('shield').classList.remove('hidden'); applyView(null);
   black(true, 'Loading…');
   try { await ensurePlayer(deck[0].id, Math.max(0, deck[0].t - LEAD)); } catch { black(true, 'YouTube didn’t load', 'Check the internet connection, then try again.'); return; }
   try { P.setPlaybackRate(1); } catch {}
@@ -357,6 +385,7 @@ async function nextBall() {
   if (idx >= deck.length) return finish();
   cur = { ...deck[idx], cut: cutTime(deck[idx].t, db.level) };
   setCalls(false); $('tNext').classList.add('hidden'); $('tHint').textContent = '';
+  applyView(db.videos.find(v => v.id === cur.id));
   $('tProg').textContent = `Ball ${idx + 1} / ${deck.length}`;
   $('tScore').textContent = `${answers.filter(a => a.call === a.len).length} right`;
   black(true, `Ball ${idx + 1}`, 'Watch the hand', '');
@@ -458,6 +487,7 @@ addEventListener('keydown', e => {
   } else if (mode === 'tag') {
     if (k === ' ') { e.preventDefault(); $('gPlay').click(); }
     else if (k === 'r') markRelease();
+    else if (k === '[') moveCrop(-SHIFT_STEP); else if (k === ']') moveCrop(SHIFT_STEP);
     else if (k === ',') nudge(-0.04); else if (k === '.') nudge(0.04);
     else if (pending && (k === '1' || k === '2' || k === '3')) setLen(LENS[+k - 1]);
     else if (k === 'arrowleft') $('gBack').click(); else if (k === 'arrowright') $('gFwd').click();
@@ -466,6 +496,8 @@ addEventListener('keydown', e => {
   }
 });
 
+addEventListener('resize', fitBox);
+if (window.ResizeObserver) new ResizeObserver(fitBox).observe($('frame'));
 renderLib();
 window.__real = { get db() { return db; }, get phase() { return phase; }, get cutErr() { return lastCutErr; }, get cur() { return cur; }, get pending() { return pending; } };
 </script>
