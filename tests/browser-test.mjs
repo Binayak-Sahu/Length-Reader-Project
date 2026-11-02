@@ -361,7 +361,7 @@ await ctx.close();
   const q = await page(c, '?nosw', `localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false, feedback: 'always', hawk: false, gap: 0.8 }, level: 4, levelD: 0.5 }));`);
   await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
   await q.click('#bSandbox');
-  ok(await q.evaluate(() => document.querySelectorAll('#sbRows .sbChip.on').length === 6 && [...document.querySelectorAll('#sbRows .sbChip.on')].every(b => b.dataset.v === 'rand')), 'sandbox screen: 6 rows, Random picked by default');
+  ok(await q.evaluate(() => { const on = [...document.querySelectorAll('#sbRows .sbChip.on')]; return on.length === 7 && on.filter(b => b.dataset.v === 'rand').length === 6 && on.some(b => b.dataset.k === 'cues' && b.dataset.v === 'real'); }), 'sandbox screen: 7 rows, Random picked by default, bowler cues Real');
   for (const [k, v] of [['bowler', 'pace'], ['kph', '120'], ['len', 'Short'], ['line', 'stumps'], ['occ', 'none'], ['task', '1']]) await q.click(`#sbRows .sbChip[data-k="${k}"][data-v="${v}"]`);
   ok(await q.evaluate(() => { const s = window.__lr.app.S.sandbox; return s.bowler === 'pace' && s.kph === 120 && s.len === 'Short' && s.task === 1 && JSON.parse(localStorage.getItem('lr5')).settings.sandbox.kph === 120; }), 'sandbox choices are saved on this device');
   await q.click('#bSbGo');

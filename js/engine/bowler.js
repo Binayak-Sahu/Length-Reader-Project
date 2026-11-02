@@ -62,7 +62,7 @@ export function createBowler(scene) {
     root, casters, materials: [whites, cream, skin, dark],
     setKit(hex) { dark.color.setHex(hex); },
     // Pose at scene time t (s). rel = release-angle offset (deg), jx = small sideways shift of the release.
-    pose(t, prof, rel, jx) { apply(poseAt(t, prof, rel, P), prof, jx); },
+    pose(t, prof, rel, jx, cue) { apply(poseAt(t, prof, rel, P, cue), prof, jx); },
     handWorld(out) { return rA.hand.getWorldPosition(out); },
     // Nets: walks back to his mark between balls. e = seconds since the ball finished; w = {from:{x,z}, dur (ms)}.
     walkBack(e, w, prof) {

@@ -57,8 +57,9 @@ export function mkFoot(RN) {
 export const FOOT = mkFoot(RUN), FOOT_S = mkFoot(RUN_S);
 
 // Fills `p` (re-used object: no allocation per frame) with the pose at scene time t.
-// prof: bowler profile; rel: release-angle offset in degrees (hand cue + jitter).
-export function poseAt(t, prof, rel, p) {
+// prof: bowler profile; rel: release-angle offset in degrees (hand cue + jitter);
+// cue (optional, core/cues.js): bound (−1…1) = a longer, higher bound before a short ball; arm (≈0.86…1) = arm speed.
+export function poseAt(t, prof, rel, p, cue) {
   const RN = prof.spin ? RUN_S : RUN;
   if (t < T_RUN) {
     const fi = Math.min(RN.n - 1.001, Math.max(0, t) / RN.dt), i0 = Math.floor(fi), f = fi - i0, ph = RN.ph[i0] + (RN.ph[i0 + 1] - RN.ph[i0]) * f;
@@ -71,6 +72,14 @@ export function poseAt(t, prof, rel, p) {
     p.rk = -20 - 55 * Math.max(0, Math.sin(ph - 0.9)) * a; p.lk = -20 - 55 * Math.max(0, Math.sin(ph + Math.PI - 0.9)) * a;
   } else for (let j = 0; j < KEYS.length; j++) { const k = KEYS[j]; p[k] = LINK[k] ? lin(K[k], t) : crv(K[k], t); }
   if (prof.spin && t >= T_RUN && t < T_BFC) { const u = (t - T_RUN) / (T_BFC - T_RUN); p.z = 20.1 - 0.8 * u; p.y = 0.98 + 0.1 * Math.sin(Math.PI * u); }   // spinner: small hop
+  if (cue) {
+    if (cue.bound && t > T_RUN && t < T_BFC) { const u = (t - T_RUN) / (T_BFC - T_RUN); p.y += 0.07 * cue.bound * Math.sin(Math.PI * u); }
+    // a slower (or faster) arm through the delivery stride, meeting the normal arm exactly at release
+    if (cue.arm && cue.arm !== 1 && t > T_BFC && t < T_REL + 0.3) {
+      const w = Math.sin(Math.PI * (t - T_BFC) / (T_REL + 0.3 - T_BFC));
+      p.rw += w * (crv(K.rw, T_REL + (t - T_REL) * cue.arm) - p.rw);
+    }
+  }
   const bump = Math.max(0, 1 - Math.abs(t - T_REL) / 0.2);
   p.rw += (rel + prof.ao) * bump;                                      // fuller = released a touch later and flatter
   p.sy *= prof.tw; p.hy *= prof.tw;
