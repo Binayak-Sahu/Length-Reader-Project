@@ -32,7 +32,9 @@ export function genBall(S, c, rng = Math.random) {
   if (c.drill === 'short') cat = rng() < 0.6 ? 'Short' : (rng() < 0.5 ? 'Full' : 'Good');
   else if (c.weak && T[c.weak] && rng() < (c.weakP || 0.4)) cat = c.weak;
   else { const r = rng(); cat = r < 0.22 ? 'Full' : r < 0.62 ? 'Good' : 'Short'; }
-  if (c.mode >= 2 && c.drill !== 'short') {
+  let lane = null;                                                   // leave drill: 40% wide off · 15% channel · 45% on the stumps
+  if (c.drill === 'leave') { const r = rng(); lane = r < 0.40 ? 'wide' : r < 0.55 ? 'channel' : 'stumps'; if (lane === 'wide') special = 'Wide off'; }
+  else if (c.mode >= 2 && c.drill !== 'short') {
     const r = rng() * 100;
     if (!c.spin && r < S.bouncerPct) special = 'Bouncer';
     else if (c.spin ? r < S.widePct / 2 : r < S.bouncerPct + S.widePct) special = 'Wide off';
@@ -49,7 +51,8 @@ export function genBall(S, c, rng = Math.random) {
     const g = tm && tm.d ? tm.d : T[cat]; d = r_(g[0], g[1]);
     if (tm && tm.lx) lx = r_(tm.lx[0], tm.lx[1]);
     else if (special === 'Wide off') lx = r_(0.36, 0.7);
-    else if (c.mode === 1 || c.drill === 'short') lx = r_(-0.11, 0.11);              // all on the stumps
+    else if (lane === 'channel') lx = r_(0.15, 0.28);                               // just outside off: play or leave
+    else if (c.mode === 1 || c.drill === 'short' || lane === 'stumps') lx = r_(-0.11, 0.11);              // all on the stumps
     else if (c.mode >= 4 && rng() < 0.15) lx = r_(-0.28, -0.14);                     // on the pads: flick
     else lx = r_(-0.2, 0.28);
   }

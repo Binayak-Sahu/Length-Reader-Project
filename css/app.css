@@ -366,3 +366,6 @@ body.life #hint{display:none}
 .sbChip:focus-visible{outline:3px solid var(--good);outline-offset:2px}
 .sbRow .help{color:var(--muted);font-size:13px;margin-top:6px}
 .sbKey{opacity:.6;font-size:.8em}
+.selRep{margin-top:1.4vh;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:rgba(245,165,36,.06);line-height:1.55}
+.selRep .stars{font-size:30px;color:#f5a524;letter-spacing:.08em}
+.selRep .stars i{font-style:normal;color:#334155}

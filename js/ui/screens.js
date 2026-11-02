@@ -12,6 +12,7 @@ import { only } from './menus.js';
 import { BADGES, badgeSVG, badgeById } from '../core/badges.js';
 import { SB_ROWS, sbClean } from '../core/sandbox.js';
 import { personalLine, recentBalls, evidenceText } from '../core/readline.js';
+import { selectorReport, leaveReport } from '../core/selection.js';
 export { only };
 
 // ---------- end of session ----------
@@ -48,6 +49,16 @@ export function renderEnd(s, score, rec, extra = {}) {
   const top = Object.entries(errs).sort((a, c) => c[1] - a[1])[0];
   if (top && top[1] >= 2) { show('eLeak', true); $('eLeak').innerHTML = `<b>Biggest leak:</b> ${esc(top[0])} (${top[1]}×)`; }
   else show('eLeak', false);
+  show('eSel', s.kind === 'selection' || s.kind === 'leave');
+  if (s.kind === 'selection') {
+    const r = selectorReport(b, s.pline ? s.pline.line : null), yn = (v) => v == null ? '—' : v + '%';
+    $('eSel').innerHTML = `<div class="stars" aria-label="${r.stars} of 5">${'★'.repeat(r.stars)}<i>${'★'.repeat(5 - r.stars)}</i></div>
+      <b>Selector's note:</b> ${esc(r.fix)}<br>Feet right ${yn(r.reads)} · play/leave right ${yn(r.playLeave)} · vs pace ${yn(r.pace)} · vs spin ${yn(r.spin)}
+      <br>First ball (cold): ${r.cold == null ? '—' : r.cold ? '✓ read it' : '✕ missed it'} · early commits ${r.early} · forward to short ${r.fwdShort} · played at wides ${r.playedWide} · left hitting ${r.leftHitting}`;
+  } else if (s.kind === 'leave') {
+    const r = leaveReport(b);
+    $('eSel').innerHTML = `<b>Left ${r.leftWide} of ${r.wide} wide ones</b> · played at ${r.playedWide} · left ${r.leftHitting} of ${r.hitting} hitting the stumps<br>Check the mirror's count: how often did your head fall to the off side?`;
+  }
   $('eNote').textContent = silentEnd ? 'Nets rules: this is your first look at how you did.' : '';
   const tr = extra.trial, et = $('eTrial');
   if (tr) {

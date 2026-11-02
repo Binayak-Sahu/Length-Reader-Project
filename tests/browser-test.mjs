@@ -476,6 +476,48 @@ await ctx.close();
   await q.close(); await c.close();
 }
 
+// ---------- 8i. selection sim, leave drill, head-only mirror ----------
+{
+  const c = await browser.newContext({ viewport: { width: 1000, height: 600 } });
+  const q = await page(c, '?nosw', `localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, level: 3, levelD: 0.5, settings: { sound: false, voice: false, fullscreen: false, netsGap: 4, hawk: false } }));`);
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  await q.click('#bSelection');
+  for (let i = 0; i < 2; i++) {
+    await waitFor(q, (n) => { const g = window.__lr.game; return g.G.state === 'run' && g.G.cur && g.G.sess.balls.length === n && g.clock.relTs !== null; }, i, 30000);
+    await q.keyboard.press('ArrowRight');
+    await waitFor(q, () => window.__lr.game.G.state === 'result', null, 20000);
+    ok(await q.evaluate(() => document.getElementById('card').classList.contains('hidden')), `selection sim ball ${i + 1}: no feedback (nets rules)`);
+    if (i === 0) ok(await q.evaluate(() => { const c = window.__lr.game.G.sess; return c.balls[0].kph >= 114 && c.balls[0].mode === 2; }), 'spell 1: pace ~120 kph, play/leave');
+    await q.evaluate(() => window.__lr.game.nextBall());
+  }
+  await q.evaluate(() => window.__lr.game.endSession());
+  const rep = await q.evaluate(() => ({ vis: !document.getElementById('eSel').classList.contains('hidden'), txt: document.getElementById('eSel').textContent, lvl: window.__lr.app.db.level,
+    mark: window.__lr.app.db.sessions.at(-1).mark }));
+  ok(rep.vis && /Selector's note/.test(rep.txt) && /First ball \(cold\)/.test(rep.txt) && rep.lvl === 3 && rep.mark >= 1, `selector report on the end screen (${rep.mark}★), level unchanged`);
+  await q.click('#bHome3');
+  ok(await q.evaluate(() => /Last ★/.test(document.getElementById('selSub').textContent)), 'Play tile shows the last selection mark');
+  // leave drill: a wide one, left alone, is a good leave
+  await q.click('#bLeave');
+  let found = false;
+  for (let i = 0; i < 12 && !found; i++) {
+    await waitFor(q, () => { const g = window.__lr.game; return g.G.state === 'run' && g.G.cur && g.clock.relTs !== null; }, null, 30000);
+    const wide = await q.evaluate(() => window.__lr.game.G.cur.g.cat === 'Wide off');
+    await q.keyboard.press('ArrowRight');                       // back foot, no play = leave
+    await waitFor(q, () => window.__lr.game.G.state === 'result', null, 20000);
+    if (wide) { found = true; ok(await q.evaluate(() => { const b = window.__lr.game.G.sess.balls.at(-1); return b.pe === 'LEAVE' && b.pv === 'good'; }), 'leave drill: a wide one, left alone = good leave'); }
+    await q.evaluate(() => window.__lr.game.nextBall());
+  }
+  ok(found, 'leave drill bowled a wide one within 12 balls');
+  await q.evaluate(() => window.__lr.game.endSession());
+  ok(await q.evaluate(() => /Left \d+ of \d+ wide ones/.test(document.getElementById('eSel').textContent)), 'leave report on the end screen');
+  // mirror: head only — no stick figure, no feet checks, a head count
+  const m = await page(c, 'mirror.html');
+  const src = await m.content();
+  ok(!/EDGES|stride forward|back and across'|Feet not visible/.test(src) && /Head fell to the off side in/.test(src) && /Head check/.test(src), 'mirror is head-only: no stick figure or feet checks, with a head-fall count');
+  ok(await m.evaluate(() => { const M = window.__mirror; M.TALLY.n = 5; M.TALLY.fell = 2; M.tallyShow(); return document.getElementById('tally').textContent; }) === 'Head fell to the off side in 2 of 5 shots', 'mirror head count reads right');
+  await c.close();
+}
+
 // ---------- 9. offline: install the service worker, go offline, reload ----------
 const ctx2 = await browser.newContext({ viewport: { width: 640, height: 360 } });
 p = await page(ctx2, '', `if (!localStorage.getItem('lr5')) localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false } }));`);

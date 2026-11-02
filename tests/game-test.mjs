@@ -231,4 +231,12 @@ console.log('— badges reward real skills only —');
   const pl = buildPlan('sandbox');
   ok(pl.segs.length === 1 && pl.segs[0].n === Infinity && !pl.segs[0].adapt && pl.segs[0].sandbox, 'sandbox plan: endless, never moves the level');
 }
+{
+  const { buildPlan } = await import('../js/game/modes.js');
+  const p = buildPlan('selection', { S: { netsGap: 20 } });
+  ok(p.segs.length === 4 && p.segs.every(x => x.n === 6 && x.fb === 'end' && x.walk && !x.adapt && x.fixed.m === 2 && x.fixed.k === 120)
+    && p.segs.map(x => x.spell).join() === 'pace,spin,pace,mixed', 'selection sim: 4 spells of 6 (pace, spin, pace, mixed), ~120 kph, play/leave, no feedback, level fixed');
+  const l = buildPlan('leave');
+  ok(l.segs[0].n === 30 && l.segs[0].drill === 'leave' && l.segs[0].fixed.m === 2 && !l.segs[0].adapt, 'leave drill: 30 balls, play/leave, level fixed');
+}
 done();

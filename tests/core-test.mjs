@@ -5,6 +5,7 @@ import { categorize, footFor, grade, gradeShot, idealShots, guessLimit, LATE_MAR
 import { genBall, relCue, catRanges } from '../js/core/bowling.js';
 import { sbResolve, sbClean, SB_ROWS, SB_DEF } from '../js/core/sandbox.js';
 import { personalLine, recentBalls, evidenceText } from '../js/core/readline.js';
+import { selectorReport, leaveReport, bestMark } from '../js/core/selection.js';
 import { mulberry32 } from './util.mjs';
 import { solve, frustum, screenCm, activeCalib } from '../js/core/calib.js';
 
@@ -184,6 +185,25 @@ console.log('— personal too-quick line, learned from your own balls —');
   ok(gg.guess && /right \d+% of the time/.test(gg.fmsg), 'a coin-flip guess says why: ' + gg.fmsg);
   const ss = [{ balls: [1, 2] }, { balls: [3] }];
   ok(recentBalls(ss, [4]).join() === '1,2,3,4', 'recent balls: newest last, current session included');
+}
+
+console.log('— leave drill and selector report —');
+{
+  const rng = mulberry32(5), S = { bouncerPct: 8, widePct: 22 }, n = 1000, k = { wide: 0, channel: 0, stumps: 0 };
+  for (let i = 0; i < n; i++) { const g = genBall(S, { kph: 115, mode: 2, drill: 'leave', hand: 'R' }, rng);
+    if (g.lx >= 0.36) k.wide++; else if (g.lx >= 0.15) k.channel++; else if (Math.abs(g.lx) <= 0.11) k.stumps++; }
+  ok(Math.abs(k.wide / n - 0.40) < 0.05 && Math.abs(k.channel / n - 0.15) < 0.05 && Math.abs(k.stumps / n - 0.45) < 0.05,
+    `leave drill lines: wide ${k.wide / 10}% · channel ${k.channel / 10}% · stumps ${k.stumps / 10}% (40 / 15 / 45)`);
+  const B = (o) => Object.assign({ sc: 1, fv: 'good', foot: 'B', cat: 'Good', rt: 0.35, spin: false }, o);
+  const balls = [B({ fv: 'bad', foot: 'F', cat: 'Short', sc: 0 }), B({ foot: 'F', cat: 'Short', fv: 'bad', sc: 0 }), B({ pe: 'LEAVE', pv: 'bad', sc: 0.6 }),
+    B({ rt: 0.1, sc: 0.5 }), B({ spin: true }), B({ pe: 'PLAY', pv: 'good' })];
+  const r = selectorReport(balls, 0.27);
+  ok(r.n === 6 && r.fwdShort === 2 && r.playedWide === 1 && r.early === 1 && r.cold === false, 'selector report counts forward-to-short, wides, early commits and the cold first ball');
+  ok(/2 times forward to a short ball/.test(r.fix) && r.stars === 1, `biggest fix + stars: ${r.stars}★ · ${r.fix}`);
+  ok(selectorReport(Array.from({ length: 24 }, () => B({})), 0.27).stars === 5, 'all right = 5 stars, nothing to fix');
+  const lr = leaveReport([B({ pe: 'LEAVE', pv: 'good' }), B({ pe: 'LEAVE', pv: 'bad' }), B({ pe: 'PLAY', pv: 'bad' }), B({ pe: 'PLAY', pv: 'good' })]);
+  ok(lr.wide === 2 && lr.leftWide === 1 && lr.playedWide === 1 && lr.leftHitting === 1, 'leave report counts');
+  ok(JSON.stringify(bestMark([{ kind: 'selection', mark: 3 }, { kind: 'selection', mark: 4 }, { kind: 'selection', mark: 2 }])) === '{"last":2,"best":4}', 'Play tile: last and best mark');
 }
 
 console.log('— sandbox: pick every ball —');

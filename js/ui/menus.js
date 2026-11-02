@@ -4,6 +4,7 @@ import { app, $, show, esc } from '../app.js';
 import { LEVELS, STAGES, clampLevel } from '../core/levels.js';
 import { totalXP, streak, week, WEEK_GOAL, dayKey } from '../core/progress.js';
 import { TIERS, BOSSES, careerState, bossFor } from '../core/career.js';
+import { bestMark } from '../core/selection.js';
 
 export const TABS = ['home', 'career', 'progress', 'more'];
 const SCREENS = ['home', 'career', 'progress', 'more', 'settings', 'end', 'pause', 'rtest', 'howto', 'onboard', 'calib', 'sync', 'sandbox'];
@@ -31,6 +32,8 @@ export function renderHome(weakest) {
   const { db } = app, cs = careerState(db), today = dayKey(new Date());
   $('pTier').textContent = cs.name.toUpperCase();
   $('pXP').textContent = totalXP(db).toLocaleString() + ' XP';
+  const mk = bestMark(db.sessions);
+  $('selSub').textContent = mk ? `Last ${'★'.repeat(mk.last)} · best ${'★'.repeat(mk.best)} · 4 spells · ~120 kph` : '4 spells · pace + spin · ~120 kph · selector\'s report';
   const st = streak(db);
   $('pStreak').innerHTML = FLAME + `${st} day${st === 1 ? '' : 's'}`;
   const doneToday = db.sessions.some(s => s.kind === 'daily' && dayKey(s.date) === today);

@@ -30,6 +30,7 @@
 <link rel="modulepreload" href="js/core/real.js">
 <link rel="modulepreload" href="js/core/rules.js">
 <link rel="modulepreload" href="js/core/sandbox.js">
+<link rel="modulepreload" href="js/core/selection.js">
 <link rel="modulepreload" href="js/core/store.js">
 <link rel="modulepreload" href="js/core/sync.js">
 <link rel="modulepreload" href="js/core/timing.js">
@@ -122,6 +123,8 @@
       <button class="tile green" id="bMatch"><b>Match · 3 overs</b><span>Chase a target · 3 wickets</span></button>
       <button class="tile" id="bStart"><b>Classic 50</b><span>50 balls · adapts to you</span></button>
       <button class="tile" id="bQuick"><b>Quick 30</b><span>30 balls · adapts to you</span></button>
+      <button class="tile gold" id="bSelection"><b>Selection sim</b><span id="selSub">4 spells · pace + spin · ~120 kph · selector's report</span></button>
+      <button class="tile" id="bLeave"><b>Leave drill</b><span>30 balls · 40% wide outside off · phone mirror for your head</span></button>
       <button class="tile" id="bSandbox"><b>Sandbox</b><span>Pick every ball · keeps bowling · no level or XP</span></button>
       <button class="tile" id="bEndless"><b>Endless</b><span>Stop when you like</span></button>
     </div>
@@ -332,6 +335,7 @@
             <div class="counts" id="eCounts"></div>
           </div>
           <div class="meta" id="eMeta"></div>
+          <div class="selRep hidden" id="eSel"></div>
           <div class="trialRes hidden" id="eTrial"></div>
           <div class="leak" id="eLeak"></div>
           <div class="newBadges" id="eBadges"></div>

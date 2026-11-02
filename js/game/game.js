@@ -13,6 +13,7 @@ import { xpForBall, ctxMult, summarize } from '../core/progress.js';
 import { buildPlan } from './modes.js';
 import { sbResolve, sbLabel } from '../core/sandbox.js';
 import { personalLine, recentBalls } from '../core/readline.js';
+import { selectorReport } from '../core/selection.js';
 import * as ui from '../ui/session-ui.js';
 
 const NAMES = { F: 'FRONT', B: 'BACK', P: 'PLAY' };
@@ -53,6 +54,8 @@ function lineup() {
 function pickBowler(seg) {
   const s = G.sess, S = app.S, ov = s.over, ps = BOWLERS[PACE[(s.bstart + ov) % 3]], sp = BOWLERS[SPINNERS[(s.bstart + ov) % 2]];
   if (seg.boss) return seg.boss.prof;
+  if (seg.spell === 'pace') return BOWLERS[PACE[(s.bstart + s.segI) % 3]];       // selection sim: one bowler per spell
+  if (seg.spell === 'spin') return BOWLERS[SPINNERS[s.bstart % 2]];
   if (seg.walk) { if (!s.lineup) s.lineup = lineup(); return BOWLERS[s.lineup[ov % s.lineup.length]]; }
   if (seg.drill === 'spin') return sp;
   if (seg.drill === 'short') return ps;
@@ -108,7 +111,7 @@ export function nextBall() {
   const kph = sb ? sb.kph : m ? Math.max(100, Math.min(LEVELS[db.level].k, S.maxKph)) : Math.min(LV.k, S.maxKph);
   const occ = sb ? sb.occ : m ? null : (seg.walk && !seg.fixed ? null : LV.o);
   const g = genBall(S, { kph, mode: gm, drill: seg.drill, spin: PROF.spin || null, weak, weakP: seg.weakP, hand: db.profile.hand,
-    club: S.club && !['short', 'spin'].includes(seg.drill) && !seg.boss && !seg.script, trademark: seg.boss ? seg.boss.trademark : null,
+    club: S.club && !['short', 'spin', 'leave'].includes(seg.drill) && !seg.boss && !seg.script, trademark: seg.boss ? seg.boss.trademark : null,
     force: sb ? { cat: sb.cat, line: sb.line } : null });
   const sc = seg.script && seg.script[sess.segN];
   if (sc) { g.d = sc.d; g.lx = sc.lx || 0; g.cat = sc.cat; g.opt = { varn: null }; }
@@ -417,6 +420,7 @@ export function endSession() {
   }
   const rec = { id: s.start.toString(36), date: new Date(s.start).toISOString(), kind: s.kind, drill: s.plan.drill || null, match: s.match || null,
     n, score, peak: s.peak, end: s.level, bestStreak: s.best, balls: s.balls, xp: s.xp, sum: summarize(s.balls), boss: s.boss ? s.boss.id : undefined };
+  if (s.kind === 'selection') rec.mark = selectorReport(s.balls, s.pline ? s.pline.line : null).stars;
   db.sessions.push(rec);
   if (S.levelMode === 'auto' && s.plan.segs.some(x => x.adapt)) { if (db.level !== s.level) db.levelAt = new Date().toISOString(); db.level = s.level; db.levelD = s.d; }
   app.saveNow();
