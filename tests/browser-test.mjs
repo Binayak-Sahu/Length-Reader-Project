@@ -400,7 +400,7 @@ await ctx.close();
 
 // ---------- 8h. personal too-quick line: fast presses that are right stop counting as guesses ----------
 {
-  const c = await browser.newContext({ viewport: { width: 1000, height: 600 } });
+  const c = await browser.newContext({ viewport: { width: 640, height: 360 } });
   const balls = Array.from({ length: 60 }, (_, i) => ({ d: 8, lx: 0, kph: 100, lvl: 3, mode: 1, cat: 'Short', fe: i % 2 ? 'B' : 'F', foot: i % 2 ? 'B' : 'F', rt: 0.10 + (i % 10) * 0.02, fv: 'good', v: 'good', sc: 1, ok: true }));
   const seed = { v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, rtBase: 0.216, rtAt: '2026-10-29T10:00:00Z',
     settings: { sound: false, voice: false, fullscreen: false, feedback: 'always', hawk: false, sandbox: { bowler: 'pace', kph: 100, len: 'Short', line: 'stumps', occ: 'none', task: 1 } },
@@ -410,9 +410,17 @@ await ctx.close();
   await q.click('#nav button[data-tab="progress"]');
   ok(await q.evaluate(() => /learned from your results/.test(document.getElementById('rlNote').textContent)), 'Progress shows the evidence: ' + await q.evaluate(() => document.getElementById('rlNote').textContent));
   await q.evaluate(() => window.__lr.menu.renderHome && window.__lr.game.startSession('sandbox'));
-  // press stamped exactly 170 ms after the release frame (a real key press can land after the ball on a slow CI renderer)
-  await waitFor(q, () => { const g = window.__lr.game, c = g.clock; return g.G.state === 'run' && c.relTs !== null; });
-  await q.evaluate(() => { const g = window.__lr.game; g.act('B', g.clock.relTs + 170, 'key'); });
+  // press stamped exactly 170 ms after the release frame, sent from inside the page the moment that frame is stamped
+  // (on a slow CI renderer a press sent from the test runner can arrive after the ball has finished)
+  const acted = await q.evaluate(() => new Promise((res) => {
+    const g = window.__lr.game, poll = () => {
+      if (g.G.state === 'run' && g.clock.relTs !== null) { g.act('B', g.clock.relTs + 170, 'key'); return res(!!g.G.cur.foot); }
+      if (g.G.state === 'result') return res(false);
+      setTimeout(poll, 0);
+    };
+    poll();
+  }));
+  ok(acted, 'press landed while the ball was live');
   await waitFor(q, () => window.__lr.game.G.state === 'result', null, 20000);
   const r = await q.evaluate(() => { const b = window.__lr.game.G.sess.balls[0]; return { rt: b.rt, guess: !!b.guess, fv: b.fv, line: window.__lr.game.G.sess.pline.line }; });
   ok(r.line <= 0.13 && !r.guess && r.fv === 'good', `with fast, accurate history (line ${r.line} s) a back-foot press at ${r.rt} s is a good read, not "too quick"`);
