@@ -6,6 +6,9 @@ import { genBall, relCue, catRanges } from '../js/core/bowling.js';
 import { sbResolve, sbClean, SB_ROWS, SB_DEF } from '../js/core/sandbox.js';
 import { personalLine, recentBalls, evidenceText } from '../js/core/readline.js';
 import { selectorReport, leaveReport, bestMark } from '../js/core/selection.js';
+import { makeCues } from '../js/core/cues.js';
+import { poseAt } from '../js/core/action.js';
+import { T_REL as TREL, T_RUN as TRUN, T_BFC as TBFC } from '../js/core/physics.js';
 import { mulberry32 } from './util.mjs';
 import { solve, frustum, screenCm, activeCalib } from '../js/core/calib.js';
 
@@ -206,6 +209,32 @@ console.log('— leave drill and selector report —');
   ok(JSON.stringify(bestMark([{ kind: 'selection', mark: 3 }, { kind: 'selection', mark: 4 }, { kind: 'selection', mark: 2 }])) === '{"last":2,"best":4}', 'Play tile: last and best mark');
 }
 
+console.log('— pre-release cues: weak and noisy, like real bowlers —');
+{
+  const rng = mulberry32(21), S = { bouncerPct: 8, widePct: 22 };
+  const stats = (level) => {
+    const bnd = { ok: 0, n: 0 }, arm = { tp: 0, p: 0, tn: 0, n: 0 }, rel = { ok: 0, n: 0 };
+    for (let i = 0; i < 3000; i++) {
+      const g = genBall(S, { kph: 80 + rng() * 40, mode: 3, hand: 'R' }, rng), c = makeCues(g, level, rng);
+      if (c.short || c.full) { bnd.n++; if ((c.bound > 0) === c.short) bnd.ok++; rel.n++; if ((c.rel < 0) === c.short) rel.ok++; }
+      if (c.slower) { arm.p++; if (c.arm < 0.95) arm.tp++; } else { arm.n++; if (c.arm >= 0.95) arm.tn++; }
+    }
+    return { bound: bnd.ok / bnd.n, arm: (arm.tp / arm.p + arm.tn / arm.n) / 2, rel: rel.ok / rel.n };
+  };
+  const r = stats('real'), st = stats('strong');
+  ok(r.bound > 0.55 && r.bound < 0.65, `bound before the crease predicts short vs full ${Math.round(100 * r.bound)}% on its own (55–65%)`);
+  ok(r.arm > 0.55 && r.arm < 0.68, `slower arm predicts the slower ball ${Math.round(100 * r.arm)}% (balanced, 55–68%)`);
+  ok(st.bound > 0.85 && st.arm > 0.85, `Strong cues are clear for learning: bound ${Math.round(100 * st.bound)}%, arm ${Math.round(100 * st.arm)}%`);
+  const off = makeCues({ d: 9, kph: 120, opt: {} }, 'off', rng);
+  ok(off.bound === 0 && off.arm === 1, 'Off: no bound or arm cue');
+  const prof = { s: 1, xo: 0, tw: 1, ao: 0 }, p0 = poseAt(TREL, prof, 0, {}), p1 = poseAt(TREL, prof, 0, {}, { bound: 1, arm: 0.86 });
+  ok(Math.abs(p0.rw - p1.rw) < 1e-9 && Math.abs(p0.y - p1.y) < 1e-9, 'cues never change the release pose (the flight stays exact)');
+  const mid = (TRUN + TBFC) / 2, a = poseAt(mid, prof, 0, {}).y, b = poseAt(mid, prof, 0, {}, { bound: 1, arm: 1 }).y;
+  ok(b - a > 0.06, `a short-ball bound is ${Math.round((b - a) * 100)} cm higher at its peak`);
+  const e0 = poseAt(TREL - 0.1, prof, 0, {}).rw, e1 = poseAt(TREL - 0.1, prof, 0, {}, { bound: 0, arm: 0.86 }).rw;
+  ok(e1 > e0 + 3, `slower arm turns ~14% slower through release (${(e1 - e0).toFixed(0)}° different 0.1 s before)`);
+}
+
 console.log('— sandbox: pick every ball —');
 {
   const rng = mulberry32(7), S = { bouncerPct: 8, widePct: 22 };
@@ -213,7 +242,7 @@ console.log('— sandbox: pick every ball —');
   const r = sbResolve(fixed, rng);
   ok(r.spin === null && r.kph === 120 && r.cat === 'Short' && r.line === 'stumps' && r.occ === null && r.mode === 1, 'fixed choices are used as given');
   const seen = {}; for (const row of SB_ROWS) seen[row.k] = new Set();
-  for (let i = 0; i < 600; i++) { const x = sbResolve(SB_DEF, rng); seen.bowler.add(x.spin || 'pace'); seen.kph.add(x.kph); seen.len.add(x.cat); seen.line.add(x.line); seen.occ.add(x.occ === null ? 'none' : x.occ); seen.task.add(x.mode); }
+  for (let i = 0; i < 600; i++) { const x = sbResolve(Object.assign({}, SB_DEF, { cues: 'rand' }), rng); seen.bowler.add(x.spin || 'pace'); seen.kph.add(x.kph); seen.len.add(x.cat); seen.line.add(x.line); seen.occ.add(x.occ === null ? 'none' : x.occ); seen.task.add(x.mode); seen.cues.add(x.cues); }
   ok(SB_ROWS.every(row => row.o.every(([v]) => seen[row.k].has(v))), 'Random rolls every option in every row (600 balls)');
   ok(sbResolve({ bowler: 'off', len: 'Bouncer' }, rng).cat === 'Short', 'a spinner asked for a bouncer bowls short instead');
   ok(sbClean({ kph: 125, len: 'Yorker', task: 4 }).kph === 'rand' && sbClean({ task: 4 }).task === 4 && sbClean(null).len === 'rand', 'unknown choices fall back to Random');

@@ -6,8 +6,9 @@ export const SB_ROWS = [
   { k: 'line', l: 'LINE', o: [['stumps', 'On the stumps'], ['pads', 'On the pads'], ['off', 'Outside off']] },
   { k: 'occ', l: 'BLACKOUT', o: [['none', 'None'], [0.25, '+250 ms'], [0.16, '+160 ms'], [0.1, '+100 ms'], [0, 'At release']] },
   { k: 'task', l: 'TASK', o: [[1, 'Feet'], [2, 'Play / leave'], [4, 'Shots']] },
+  { k: 'cues', l: 'BOWLER CUES', o: [['off', 'Off'], ['real', 'Real'], ['strong', 'Strong']], h: 'What you can read before release: a bigger bound before a short ball, a slower arm before a slower ball, the release angle. Real = weak and disguised, like real bowlers. Strong = learn what to look for.' },
 ];
-export const SB_DEF = { bowler: 'rand', kph: 'rand', len: 'rand', line: 'rand', occ: 'rand', task: 'rand' };
+export const SB_DEF = { bowler: 'rand', kph: 'rand', len: 'rand', line: 'rand', occ: 'rand', task: 'rand', cues: 'real' };
 
 // Fill gaps and drop values that are no longer offered.
 export function sbClean(sb) {
@@ -24,7 +25,7 @@ export function sbResolve(sb, rng = Math.random) {
   let cat = pick('len');
   if (spin && cat === 'Bouncer') cat = 'Short';                    // a spinner can't get it head-high
   const occ = pick('occ');
-  return { spin, kph: pick('kph'), cat, line: pick('line'), occ: occ === 'none' ? null : occ, mode: pick('task') };
+  return { spin, kph: pick('kph'), cat, line: pick('line'), occ: occ === 'none' ? null : occ, mode: pick('task'), cues: pick('cues') };
 }
 
 export function sbLabel(r) {

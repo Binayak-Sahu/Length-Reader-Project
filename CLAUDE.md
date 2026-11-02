@@ -148,6 +148,7 @@ Also read:
 - Bouncers only appear at pace: physics only gets a ball head-high above about 110 kph.
 - Nets realism: bowlers rotate each ball, club-level accuracy, no per-ball feedback, real time between balls.
 - The hand cue is halved (±5° plus ±3° noise). See DECISIONS S5.
+- Pre-release cues (v5.7, C11) are weak on purpose: bound before a short ball ~60%, slower arm before a slower ball ~65%. Sandbox can set Off / Real / Strong.
 - Privacy: on-device by default. Optional sync to the player's own GitHub (secret gist, token per device; DECISIONS P1). No accounts of ours, ads or tracking.
 
 ## Bink's numbers (26 Oct 2026, from v4)
@@ -179,7 +180,7 @@ Also read:
 - **v5.2 shipped (27 Oct 2026):** true life-size calibration, darker worn pitch + tone mapping, night mode, dark sight screen, length marks, release heights fixed, portrait card, pedals, LT/RT.
 - **v5.3 shipped (28 Oct 2026):** side-on controller (X front, B back, stick shots), sync phone + PC via his own GitHub gist, Progress table no longer hidden under the tab bar.
 - **v5.4 shipped (29 Oct 2026):** Sandbox mode. **v5.4.1:** timing fix ("too quick" at pace). **v5.5:** personal too-quick line from his own results.
-- **v5.6 shipped (2 Nov 2026):** Selection sim, Leave drill, head-only mirror. **Next:** pre-release cues (v5.7), then real actions copied from video (v5.8).
+- **v5.6 shipped (2 Nov 2026):** Selection sim, Leave drill, head-only mirror. **v5.7:** pre-release cues (bound, arm speed). **Next:** real actions copied from video (v5.8).
 - **v5.6 shipped (1 Nov 2026):** Real bowlers page (More → Real bowlers). Portrait crop view (default) and Bink's first video `enRiR-kqxE4`; he's finding more himself.
 - **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
 - **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).

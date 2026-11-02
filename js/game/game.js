@@ -4,7 +4,8 @@
 import { app, $, show } from '../app.js';
 import { T_REL, T_END } from '../core/physics.js';
 import { grade, gradeShot, categorize, SHOTS, SHOTKEY, guessLimit } from '../core/rules.js';
-import { genBall, relCue, BOWLERS, PACE, SPINNERS } from '../core/bowling.js';
+import { genBall, BOWLERS, PACE, SPINNERS } from '../core/bowling.js';
+import { makeCues } from '../core/cues.js';
 import { LEVELS, STAGE_START, STAGES, stairStep, clampLevel, stageProgress } from '../core/levels.js';
 import { outcome } from '../core/match.js';
 import { BallClock } from '../core/timing.js';
@@ -115,16 +116,16 @@ export function nextBall() {
     force: sb ? { cat: sb.cat, line: sb.line } : null });
   const sc = seg.script && seg.script[sess.segN];
   if (sc) { g.d = sc.d; g.lx = sc.lx || 0; g.cat = sc.cat; g.opt = { varn: null }; }
-  const rel = relCue(g.d, !!PROF.spin), jx = rnd(-0.1, 0.1);
-  world.bowler.pose(T_REL, PROF, rel, jx);
+  const cue = makeCues(g, sb ? sb.cues : 'real'), rel = cue.rel, jx = rnd(-0.1, 0.1);   // pre-release cues (weak, like real bowlers)
+  world.bowler.pose(T_REL, PROF, rel, jx, cue);
   const job = traj.request(world.releasePoint(), g.kph, g.d, g.lx, g.opt);      // solved in the worker during the run-up
-  world.bowler.pose(0, PROF, rel, jx); world.bowlerMoved(); world.ballToHand();
+  world.bowler.pose(0, PROF, rel, jx, cue); world.bowlerMoved(); world.ballToHand();
   world.ball.visible = true; world.ball.rotation.set(0, 0, 0);
   // faint length markings: auto = Level 1 only
   const marks = S.lenMarks === 'on' || (S.lenMarks === 'auto' && gm === 1);
   if (marks) world.setLenMarks(g.kph, !!PROF.spin); else world.setLenMarks(null);
   if (S.stepCue && gm === 1) ui.stepCue();
-  G.cur = { g, job, tr: null, prof: PROF, rel, jx, occ, mode: gm, type, lvl, seg, fed: weak && g.cat === weak ? weak : null,
+  G.cur = { g, job, tr: null, prof: PROF, rel, jx, cue, occ, mode: gm, type, lvl, seg, fed: weak && g.cat === weak ? weak : null,
     trig: null, foot: null, padFoot: null, played: false, shot: null, src: null, si: 0, sounds: false, lblOff: !!seg.labels };
   clock.reset();
   if (sess.zm !== gm) { ui.setZones(gm, S); sess.zm = gm; }
@@ -141,7 +142,7 @@ function stepBall(ts) {
   const cur = G.cur, { world, audio, traj } = app;
   if (!clock.started) clock.start(ts, LEAD_MS);
   const t = clock.sceneTime(ts);
-  world.bowler.pose(Math.min(Math.max(t, 0), T_END), cur.prof, cur.rel, cur.jx); world.bowlerMoved();
+  world.bowler.pose(Math.min(Math.max(t, 0), T_END), cur.prof, cur.rel, cur.jx, cur.cue); world.bowlerMoved();
   // footsteps: scheduled ~150 ms ahead so they're heard on time
   const FT = cur.prof.spin ? FOOT_S : FOOT;
   while (cur.si < FT.length && clock.t0 + FT[cur.si][0] * 1000 <= ts + 150) {
