@@ -4,6 +4,7 @@ A cricket batting trainer that teaches one skill: **read the length early and mo
 
 - Realistic bowlers, real pace and flight.
 - Blackout training, an 85% difficulty staircase, and a career ladder with boss bowlers.
+- Selection sim (4 spells like the selection nets, with a selector's report) and a Leave drill.
 - Sandbox: pick the bowler, pace, length, line, blackout and task, and it keeps bowling that ball (practice only, never counted).
 - XP only for correct, on-time reads.
 - Works offline and installs like an app.

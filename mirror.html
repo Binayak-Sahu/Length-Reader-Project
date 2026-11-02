@@ -45,6 +45,7 @@ video{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none}
 .lbl{color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.12em;margin-right:2px}
 .num{min-width:58px;text-align:center;font-weight:800;font-variant-numeric:tabular-nums}
 
+#tally{position:fixed;top:calc(52px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);pointer-events:none;z-index:6;background:rgba(0,0,0,.72);color:#fde68a;font:700 15px system-ui,sans-serif;padding:6px 12px;border-radius:999px;white-space:nowrap}
 #report{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:6;
   margin:0 auto;max-width:560px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;display:grid;gap:6px}
 #report .r{display:grid;grid-template-columns:28px 1fr;align-items:center;gap:8px;font-size:clamp(15px,3.8vw,22px);font-weight:650}
@@ -69,8 +70,9 @@ ol b{color:var(--text)}
 <div id="chip" class="hidden"></div>
 <div id="prog"></div>
 <div id="report" class="hidden"></div>
+<div id="tally" class="hidden"></div>
 <div id="editTip" class="hidden">
-  Stand in your stance. <b>Drag the white line</b> onto your head, <b>drag the yellow line</b> to your crease, and <b>tap your head</b> to drop the ring.
+  Stand in your stance. <b>Drag the white line</b> onto your head and <b>tap your head</b> to drop the ring.
   <br><button id="editDone">Done</button>
 </div>
 
@@ -89,7 +91,8 @@ ol b{color:var(--text)}
     <div class="seg" id="sensSeg"><button data-s="0.7">Low</button><button data-s="1">Medium</button><button data-s="1.5">High</button></div>
   </div>
   <div class="row">
-    <button class="btn gold" id="poseBtn">Pose checks: ON</button>
+    <button class="btn gold" id="poseBtn">Head check: ON</button>
+    <button class="btn" id="tallyReset">Reset count</button>
     <button class="btn" id="guideBtn">Set guides</button>
     <button class="btn" id="flipBtn">Flip camera</button>
     <button class="btn" id="mirBtn">Mirror: ON</button>
@@ -100,17 +103,17 @@ ol b{color:var(--text)}
 <div id="start">
   <div class="wrap">
     <div class="brand">BATTING MIRROR</div>
-    <h1>See your head and feet, every shot.</h1>
+    <h1>Keep your head still, every shot.</h1>
     <p class="lead">Play a shadow shot. The phone spots it and replays it in slow motion, then goes back to live. Or switch to a delayed mirror.</p>
     <ol>
       <li><b>Prop the phone</b> about 2–3 m in front of you, waist to chest height, where the bowler would be (front-on). Your whole body should be in view.</li>
       <li><b>Tap Start</b> and allow the camera.</li>
       <li><b>Tap the screen</b> any time for controls. Use <b>Set guides</b> once: line on your head in your stance, ring on your head.</li>
-      <li><b>Watch for:</b> head staying on the line and inside the ring, front toe to mid-off, and back foot really going back and across.</li>
+      <li><b>Watch for:</b> head staying on the line and inside the ring, especially when you leave outside off. The count at the top shows how often it fell to the off side.</li>
     </ol>
     <button id="go">Start camera</button>
     <div id="err"></div>
-    <p class="note">Pose checks (<span id="handTxt">right-handed</span> batter, camera front-on): head on the line, head still through the shot, and front stride or back-and-across. Change your batting hand in the app's Settings. Everything is stored on this phone, so after the first open it works offline. Toe angle and base width are left out: one camera can’t judge them reliably.</p>
+    <p class="note">Head check (<span id="handTxt">right-handed</span> batter, camera front-on): head on the line in your stance, and still through the shot. Feet are not judged here. Change your batting hand in the app's Settings. Everything is stored on this phone, so after the first open it works offline. Toe angle and base width are left out: one camera can’t judge them reliably.</p>
     <p class="note">The camera only works when this page is opened from an https address, like your GitHub Pages link. Camera images stay in the phone's memory for the replay and are never saved or uploaded.</p>
     <p class="note"><a href="./" style="color:var(--accent)">← Back to Length Reader</a></p>
   </div>
@@ -194,7 +197,7 @@ const MPV=new URL('vendor/mediapipe',location.href).href;
 const MODEL=new URL('vendor/mediapipe/pose_landmarker_lite.task',location.href).href;
 // Batting hand from the app's saved data (same site). Left-handers: front foot = right ankle, off side flips.
 let HAND='R'; try{ const d=JSON.parse(localStorage.getItem('lr5')); if(d&&d.profile&&d.profile.hand==='L') HAND='L'; }catch(e){}
-const FA=HAND==='L'?28:27, BA=HAND==='L'?27:28, OFFSGN=HAND==='L'?-1:1;   // OFFSGN: +1 when off side = left of the raw image
+const OFFSGN=HAND==='L'?-1:1;   // OFFSGN: +1 when off side = left of the raw image
 let pose=null, poseState='off', poses=[], lastPose=0, liveLm=null;
 async function loadPose(){
   if(pose||poseState==='loading') return; poseState='loading';
@@ -212,15 +215,13 @@ function runPose(now){
   try{ const r=pose.detectForVideo(cam,now), lm=r&&r.landmarks&&r.landmarks[0];
     liveLm=lm||null; if(lm){ poses.push({t:now,lm}); const keep=ST.delay*1000+KEEP_EXTRA; while(poses.length&&poses[0].t<now-keep) poses.shift(); } }catch(e){}
 }
-const EDGES=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,31],[28,32],[27,29],[28,30]];
 function px(lm,i){ const p=lm[i]; return {x:p.x*cam.videoWidth,y:p.y*cam.videoHeight,v:p.visibility==null?1:p.visibility}; }
 function lineRawX(){ return (ST.mirror?1-ST.g.x:ST.g.x)*cam.videoWidth; }
 function torso(lm){ const a=px(lm,11),b=px(lm,12),c=px(lm,23),d=px(lm,24); return Math.hypot((a.x+b.x-c.x-d.x)/2,(a.y+b.y-c.y-d.y)/2)||1; }
-function drawSkel(lm,headOk){
+function drawHead(lm,headOk){
   if(!lm) return; const dpr=view.width/innerWidth;
   const P=i=>({x:box.x+(ST.mirror?1-lm[i].x:lm[i].x)*box.w,y:box.y+lm[i].y*box.h,v:lm[i].visibility==null?1:lm[i].visibility});
-  vctx.save(); vctx.lineWidth=3*dpr; vctx.strokeStyle='rgba(125,211,252,.75)'; vctx.lineCap='round';
-  for(const [a,b] of EDGES){ const A=P(a),B=P(b); if(A.v<0.3||B.v<0.3) continue; vctx.beginPath(); vctx.moveTo(A.x,A.y); vctx.lineTo(B.x,B.y); vctx.stroke(); }
+  vctx.save();     // head only: no stick figure
   const n=P(0); if(n.v>0.4){ vctx.fillStyle=headOk==null?'#e5e7eb':(headOk?'#22c55e':'#f5a524'); vctx.beginPath(); vctx.arc(n.x,n.y,9*dpr,0,7); vctx.fill();
     vctx.lineWidth=2*dpr; vctx.strokeStyle='#000'; vctx.stroke(); }
   vctx.restore();
@@ -245,19 +246,15 @@ function analyse(t0,tMove,t1){
   let worst=0; for(const p of seg){ const n=px(p.lm,0); if(n.v<0.4) continue; const d=OFFSGN*(n.x-ref)/T; if(Math.abs(d)>Math.abs(worst)) worst=d; }
   const aw=Math.abs(worst), side= worst<0?'OFF':'LEG';
   out.push(aw<0.25?{v:'good',m:'Head stayed on the line'}:aw<0.4?{v:'warn',m:`Head drifted to the ${side} side`}:{v:'bad',m:`Head fell to the ${side} side`});
-  // 3. feet
-  const fa0={x:med(pre.map(p=>px(p.lm,FA).x)),y:med(pre.map(p=>px(p.lm,FA).y))}, ba0={x:med(pre.map(p=>px(p.lm,BA).x)),y:med(pre.map(p=>px(p.lm,BA).y))};
-  let fDown=0, bAcross=0, bBack=0, vis=0;
-  for(const p of seg){ const f=px(p.lm,FA), b=px(p.lm,BA); if(f.v<0.3||b.v<0.3) continue; vis++;
-    fDown=Math.max(fDown,(f.y-fa0.y)/T); bAcross=Math.max(bAcross,OFFSGN*(ba0.x-b.x)/T); bBack=Math.max(bBack,(ba0.y-b.y)/T); }
-  if(vis<3) out.push({v:'warn',m:'Feet not visible — move the phone back or lower'});
-  else if(fDown>0.12) out.push({v:'good',m:'Front foot: stride forward'});
-  else if(bAcross>0.10) out.push({v:'good',m:'Back foot: back and across'});
-  else if(bBack>0.05) out.push({v:'warn',m:'Back foot went back, but not across to off stump'});
-  else out.push({v:'bad',m:'Feet barely moved'});
+  // session count of shots where the head fell or drifted to the off side
+  TALLY.n++; if(worst<0&&aw>=0.4) TALLY.fell++; else if(worst<0&&aw>=0.25) TALLY.drift++; tallyShow();
   return out;
 }
 let reportTimer=null;
+const TALLY={n:0,fell:0,drift:0};
+function tallyShow(){ const t=$('tally'); if(!TALLY.n){ t.classList.add('hidden'); return; }
+  t.textContent=`Head fell to the off side in ${TALLY.fell} of ${TALLY.n} shot${TALLY.n===1?'':'s'}`+(TALLY.drift?` · drifted ${TALLY.drift}`:''); t.classList.remove('hidden'); }
+window.__mirror={TALLY,tallyShow};
 function showReport(rows){
   const el=$('report'); el.innerHTML='<div class="h">LAST SHOT</div>'+rows.map(r=>`<div class="r">${SHAPE[r.v]}<span>${r.m}</span></div>`).join('');
   el.classList.remove('hidden'); clearTimeout(reportTimer); reportTimer=setTimeout(()=>el.classList.add('hidden'),9000);
@@ -281,17 +278,14 @@ function draw(src,sw,sh){
   guides();
 }
 function guides(){
-  const g=ST.g, dpr=view.width/innerWidth, X=box.x+g.x*box.w, Y=box.y+g.y*box.h;
+  const g=ST.g, dpr=view.width/innerWidth, X=box.x+g.x*box.w;
   vctx.save(); vctx.lineWidth=3*dpr;
   vctx.setLineDash([14*dpr,10*dpr]); vctx.strokeStyle='rgba(255,255,255,.85)';
   vctx.beginPath(); vctx.moveTo(X,box.y); vctx.lineTo(X,box.y+box.h); vctx.stroke();      // head line / middle-stump line
-  vctx.strokeStyle='rgba(253,230,138,.85)';
-  vctx.beginPath(); vctx.moveTo(box.x,Y); vctx.lineTo(box.x+box.w,Y); vctx.stroke();      // crease
   vctx.setLineDash([]);
   if(g.hx!=null){ const r=box.h*0.055; vctx.strokeStyle='rgba(56,189,248,.95)'; vctx.lineWidth=4*dpr;
     vctx.beginPath(); vctx.arc(box.x+g.hx*box.w,box.y+g.hy*box.h,r,0,Math.PI*2); vctx.stroke(); }   // head ring
-  if(editing){ vctx.fillStyle='rgba(255,255,255,.9)'; vctx.beginPath(); vctx.arc(X,box.y+box.h*0.5,12*dpr,0,7); vctx.fill();
-    vctx.fillStyle='rgba(253,230,138,.95)'; vctx.beginPath(); vctx.arc(box.x+box.w*0.5,Y,12*dpr,0,7); vctx.fill(); }
+  if(editing){ vctx.fillStyle='rgba(255,255,255,.9)'; vctx.beginPath(); vctx.arc(X,box.y+box.h*0.5,12*dpr,0,7); vctx.fill();}
   vctx.restore();
 }
 
@@ -304,15 +298,15 @@ function loop(now){
   if(replay){
     const p=replay.t0+(now-replay.start)*replay.rate;
     if(p>replay.t1){ replay=null; cooldownUntil=now+900; $('prog').style.width='0'; }
-    else { const f=pick(replay.frames,p); decode(f); if(shownBmp){ draw(shownBmp,shownBmp.width,shownBmp.height); if(ST.pose&&shown){ const q=pick(poses,shown.t); if(q&&Math.abs(q.t-shown.t)<150) drawSkel(q.lm,headOkLive(q.lm)); } }
+    else { const f=pick(replay.frames,p); decode(f); if(shownBmp){ draw(shownBmp,shownBmp.width,shownBmp.height); if(ST.pose&&shown){ const q=pick(poses,shown.t); if(q&&Math.abs(q.t-shown.t)<150) drawHead(q.lm,headOkLive(q.lm)); } }
       setChip('SLOW-MO ½×'+(shots?' · SHOT '+shots:''),'slow'); $('prog').style.width=(100*(p-replay.t0)/(replay.t1-replay.t0)).toFixed(1)+'%'; return; }
   }
   if(ST.mode==='delay'){
     const t=now-ST.delay*1000, have=frames.length&&frames[0].t<=t;
-    if(have){ const f=pick(frames,t); decode(f); if(shownBmp){ draw(shownBmp,shownBmp.width,shownBmp.height); if(ST.pose&&shown){ const q=pick(poses,shown.t); if(q&&Math.abs(q.t-shown.t)<150) drawSkel(q.lm,headOkLive(q.lm)); } } setChip(ST.delay.toFixed(1)+' s DELAY',''); }
+    if(have){ const f=pick(frames,t); decode(f); if(shownBmp){ draw(shownBmp,shownBmp.width,shownBmp.height); if(ST.pose&&shown){ const q=pick(poses,shown.t); if(q&&Math.abs(q.t-shown.t)<150) drawHead(q.lm,headOkLive(q.lm)); } } setChip(ST.delay.toFixed(1)+' s DELAY',''); }
     else { draw(null); setChip('STARTING…',''); }
   } else {
-    draw(cam,cam.videoWidth,cam.videoHeight); if(ST.pose) drawSkel(liveLm,headOkLive(liveLm));
+    draw(cam,cam.videoWidth,cam.videoHeight); if(ST.pose) drawHead(liveLm,headOkLive(liveLm));
     const ps= ST.pose? (poseState==='loading'?' · POSE LOADING…':poseState==='fail'?' · POSE CHECKS UNAVAILABLE':(poseState==='on'&&!liveLm?' · STEP INTO VIEW':'')) : '';
     setChip((M.state==='moving'?'● SHOT…':'LIVE · PLAY A SHOT'+(shots?' · '+shots:''))+ps,'live');
   }
@@ -343,7 +337,7 @@ function showTray(on){ const t=$('tray'); t.classList.toggle('off',!on); clearTi
 function renderTray(){
   document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===ST.mode));
   document.querySelectorAll('#sensSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.s===ST.sens));
-  $('dVal').textContent=ST.delay.toFixed(1)+' s'; $('poseBtn').textContent='Pose checks: '+(ST.pose?'ON':'OFF'); $('mirBtn').textContent='Mirror: '+(ST.mirror?'ON':'OFF');
+  $('dVal').textContent=ST.delay.toFixed(1)+' s'; $('poseBtn').textContent='Head check: '+(ST.pose?'ON':'OFF'); $('mirBtn').textContent='Mirror: '+(ST.mirror?'ON':'OFF');
   $('delayRow').classList.toggle('hidden',ST.mode!=='delay'); $('sensRow').classList.toggle('hidden',ST.mode!=='shot');
 }
 $('tray').addEventListener('pointerdown',()=>showTray(true));
@@ -356,6 +350,7 @@ $('replayBtn').onclick=()=>{ replayLast(); showTray(false); };
 $('mirBtn').onclick=()=>{ ST.mirror=!ST.mirror; if(ST.g.hx!=null) ST.g.hx=1-ST.g.hx; ST.g.x=1-ST.g.x; save(); renderTray(); };
 $('flipBtn').onclick=async()=>{ ST.facing=ST.facing==='user'?'environment':'user'; ST.mirror=ST.facing==='user'; save(); renderTray(); await startCam(); };
 $('fsBtn').onclick=()=>{ const d=document.documentElement; if(!document.fullscreenElement&&d.requestFullscreen) d.requestFullscreen().catch(()=>{}); else if(document.exitFullscreen) document.exitFullscreen().catch(()=>{}); };
+$('tallyReset').onclick=()=>{ TALLY.n=TALLY.fell=TALLY.drift=0; tallyShow(); };
 $('guideBtn').onclick=()=>{ editing=true; $('editTip').classList.remove('hidden'); showTray(false); };
 $('editDone').onclick=()=>{ editing=false; ST.g.set=true; $('editTip').classList.add('hidden'); save(); };
 
@@ -363,13 +358,13 @@ view.addEventListener('pointerdown',e=>{
   if(!running) return;
   if(!editing){ showTray($('tray').classList.contains('off')); return; }
   const dpr=view.width/innerWidth, px=e.clientX*dpr, py=e.clientY*dpr, g=ST.g;
-  const X=box.x+g.x*box.w, Y=box.y+g.y*box.h, near=26*dpr;
-  if(Math.abs(px-X)<near) drag='x'; else if(Math.abs(py-Y)<near) drag='y';
+  const X=box.x+g.x*box.w, near=26*dpr;
+  if(Math.abs(px-X)<near) drag='x';
   else { g.hx=Math.max(0,Math.min(1,(px-box.x)/box.w)); g.hy=Math.max(0,Math.min(1,(py-box.y)/box.h)); drag=null; }
   view.setPointerCapture(e.pointerId);
 });
 view.addEventListener('pointermove',e=>{ if(!editing||!drag) return; const dpr=view.width/innerWidth;
-  if(drag==='x') ST.g.x=Math.max(0,Math.min(1,(e.clientX*dpr-box.x)/box.w)); else ST.g.y=Math.max(0,Math.min(1,(e.clientY*dpr-box.y)/box.h)); });
+  ST.g.x=Math.max(0,Math.min(1,(e.clientX*dpr-box.x)/box.w)); });
 view.addEventListener('pointerup',()=>{ drag=null; });
 
 $('go').onclick=async()=>{ beep(); if(await startCam()){ $('start').classList.add('hidden'); $('chip').classList.remove('hidden'); $('tray').classList.remove('hidden'); renderTray(); showTray(true);

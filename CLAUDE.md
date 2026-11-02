@@ -40,7 +40,7 @@ Also read:
   - `index.html`: v5.
   - `length-reader.html`: redirects to v5.
   - `legacy/v4.html`: the old version.
-  - `mirror.html`: the phone mirror.
+  - `mirror.html`: the phone mirror (head-only since v5.6: head line, ring, per-shot head verdict and an off-side head-fall count).
   - `real.html`: Real bowlers (YouTube net videos, tagged by Bink; logic in `js/core/real.js`; key `lr-real`). See DECISIONS R1–R3.
 - **Code map:** see README → Files.
   - Pure logic in `js/core/` is tested in Node.
@@ -104,6 +104,8 @@ Also read:
 - **Drills:** short-ball and spin.
 - **Match:** 3 overs, 3 wickets.
 - **Nets:** 24 balls, bowlers take turns, no feedback, real gap between balls.
+- **Selection sim (v5.6):** 4 spells × 6 (pace, spin, pace, mixed), ~120 kph, play/leave, nets rules, cold first ball, selector report (stars + biggest fix; `js/core/selection.js`).
+- **Leave drill (v5.6):** 30 balls, 40% wide off / 15% channel / 45% stumps; use with the head-only mirror.
 - **Sandbox (v5.4):** pick every ball (bowler, pace, length, line, blackout, task; each with Random). Endless; C / View / Pause → Change balls mid-session. Saved as `sandbox`, never counts (level, XP, streak, badges). `js/core/sandbox.js`, `genBall({force})`.
 - **Reaction test:** median of 8 presses; it uses the same frame-stamped pipeline as the game.
 
@@ -177,6 +179,7 @@ Also read:
 - **v5.2 shipped (27 Oct 2026):** true life-size calibration, darker worn pitch + tone mapping, night mode, dark sight screen, length marks, release heights fixed, portrait card, pedals, LT/RT.
 - **v5.3 shipped (28 Oct 2026):** side-on controller (X front, B back, stick shots), sync phone + PC via his own GitHub gist, Progress table no longer hidden under the tab bar.
 - **v5.4 shipped (29 Oct 2026):** Sandbox mode. **v5.4.1:** timing fix ("too quick" at pace). **v5.5:** personal too-quick line from his own results.
+- **v5.6 shipped (2 Nov 2026):** Selection sim, Leave drill, head-only mirror. **Next:** pre-release cues (v5.7), then real actions copied from video (v5.8).
 - **v5.6 shipped (1 Nov 2026):** Real bowlers page (More → Real bowlers). Portrait crop view (default) and Bink's first video `enRiR-kqxE4`; he's finding more himself.
 - **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
 - **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).

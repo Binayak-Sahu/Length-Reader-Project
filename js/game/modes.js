@@ -8,11 +8,12 @@
 //   xpCtx    XP multiplier context ('nets', 'pressure', 'trial', 'boss')
 //   fixed    {m, k, o} a fixed level spec (trials, bosses) instead of your level
 //   boss     boss bowler (profile + trademark ball)
+//   spell    selection sim: 'pace' | 'spin' | 'mixed' (who bowls the segment)
 //   sandbox  the player picks every ball (settings.sandbox); never moves the level, earns no XP
 //   script   fixed balls for the tutorial ([{cat, d, lx}])      coach  a banner before each ball      labels  keep tap-zone labels on
 export function seg(o) {
   return Object.assign({ n: 50, name: '', adapt: true, levelDelta: 0, fb: 'auto', walk: false, drill: null, weakP: 0.4,
-    xpCtx: '', fixed: null, boss: null, intro: null, sandbox: false, script: null, coach: null, labels: false }, o);
+    xpCtx: '', fixed: null, boss: null, intro: null, spell: null, sandbox: false, script: null, coach: null, labels: false }, o);
 }
 
 export const MODE_INFO = {
@@ -24,6 +25,8 @@ export const MODE_INFO = {
   short: { title: 'Short-ball drill', sub: '30 balls · 60% short' },
   spin: { title: 'Spin drill', sub: '30 balls · off- and leg-spin' },
   match: { title: 'Match · 3 overs', sub: 'Chase a target · 3 wickets' },
+  selection: { title: 'Selection sim', sub: '4 spells · pace + spin · ~120 kph · no feedback till the end' },
+  leave: { title: 'Leave drill', sub: '30 balls · 40% wide outside off · use the mirror for your head' },
   sandbox: { title: 'Sandbox', sub: 'Pick every ball · keeps bowling' },
 };
 
@@ -46,6 +49,17 @@ export function buildPlan(kind, opts = {}) {
     case 'short': return { kind, title: 'Short-ball drill', drill: 'short', segs: [seg({ n: 30, adapt: false, drill: 'short', weakP: 0 })] };
     case 'spin': return { kind, title: 'Spin drill', drill: 'spin', segs: [seg({ n: 30, adapt: false, drill: 'spin', weakP: 0 })] };
     case 'match': return { kind, title: 'Match', match: true, segs: [seg({ n: 18, adapt: false, fb: 'full', weakP: 0 })] };
+    case 'selection': {       // the selection nets: club bowlers at ~120 kph plus spinners, play/leave, nets rules, a report at the end
+      const sp = (spell, name, intro) => seg({ n: 6, name, adapt: false, fb: 'end', walk: true, weakP: 0, xpCtx: 'nets', fixed: { m: 2, k: 120, o: null },
+        spell, gap: Math.min(12, S.netsGap || 20), intro });
+      return { kind, title: 'Selection sim', drill: 'nets', segs: [
+        sp('pace', 'Spell 1 · pace', 'SELECTION NETS · SPELL 1 · PACE · first ball cold, like the real thing'),
+        sp('spin', 'Spell 2 · spin', 'SPELL 2 · SPIN · get to the pitch or go right back'),
+        sp('pace', 'Spell 3 · pace', 'SPELL 3 · A NEW QUICK · leave well outside off'),
+        sp('mixed', 'Spell 4 · mixed', 'SPELL 4 · MIXED · bowlers take turns')] };
+    }
+    case 'leave': return { kind, title: 'Leave drill', drill: 'leave', segs: [seg({ n: 30, name: 'Leave drill', adapt: false, fb: 'full', weakP: 0, drill: 'leave',
+      fixed: { m: 2, k: 115, o: null }, intro: 'LEAVE DRILL · phone on the mirror, front-on · leave the wide ones, play at the stumps, head still' })] };
     case 'sandbox': return { kind, title: 'Sandbox', segs: [seg({ n: Infinity, name: 'Sandbox', adapt: false, fb: 'full', weakP: 0, sandbox: true })] };
     case 'nets': return { kind, title: 'Nets session', drill: 'nets', segs: [seg({ n: 24, adapt: false, fb: 'end', walk: true, weakP: 0, xpCtx: 'nets', gap: S.netsGap })] };
     case 'trial': case 'boss': {

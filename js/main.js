@@ -16,7 +16,7 @@ import * as menu from './ui/menus.js';
 import { openCalib, mapPedals } from './ui/calib.js';
 import { createSync } from './sync-github.js';
 
-const VERSION = '5.5.0';
+const VERSION = '5.6.0';
 const qs = new URLSearchParams(location.search);
 
 // ---------- data ----------
@@ -106,6 +106,8 @@ game.setHooks({
 $('bDaily').onclick = () => start('daily');
 $('bStart').onclick = () => start('session');
 $('bQuick').onclick = () => start('quick');
+$('bSelection').onclick = () => start('selection');
+$('bLeave').onclick = () => start('leave');
 $('bSandbox').onclick = () => scr.renderSandbox(false);
 $('bSbGo').onclick = () => { if (game.G.sbOpen) game.closeSandbox(); else start('sandbox'); };
 $('bSbBack').onclick = () => goHome();
