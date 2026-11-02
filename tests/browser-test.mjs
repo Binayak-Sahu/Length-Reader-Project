@@ -410,8 +410,9 @@ await ctx.close();
   await q.click('#nav button[data-tab="progress"]');
   ok(await q.evaluate(() => /learned from your results/.test(document.getElementById('rlNote').textContent)), 'Progress shows the evidence: ' + await q.evaluate(() => document.getElementById('rlNote').textContent));
   await q.evaluate(() => window.__lr.menu.renderHome && window.__lr.game.startSession('sandbox'));
-  await waitFor(q, () => { const g = window.__lr.game, c = g.clock; return g.G.state === 'run' && c.relTs !== null && performance.now() - c.relTs > 160; });
-  await q.keyboard.press('ArrowRight');
+  // press stamped exactly 170 ms after the release frame (a real key press can land after the ball on a slow CI renderer)
+  await waitFor(q, () => { const g = window.__lr.game, c = g.clock; return g.G.state === 'run' && c.relTs !== null; });
+  await q.evaluate(() => { const g = window.__lr.game; g.act('B', g.clock.relTs + 170, 'key'); });
   await waitFor(q, () => window.__lr.game.G.state === 'result', null, 20000);
   const r = await q.evaluate(() => { const b = window.__lr.game.G.sess.balls[0]; return { rt: b.rt, guess: !!b.guess, fv: b.fv, line: window.__lr.game.G.sess.pline.line }; });
   ok(r.line <= 0.13 && !r.guess && r.fv === 'good', `with fast, accurate history (line ${r.line} s) a back-foot press at ${r.rt} s is a good read, not "too quick"`);
