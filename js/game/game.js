@@ -12,7 +12,8 @@ import { BallClock } from '../core/timing.js';
 import { FOOT, FOOT_S } from '../core/action.js';
 import { xpForBall, ctxMult, summarize } from '../core/progress.js';
 import { buildPlan } from './modes.js';
-import { sbResolve, sbLabel } from '../core/sandbox.js';
+import { sbResolve, sbLabel, sbSetActions } from '../core/sandbox.js';
+import { actionProfiles } from '../core/myactions.js';
 import { personalLine, recentBalls } from '../core/readline.js';
 import { selectorReport } from '../core/selection.js';
 import * as ui from '../ui/session-ui.js';
@@ -42,6 +43,7 @@ export function startSession(kind, opts = {}) {
     sess.mmode = db.level >= STAGE_START[4] ? 4 : (db.level >= STAGE_START[3] ? 3 : 2);
   }
   sess.pline = personalLine(recentBalls(db.sessions), db.rtBase);
+  sess.acts = actionProfiles(db.actions); sbSetActions(sess.acts);           // My bowlers (copied from clips)
   hooks.enter();
   show('hud', true); show('hint', true); document.body.classList.add('insession');
   if (S.fullscreen && !document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
@@ -55,9 +57,15 @@ function lineup() {
 function pickBowler(seg) {
   const s = G.sess, S = app.S, ov = s.over, ps = BOWLERS[PACE[(s.bstart + ov) % 3]], sp = BOWLERS[SPINNERS[(s.bstart + ov) % 2]];
   if (seg.boss) return seg.boss.prof;
-  if (seg.spell === 'pace') return BOWLERS[PACE[(s.bstart + s.segI) % 3]];       // selection sim: one bowler per spell
-  if (seg.spell === 'spin') return BOWLERS[SPINNERS[s.bstart % 2]];
-  if (seg.walk) { if (!s.lineup) s.lineup = lineup(); return BOWLERS[s.lineup[ov % s.lineup.length]]; }
+  // My bowlers join the built-in ones of the same kind (pace / spin)
+  const mine = (spin) => (s.acts || []).filter(p => !!p.spin === spin);
+  if (seg.spell === 'pace') { const c = [BOWLERS[PACE[(s.bstart + s.segI) % 3]], ...mine(false)]; return c[(s.bstart + s.segI) % c.length]; }   // selection sim: one bowler per spell
+  if (seg.spell === 'spin') { const c = [BOWLERS[SPINNERS[s.bstart % 2]], ...mine(true)]; return c[s.bstart % c.length]; }
+  if (seg.walk) {
+    if (!s.lineup) s.lineup = lineup();
+    const b = BOWLERS[s.lineup[ov % s.lineup.length]], c = mine(!!b.spin);
+    return c.length && Math.random() < 0.5 ? c[Math.floor(Math.random() * c.length)] : b;
+  }
   if (seg.drill === 'spin') return sp;
   if (seg.drill === 'short') return ps;
   if (s.match) return (ov === 2 && S.spinners) ? sp : ps;
@@ -98,9 +106,10 @@ export function nextBall() {
   if (seg.coach && seg.coach[sess.segN] && sess.coached !== sess.segN) { sess.coached = sess.segN; banner(seg.coach[sess.segN], 2600); return; }
   $('zones').classList.toggle('lbl', sess.balls.length < 3 || seg.labels);
   const perBall = !m && (seg.walk || S.rotate === 'ball');
-  const sb = seg.sandbox ? sbResolve(S.sandbox) : null;        // sandbox: the player's choices, Random rows rolled per ball
+  const sb = seg.sandbox ? sbResolve(S.sandbox, Math.random, { spinOf: (id) => ((sess.acts || []).find(p => p.id === id) || {}).spin || null }) : null;        // sandbox: the player's choices, Random rows rolled per ball
   if (sb) {
-    const want = sb.spin ? BOWLERS[sb.spin === 'off' ? SPINNERS[0] : SPINNERS[1]] : (PROF.spin ? BOWLERS[PACE[sess.over % 3]] : PROF);
+    const act = sb.act && (sess.acts || []).find(p => p.id === sb.act);
+    const want = act || (sb.spin ? BOWLERS[sb.spin === 'off' ? SPINNERS[0] : SPINNERS[1]] : (PROF.spin || PROF.mine ? BOWLERS[PACE[sess.over % 3]] : PROF));
     if (want !== PROF || !sess.balls.length) { sess.over++; PROF = want; world.bowler.setKit(PROF.c); }
     sess.sb = sb;
   } else if (perBall || sess.balls.length % 6 === 0) { sess.over++; PROF = pickBowler(seg); world.bowler.setKit(PROF.c); }

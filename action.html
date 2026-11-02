@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07090c">
+<meta name="color-scheme" content="dark">
+<title>My Bowlers</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+/* My bowlers: a list of copied actions + "add from a clip" (open a side-on clip, mark 3 moments, analyse, save numbers only) */
+@font-face{font-family:"Barlow Condensed";font-weight:800;font-display:swap;src:url(fonts/barlow-condensed-latin-800-normal.woff2) format("woff2")}
+:root{--bg:#07090c;--panel:#10151c;--line:rgba(255,255,255,.1);--text:#eef2f6;--muted:#8d99a8;--good:#22c55e;--warn:#f5a524;--bad:#ef4444;--accent:#38bdf8;--disp:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:"Segoe UI",Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+main{max-width:900px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) 16px 48px;display:grid;gap:20px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-family:var(--disp);font-weight:800;font-size:30px;letter-spacing:.08em}
+.brand small{display:block;font-size:14px;letter-spacing:.14em;color:var(--muted)}
+a{color:var(--accent)} .back{color:var(--muted);text-decoration:none;font-weight:600}
+h2{font-family:var(--disp);font-weight:800;font-size:20px;letter-spacing:.12em;color:var(--muted);margin-bottom:10px}
+.note{color:var(--muted);font-size:14px;line-height:1.55;max-width:70ch}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;display:grid;gap:12px}
+.btn{background:#1b2430;border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-height:44px;font-weight:650}
+.btn.go{background:#14532d;border-color:var(--good)}
+.btn.mk{border-color:var(--accent)} .btn.mk.on{background:#0c4a6e}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.list{display:grid;gap:8px}
+.item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
+.item b{flex:1} .item small{color:var(--muted)}
+video{width:100%;max-height:52vh;background:#000;border-radius:12px}
+input[type=range]{width:100%}
+input[type=text],select{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-height:44px}
+#prog{height:8px;border-radius:99px;background:#1e2732;overflow:hidden} #prog i{display:block;height:100%;width:0;background:var(--good)}
+#msg{font-weight:650} #msg.bad{color:var(--bad)} #msg.warn{color:var(--warn)} #msg.good{color:var(--good)}
+.num{font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><div class="brand">MY BOWLERS<small>REAL ACTIONS, COPIED FROM A CLIP</small></div><a class="back" href="./">← Length Reader</a></div>
+
+  <section>
+    <h2>SAVED</h2>
+    <div class="list" id="list"></div>
+    <p class="note" id="empty">None yet. Add one below. Saved bowlers appear in Sandbox (Bowler row) and take turns in Nets and the Selection sim.</p>
+  </section>
+
+  <section class="panel">
+    <h2>ADD FROM A CLIP</h2>
+    <ol class="note" style="padding-left:20px">
+      <li>Find a <b>side-on</b> clip of one delivery (YouTube is fine). Screen-record or save about <b>5 seconds</b> around it.</li>
+      <li>Open it here. Step to each moment and tap: <b>Back foot down</b>, <b>Front foot down</b>, <b>Release</b>.</li>
+      <li>Name it and tap <b>Copy action</b>. Only the joint angles are kept — the video is never saved or uploaded.</li>
+    </ol>
+    <input type="file" id="file" accept="video/*">
+    <video id="vid" playsinline muted class="hidden"></video>
+    <div id="edit" class="hidden" style="display:grid;gap:10px">
+      <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Position in the clip">
+      <div class="row">
+        <button class="btn" id="play">Play / pause</button>
+        <button class="btn" id="back1" aria-label="One frame back">◀ frame (,)</button>
+        <button class="btn" id="fwd1" aria-label="One frame forward">frame ▶ (.)</button>
+        <span class="num note" id="tm">0.00 s</span>
+      </div>
+      <div class="row">
+        <button class="btn mk" data-m="bfc">Back foot down</button>
+        <button class="btn mk" data-m="ffc">Front foot down</button>
+        <button class="btn mk" data-m="rel">Release</button>
+      </div>
+      <div class="row">
+        <input type="text" id="name" placeholder="Name, e.g. Club quick" maxlength="30">
+        <select id="type"><option value="pace">Pace</option><option value="off">Off-spin</option><option value="leg">Leg-spin</option></select>
+        <select id="arm"><option value="R">Right-arm</option><option value="L">Left-arm (copied onto the right arm)</option></select>
+        <button class="btn go" id="save">Copy action</button>
+      </div>
+      <div id="prog"><i></i></div>
+      <div id="msg" role="status"></div>
+    </div>
+    <p class="note">Honest limits: one camera only guesses depth, so <b>side-on</b> clips work best; front-on clips make the arm look shaky. Cuts or zooms during the delivery break the tracking. Where the ball goes still comes from the app's physics — lengths and timings stay exact, and the release is pinned to the app's release point.</p>
+  </section>
+</main>
+
+<script type="module">
+import { load, save, KEY } from './js/core/store.js';
+import { buildAction } from './js/core/clipaction.js';
+import { poseAt } from './js/core/action.js';
+
+const $ = (id) => document.getElementById(id);
+const MPV = new URL('vendor/mediapipe', location.href).href, MODEL = new URL('vendor/mediapipe/pose_landmarker_lite.task', location.href).href;
+const FPS = 30, marks = {};
+let pose = null, url = null, db = load(localStorage).db;
+
+function msg(t, cls) { $('msg').textContent = t; $('msg').className = cls || ''; }
+function persist() { db = Object.assign(load(localStorage).db, { actions: db.actions }); save(localStorage, db); }
+function render() {
+  const a = db.actions || [];
+  $('empty').classList.toggle('hidden', a.length > 0);
+  $('list').innerHTML = a.map(x => `<div class="item"><b></b><small>${x.type === 'pace' ? 'Pace' : x.type === 'off' ? 'Off-spin' : 'Leg-spin'} · tracked ${x.q}%</small>
+    <button class="btn" data-ren="${x.id}">Rename</button><button class="btn" data-del="${x.id}">Delete</button></div>`).join('');
+  [...$('list').querySelectorAll('.item b')].forEach((b, i) => { b.textContent = a[i].name; });
+}
+$('list').onclick = (e) => {
+  const d = e.target.dataset;
+  if (d.del && confirm('Delete this bowler?')) { db.actions = db.actions.filter(x => x.id !== d.del); persist(); render(); }
+  if (d.ren) { const x = db.actions.find(y => y.id === d.ren), n = prompt('New name', x.name); if (n) { x.name = n.slice(0, 30); x.renamed = new Date().toISOString(); persist(); render(); } }
+};
+
+// ---------- clip ----------
+const vid = $('vid');
+$('file').onchange = (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  if (url) URL.revokeObjectURL(url); url = URL.createObjectURL(f);
+  vid.src = url; vid.classList.remove('hidden'); $('edit').classList.remove('hidden');
+  for (const k in marks) delete marks[k]; markBtns(); msg('');
+};
+vid.ontimeupdate = () => { $('tm').textContent = vid.currentTime.toFixed(2) + ' s'; if (vid.duration) $('scrub').value = Math.round(1000 * vid.currentTime / vid.duration); };
+$('scrub').oninput = () => { if (vid.duration) { vid.pause(); vid.currentTime = vid.duration * $('scrub').value / 1000; } };
+$('play').onclick = () => vid.paused ? vid.play() : vid.pause();
+const step = (d) => { vid.pause(); vid.currentTime = Math.max(0, Math.min(vid.duration || 0, vid.currentTime + d / FPS)); };
+$('back1').onclick = () => step(-1); $('fwd1').onclick = () => step(1);
+addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT' && e.target.type === 'text') return; if (e.key === ',') step(-1); if (e.key === '.') step(1); if (e.key === ' ') { e.preventDefault(); $('play').click(); } });
+function markBtns() { document.querySelectorAll('.mk').forEach(b => { const t = marks[b.dataset.m]; b.classList.toggle('on', t != null); b.textContent = b.textContent.replace(/ · .*/, '') + (t != null ? ' · ' + t.toFixed(2) + ' s' : ''); }); }
+document.querySelectorAll('.mk').forEach(b => b.onclick = () => { marks[b.dataset.m] = vid.currentTime; markBtns(); });
+
+async function getPose() {
+  if (pose) return pose;
+  const V = await import(MPV + '/vision_bundle.mjs'), fs = await V.FilesetResolver.forVisionTasks(MPV + '/wasm');
+  const o = (d) => ({ baseOptions: { modelAssetPath: MODEL, delegate: d }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+  try { pose = await V.PoseLandmarker.createFromOptions(fs, o('GPU')); } catch (e) { pose = await V.PoseLandmarker.createFromOptions(fs, o('CPU')); }
+  return pose;
+}
+const seek = (t) => new Promise(res => { const done = () => { vid.removeEventListener('seeked', done); res(); }; vid.addEventListener('seeked', done); vid.currentTime = t; });
+
+// frames → action → saved. Also the test hook: window.__act.fromFrames(frames, marks, opts).
+function finish(frames, mk, opts) {
+  const spin = opts.type === 'pace' ? undefined : opts.type, prof = { s: 1, xo: 0, tw: 1, ao: 0, spin }, tmp = {};
+  const act = buildAction(frames, mk, (t, k) => poseAt(t, prof, 0, tmp)[k], opts);
+  db.actions = (db.actions || []).concat([act]); persist(); render();
+  return act;
+}
+$('save').onclick = async () => {
+  const mk = { bfc: marks.bfc, ffc: marks.ffc, rel: marks.rel };
+  if (!(mk.bfc < mk.ffc && mk.ffc < mk.rel)) { msg('Mark Back foot down, then Front foot down, then Release — in that order.', 'bad'); return; }
+  const opts = { name: ($('name').value || 'My bowler').trim().slice(0, 30), type: $('type').value, arm: $('arm').value };
+  $('save').disabled = true; msg('Loading the pose tracker…');
+  try {
+    const p = await getPose(), t0 = Math.max(0, mk.bfc - 1.2), t1 = Math.min(vid.duration, mk.rel + 1.0), frames = [];
+    vid.pause();
+    for (let t = t0, i = 0; t <= t1; t += 1 / FPS, i++) {
+      await seek(t);
+      const r = p.detectForVideo(vid, 1 + i * Math.round(1000 / FPS));
+      frames.push({ t, lm: r.worldLandmarks && r.worldLandmarks[0] ? r.worldLandmarks[0] : null, hx: r.landmarks && r.landmarks[0] ? (r.landmarks[0][23].x + r.landmarks[0][24].x) / 2 : null });
+      $('prog').firstChild.style.width = Math.round(100 * (t - t0) / (t1 - t0)) + '%';
+      if (i % 5 === 0) msg(`Tracking the body… ${Math.round(100 * (t - t0) / (t1 - t0))}%`);
+    }
+    const act = finish(frames, mk, opts);
+    msg(act.q >= 70 ? `Saved “${act.name}” (tracked ${act.q}%). Try it: Sandbox → Bowler.` : `Saved “${act.name}”, but only ${act.q}% of frames were tracked — a clearer side-on clip will look better.`, act.q >= 70 ? 'good' : 'warn');
+  } catch (e) { msg('Couldn’t copy the action: ' + e.message, 'bad'); }
+  $('save').disabled = false;
+};
+
+window.__act = { fromFrames: (frames, mk, opts) => finish(frames, mk, opts), get db() { return db; } };
+addEventListener('storage', (e) => { if (e.key === KEY) { db = load(localStorage).db; render(); } });
+render();
+</script>
+</body>
+</html>

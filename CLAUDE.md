@@ -41,6 +41,7 @@ Also read:
   - `length-reader.html`: redirects to v5.
   - `legacy/v4.html`: the old version.
   - `mirror.html`: the phone mirror (head-only since v5.6: head line, ring, per-shot head verdict and an off-side head-fall count).
+  - `action.html`: My bowlers (v5.8). Copy a real bowling action from a side-on clip file; joint angles only, release pinned (DECISIONS A10). Logic in `js/core/clipaction.js`, `js/core/myactions.js`; stored in `db.actions` and synced.
   - `real.html`: Real bowlers (YouTube net videos, tagged by Bink; logic in `js/core/real.js`; key `lr-real`). See DECISIONS R1–R3.
 - **Code map:** see README → Files.
   - Pure logic in `js/core/` is tested in Node.
@@ -180,7 +181,7 @@ Also read:
 - **v5.2 shipped (27 Oct 2026):** true life-size calibration, darker worn pitch + tone mapping, night mode, dark sight screen, length marks, release heights fixed, portrait card, pedals, LT/RT.
 - **v5.3 shipped (28 Oct 2026):** side-on controller (X front, B back, stick shots), sync phone + PC via his own GitHub gist, Progress table no longer hidden under the tab bar.
 - **v5.4 shipped (29 Oct 2026):** Sandbox mode. **v5.4.1:** timing fix ("too quick" at pace). **v5.5:** personal too-quick line from his own results.
-- **v5.6 shipped (2 Nov 2026):** Selection sim, Leave drill, head-only mirror. **v5.7:** pre-release cues (bound, arm speed). **Next:** real actions copied from video (v5.8).
+- **v5.6 shipped (2 Nov 2026):** Selection sim, Leave drill, head-only mirror. **v5.7:** pre-release cues (bound, arm speed). **v5.8:** My bowlers (real actions copied from clips).
 - **v5.6 shipped (1 Nov 2026):** Real bowlers page (More → Real bowlers). Portrait crop view (default) and Bink's first video `enRiR-kqxE4`; he's finding more himself.
 - **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
 - **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).

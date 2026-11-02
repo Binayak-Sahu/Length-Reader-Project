@@ -16,7 +16,7 @@ import * as menu from './ui/menus.js';
 import { openCalib, mapPedals } from './ui/calib.js';
 import { createSync } from './sync-github.js';
 
-const VERSION = '5.7.0';
+const VERSION = '5.8.0';
 const qs = new URLSearchParams(location.search);
 
 // ---------- data ----------
@@ -150,6 +150,9 @@ $('bReset').onclick = () => {
 $('pBtn').onclick = () => game.togglePause();
 $('rcHold').onclick = game.holdToggle; $('rcRep').onclick = () => game.replay(false); $('rcSlow').onclick = () => game.replay(true); $('rcNext').onclick = () => game.nextBall();
 $('bResume').onclick = () => game.togglePause(); $('bEndNow').onclick = () => game.endSession(); $('bHome2').onclick = () => game.abandonToHome();
+
+// My bowlers are added on action.html (same site): pick up its saves without losing them on our next save.
+addEventListener('storage', (e) => { if (e.key === KEY && e.newValue) { try { app.db.actions = JSON.parse(e.newValue).actions || app.db.actions; } catch (err) { /* keep ours */ } } });
 
 // ---------- sync (optional, the player's own GitHub) ----------
 app.sync = createSync(window.localStorage);

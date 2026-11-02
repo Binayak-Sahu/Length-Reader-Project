@@ -519,6 +519,40 @@ await ctx.close();
   await c.close();
 }
 
+// ---------- 8j. My bowlers: an action copied from a (synthetic, side-on) clip, used in Sandbox ----------
+{
+  await import('./three-hook.mjs');
+  const THREE = await import('three'), { createBowler } = await import('../js/engine/bowler.js');
+  const { T_BFC, T_FFC, T_REL, T_END } = await import('../js/core/physics.js');
+  const rig = createBowler(new THREE.Scene()), prof = { s: 1, xo: 0, tw: 1, ao: 0 };
+  const IDX = { 11: 'ls', 12: 'rs', 13: 'le', 14: 're', 15: 'lw', 16: 'rw', 23: 'lh', 24: 'rh', 25: 'lk', 26: 'rk', 27: 'la', 28: 'ra' };
+  const frames = [];
+  for (let ts = 0; ts <= T_END - 2; ts += 1 / 30) {
+    rig.pose(2 + ts, prof, 0, 0); const J = rig.joints(), lm = Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0, visibility: 0.99 }));
+    for (const i in IDX) { const v = J[IDX[i]]; lm[i] = { x: -v.z, y: -v.y, z: -v.x, visibility: 0.99 }; }
+    frames.push({ t: ts, lm, hx: 0.5 + ts / 10 });
+  }
+  const c = await browser.newContext({ viewport: { width: 1000, height: 600 } });
+  const a = await page(c, 'action.html?nosw', `localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false, feedback: 'always' } }));`);
+  ok(await a.evaluate(async () => { const V = await import(new URL('vendor/mediapipe/vision_bundle.mjs', location.href).href); return typeof V.PoseLandmarker.createFromOptions === 'function'; }), 'My bowlers page: the pose tracker loads from this site');
+  const act = await a.evaluate(([f, m]) => window.__act.fromFrames(f, m, { name: 'Club quick', type: 'pace' }), [frames, { bfc: T_BFC - 2, ffc: T_FFC - 2, rel: T_REL - 2 }]);
+  ok(act.q >= 95 && await a.evaluate(() => document.querySelector('#list .item b').textContent === 'Club quick'), `action copied and listed (tracked ${act.q}%)`);
+  ok(await a.evaluate(() => { const d = JSON.parse(localStorage.getItem('lr5')); return d.actions.length === 1 && !JSON.stringify(d).includes('blob:'); }), 'saved in the app data as numbers only (no video)');
+  const q = await page(c, '?nosw');
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  await q.click('#bSandbox');
+  ok(await q.evaluate(() => !!document.querySelector('#sbRows .sbChip[data-k="bowler"][data-v^="act:"]')), 'Sandbox: the copied bowler is in the Bowler row');
+  await q.click('#sbRows .sbChip[data-k="bowler"][data-v^="act:"]');
+  await q.click('#bSbGo');
+  await waitFor(q, () => { const g = window.__lr.game; return g.G.state === 'run' && g.G.cur; });
+  const r = await q.evaluate(() => { const g = window.__lr.game.G.cur; return { id: g.prof.id, n: g.prof.n, mine: g.prof.mine }; });
+  ok(r.mine && r.id.startsWith('act:') && r.n === 'Club quick', 'Sandbox bowls with the copied bowler');
+  await waitFor(q, () => window.__lr.game.G.state === 'result', null, 20000);
+  ok(await q.evaluate(() => window.__lr.game.G.sess.balls[0].bowler === 'Club quick'), 'ball record names the copied bowler');
+  await q.evaluate(() => window.__lr.game.abandonToHome());
+  await c.close();
+}
+
 // ---------- 9. offline: install the service worker, go offline, reload ----------
 const ctx2 = await browser.newContext({ viewport: { width: 640, height: 360 } });
 p = await page(ctx2, '', `if (!localStorage.getItem('lr5')) localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false } }));`);

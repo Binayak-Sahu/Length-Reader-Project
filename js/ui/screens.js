@@ -10,7 +10,8 @@ import { TIERS } from '../core/quality.js';
 import { drawMap } from './session-ui.js';
 import { only } from './menus.js';
 import { BADGES, badgeSVG, badgeById } from '../core/badges.js';
-import { SB_ROWS, sbClean } from '../core/sandbox.js';
+import { SB_ROWS, sbClean, sbSetActions } from '../core/sandbox.js';
+import { actionProfiles } from '../core/myactions.js';
 import { personalLine, recentBalls, evidenceText } from '../core/readline.js';
 import { selectorReport, leaveReport } from '../core/selection.js';
 export { only };
@@ -215,7 +216,7 @@ export function rtClose(back) { if (RT) clearTimeout(RT.timer); RT = null; (back
 
 // ---------- sandbox: pick every ball (a row of chips per choice; Random rolls again every ball) ----------
 export function renderSandbox(inSession) {
-  const S = app.S; S.sandbox = sbClean(S.sandbox);
+  const S = app.S; sbSetActions(actionProfiles(app.db.actions)); S.sandbox = sbClean(S.sandbox);
   const box = $('sbRows');
   box.innerHTML = SB_ROWS.map(r => `<div class="sbRow"><label>${r.l}</label><div class="sbChips">` +
     [['rand', 'Random']].concat(r.o).map(([v, t]) => `<button class="sbChip${S.sandbox[r.k] === v ? ' on' : ''}" data-k="${r.k}" data-v="${v}" aria-pressed="${S.sandbox[r.k] === v}">${esc(t)}</button>`).join('') +
