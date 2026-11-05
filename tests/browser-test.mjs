@@ -561,6 +561,25 @@ await ctx.close();
   await c.close();
 }
 
+// ---------- 8k. Helmet cam view (wide lens, whole pitch to your feet) ----------
+{
+  const c = await browser.newContext({ viewport: { width: 540, height: 960 } });
+  const calib = { portrait: { orient: 'portrait', hCm: 59.8, wCm: 33.6, distCm: 130, eyeCm: 150, bottomCm: 100 } };
+  const q = await page(c, '?nosw', `localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false, calib: ${JSON.stringify(calib)} } }));`);
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  const life = await q.evaluate(() => { const w = window.__lr.app.world; return { cal: w.calibrated, feet: w.toScreen(0, 0, 1.5).y, H: innerHeight }; });
+  ok(life.cal && life.feet > life.H, 'calibrated life-size: the pitch near your feet is below the screen (true size)');
+  const h = await q.evaluate(() => { const a = window.__lr.app; a.S.view = 'helmet'; a.applySettings('view'); const w = a.world;
+    return { helmet: w.helmet, cal: w.calibrated, fov: w.camera.fov, feet: w.toScreen(0, 0, 1.5).y, horizon: w.toScreen(0, 1.62, 200).y, H: innerHeight }; });
+  ok(h.helmet && !h.cal && h.fov > 90 && h.feet > 0 && h.feet < h.H, `Helmet cam: wide lens (${h.fov.toFixed(0)}° tall), the pitch 1.5 m from you is on screen — overrides calibration`);
+  ok(h.horizon > h.H * 0.25 && h.horizon < h.H * 0.4, `Helmet cam: horizon about a third down the screen (${(100 * h.horizon / h.H).toFixed(0)}%)`);
+  await q.evaluate(() => window.__lr.game.startSession('quick'));
+  await waitFor(q, () => { const g = window.__lr.game; return g.G.state === 'run' && g.clock.relTs !== null; });
+  ok(await q.evaluate(() => { const w = window.__lr.app.world, cam = w.camera.position; window.__lr.app.world.sway(performance.now(), 0); return Math.abs(cam.y - (1.5 + 0.12)) < 1e-6; }), 'Helmet cam: no head sway at release (head still)');
+  await q.evaluate(() => window.__lr.game.abandonToHome());
+  await c.close();
+}
+
 // ---------- 9. offline: install the service worker, go offline, reload ----------
 const ctx2 = await browser.newContext({ viewport: { width: 640, height: 360 } });
 p = await page(ctx2, '', `if (!localStorage.getItem('lr5')) localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false } }));`);

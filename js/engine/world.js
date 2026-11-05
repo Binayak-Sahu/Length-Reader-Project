@@ -248,8 +248,20 @@ export function createWorld(canvas) {
     return { full, screenH: screen.height, availH: screen.availHeight, innerH: innerHeight, innerW: innerWidth };
   }
   let calibrated = false;
+  // Helmet cam: a wide lens at helmet height (like a GoPro on the grille). The whole pitch down to your feet is in view;
+  // the bowler and ball look smaller than life (the ball keeps the size boost). Chosen in Settings; overrides calibration.
+  const helm = { on: false, pos: new THREE.Vector3(), look: new THREE.Vector3() };
+  function helmetView() {
+    const hf = (W < H ? 70 : 100) * d2r, vf = 2 * Math.atan(Math.tan(hf / 2) * H / W);
+    const down = Math.atan((0.5 - 0.32) * 2 * Math.tan(vf / 2));                        // horizon about a third down the screen
+    helm.pos.set(EYE.x * hx, EYE.y + 0.12, EYE.z - 0.05); helm.look.set(-0.1 * hx, EYE.y + 0.12 - 10 * Math.tan(down), 10);
+    camera.fov = vf / d2r; camera.near = 0.05; camera.position.copy(helm.pos); camera.up.set(0, 1, 0); camera.lookAt(helm.look);
+    camera.aspect = W / H; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+  }
   function applyView(S, hand) {
     view = S; hx = hand === 'L' ? -1 : 1; frame.scale.x = hx;
+    helm.on = S.view === 'helmet';
+    if (helm.on) { calibrated = false; helmetView(); ball.scale.setScalar(+S.boost || 1); placeHe(W, H); return; }
     const c = activeCalib(S, H > W);
     calibrated = !!c;
     if (calibrated) {
@@ -296,6 +308,15 @@ export function createWorld(canvas) {
     // Screen position (CSS px) of a world point as seen by the batter's camera.
     toScreen(x, y, z) { v3.set(x, y, z).project(camera); return { x: (v3.x + 1) / 2 * W, y: (1 - v3.y) / 2 * H, behind: v3.z > 1 }; },
     applyTier, applyView, resize,
+    get helmet() { return helm.on; },
+    // Helmet cam: a little natural head movement (amp 0–1). The game fades it to nothing before the back foot lands,
+    // so the head is still at release — as it should be.
+    sway(ts, amp) {
+      if (!helm.on) return;
+      const a = Math.max(0, Math.min(1, amp));
+      camera.position.set(helm.pos.x + a * 0.012 * Math.sin(ts * 0.0021), helm.pos.y + a * 0.008 * Math.sin(ts * 0.0033 + 1), helm.pos.z);
+      camera.up.set(a * 0.012 * Math.sin(ts * 0.0017), 1, 0); camera.lookAt(helm.look); camera.updateMatrixWorld();
+    },
     // Ball colour and matching sight screen (red ball → white screen; white ball → black screen), or no screen.
     // sightMode: 'dark' | 'white' | 'off' (older saves: true/false)
     setBall(colour, sightMode) {
