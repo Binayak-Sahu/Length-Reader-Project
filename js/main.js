@@ -17,7 +17,7 @@ import * as menu from './ui/menus.js';
 import { openCalib, mapPedals } from './ui/calib.js';
 import { createSync } from './sync-github.js';
 
-const VERSION = '5.10.0';
+const VERSION = '5.10.1';
 const qs = new URLSearchParams(location.search);
 
 // ---------- data ----------

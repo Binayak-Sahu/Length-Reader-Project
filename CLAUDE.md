@@ -107,7 +107,7 @@ Also read:
 - **Nets:** 24 balls, bowlers take turns, no feedback, real gap between balls.
 - **Selection sim (v5.6):** 4 spells × 6 (pace, spin, pace, mixed), ~120 kph, play/leave, nets rules, cold first ball, selector report (stars + biggest fix; `js/core/selection.js`).
 - **Leave drill (v5.6):** 30 balls, 40% wide off / 15% channel / 45% stumps; use with the head-only mirror.
-- **Sandbox (v5.4):** pick every ball (bowler, pace, length, line, blackout, task; each with Random). Endless; C / View / Pause → Change balls mid-session. Saved as `sandbox`, never counts (level, XP, streak, badges). `js/core/sandbox.js`, `genBall({force})`.
+- **Sandbox (v5.4):** pick every ball (bowler, pace, length, line, blackout, task; each with Random). Endless; C / View / Pause → Change balls mid-session opens a side panel with the balls and the Look settings (view, lens, ball size, light…), applied live and saved (v5.10.1). Saved as `sandbox`, never counts (level, XP, streak, badges). `js/core/sandbox.js`, `genBall({force})`.
 - **Reaction test:** median of 8 presses; it uses the same frame-stamped pipeline as the game.
 
 **Feedback:**
@@ -139,7 +139,7 @@ Also read:
 - Left stick plays: L2–3 any push = play. L4 foot first, then the stick: front ← drive, ↓ flick, ↑ defence; back ↑ punch, ↓ pull, → defence. Mirrored for left-handers. No push = defence. LB flick, RB pull still work.
 - USB foot pedals can be mapped in Settings.
 
-**Helmet cam (v5.9–5.10, C12/C12b):** Settings → View → Helmet cam (Bink's favourite on his upright monitor). Lens 50–110° (default 80), no head sway; with calibration: horizon at his real eye line, camera at eye height + 6 cm, ball at true angular size. Own shadow, sharper near pitch, clearer ball shadow. Overrides calibration. Life-size stays the accurate default.
+**Helmet cam (v5.9–5.10, C12/C12b):** Settings → View → Helmet cam (Bink's favourite on his upright monitor). Lens 50–110° (default 80), no head sway; with calibration: horizon at his real eye line, camera at eye height + 6 cm. Ball follows Ball size (v5.10.1; the true-size ball looked huge). Own shadow, sharper near pitch, clearer ball shadow. Overrides calibration. Life-size stays the accurate default.
 
 **Light (v5.10, C13):** Afternoon / Late afternoon (low sun behind the bowler). **Next-net sounds (C14):** quiet from 1 s before release until the ball has passed.
 

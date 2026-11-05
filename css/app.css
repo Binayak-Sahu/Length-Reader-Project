@@ -369,3 +369,8 @@ body.life #hint{display:none}
 .selRep{margin-top:1.4vh;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:rgba(245,165,36,.06);line-height:1.55}
 .selRep .stars{font-size:30px;color:#f5a524;letter-spacing:.08em}
 .selRep .stars i{font-style:normal;color:#334155}
+/* Sandbox opened mid-session: a side panel, so the paused scene stays in view and Look changes show straight away */
+#sandbox.drawer{inset:0 0 0 auto;width:min(440px,92vw);background:rgba(7,9,12,.86);backdrop-filter:none;-webkit-backdrop-filter:none;border-left:1px solid var(--line)}
+#sandbox.drawer .wrap{max-width:none}
+@media (max-width:600px){#sandbox.drawer{inset:auto 0 0 0;width:auto;height:58vh;border-left:0;border-top:1px solid var(--line)}}
+.sbLook{display:grid;gap:10px}
