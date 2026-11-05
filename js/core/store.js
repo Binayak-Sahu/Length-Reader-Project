@@ -14,6 +14,8 @@ export const DEF = {
   sight: 'dark', calib: null, lenMarks: 'auto', night: false, pedals: null, stepCue: false, fpsOnly: false,
   // v5.4: sandbox choices (per device)
   sandbox: SB_DEF,
+  // v5.10: Helmet cam lens (vertical degrees), light, sounds from the nets next door
+  helmFov: 80, light: 'day', ambience: true,
 };
 
 export function newDB() {

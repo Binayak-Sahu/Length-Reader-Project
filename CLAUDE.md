@@ -139,7 +139,9 @@ Also read:
 - Left stick plays: L2–3 any push = play. L4 foot first, then the stick: front ← drive, ↓ flick, ↑ defence; back ↑ punch, ↓ pull, → defence. Mirrored for left-handers. No push = defence. LB flick, RB pull still work.
 - USB foot pedals can be mapped in Settings.
 
-**Helmet cam (v5.9, C12):** Settings → View → Helmet cam. Wide lens at helmet height, whole pitch to your feet, head sway that fades out before release; overrides calibration. Life-size stays the accurate default.
+**Helmet cam (v5.9–5.10, C12/C12b):** Settings → View → Helmet cam (Bink's favourite on his upright monitor). Lens 50–110° (default 80), no head sway; with calibration: horizon at his real eye line, camera at eye height + 6 cm, ball at true angular size. Own shadow, sharper near pitch, clearer ball shadow. Overrides calibration. Life-size stays the accurate default.
+
+**Light (v5.10, C13):** Afternoon / Late afternoon (low sun behind the bowler). **Next-net sounds (C14):** quiet from 1 s before release until the ball has passed.
 
 **Left-handers:** the batter frame and the camera are mirrored. The bowler stays right-arm. Off-spin turns away from left-handers.
 
@@ -183,7 +185,7 @@ Also read:
 - **v5.2 shipped (27 Oct 2026):** true life-size calibration, darker worn pitch + tone mapping, night mode, dark sight screen, length marks, release heights fixed, portrait card, pedals, LT/RT.
 - **v5.3 shipped (28 Oct 2026):** side-on controller (X front, B back, stick shots), sync phone + PC via his own GitHub gist, Progress table no longer hidden under the tab bar.
 - **v5.4 shipped (29 Oct 2026):** Sandbox mode. **v5.4.1:** timing fix ("too quick" at pace). **v5.5:** personal too-quick line from his own results.
-- **v5.6 shipped (2 Nov 2026):** Selection sim, Leave drill, head-only mirror. **v5.7:** pre-release cues (bound, arm speed). **v5.8:** My bowlers (real actions copied from clips). **v5.9:** Helmet cam view.
+- **v5.6 shipped (2 Nov 2026):** Selection sim, Leave drill, head-only mirror. **v5.7:** pre-release cues (bound, arm speed). **v5.8:** My bowlers (real actions copied from clips). **v5.9:** Helmet cam view. **v5.10:** Helmet cam improvements, late-afternoon light, next-net sounds.
 - **v5.6 shipped (1 Nov 2026):** Real bowlers page (More → Real bowlers). Portrait crop view (default) and Bink's first video `enRiR-kqxE4`; he's finding more himself.
 - **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
 - **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).

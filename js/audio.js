@@ -3,7 +3,7 @@
 // device what is playing now (getOutputTimestamp) or subtract its reported latency. Android output latency can be
 // 40–100 ms, so an unscheduled "thud" would arrive late and mislead the timing.
 export function createAudio(settings) {
-  let ctx = null, master = null, nStep = null, nThud = null, nNet = null;
+  let ctx = null, master = null, nStep = null, nThud = null, nNet = null, nCrack = null;
   const live = [];                                     // scheduled sources (cancelled on pause)
 
   function noiseBuf(dur, pow) {
@@ -16,7 +16,7 @@ export function createAudio(settings) {
       try {
         ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
         master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
-        nStep = noiseBuf(0.07, 3); nThud = noiseBuf(0.12, 4); nNet = noiseBuf(0.35, 1.5);
+        nStep = noiseBuf(0.07, 3); nThud = noiseBuf(0.12, 4); nNet = noiseBuf(0.35, 1.5); nCrack = noiseBuf(0.05, 7);
       } catch (e) { ctx = null; }
     }
     if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
@@ -34,12 +34,13 @@ export function createAudio(settings) {
     return Math.max(ctx.currentTime, t);
   }
   function track(src, end) { live.push({ src, end }); src.onended = () => { const i = live.findIndex(x => x.src === src); if (i >= 0) live.splice(i, 1); }; }
-  function burst(buf, freq, vol, perfMs, q) {
+  function burst(buf, freq, vol, perfMs, q, pan, type) {
     if (!settings.sound || !ensure()) return;
     const s = ctx.createBufferSource(); s.buffer = buf;
-    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq; if (q) f.Q.value = q;
+    const f = ctx.createBiquadFilter(); f.type = type || 'lowpass'; f.frequency.value = freq; if (q) f.Q.value = q;
     const g = ctx.createGain(); g.gain.value = vol;
-    s.connect(f); f.connect(g); g.connect(master);
+    s.connect(f); f.connect(g);
+    if (pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(master); } else g.connect(master);
     const t = at(perfMs); s.start(t); track(s, t + buf.duration);
   }
   function tone(f1, f2, dur, type, vol, perfMs) {
@@ -56,6 +57,14 @@ export function createAudio(settings) {
     thud(perfMs) { burst(nThud, 900, 0.9, perfMs); },
     net(perfMs) { burst(nNet, 1800, 0.18, perfMs, 0.7); burst(nThud, 300, 0.25, perfMs); },       // ball into the back net
     tone,
+    // A sound from a neighbouring net (core/ambience.js picks it): bat crack, ball into the net, or footsteps.
+    ambient(ev) {
+      if (!settings.sound || !ensure()) return;
+      const now = performance.now();
+      if (ev.type === 'crack') { burst(nCrack, 1900, ev.vol * 2.2, now, 1.2, ev.pan, 'bandpass'); burst(nThud, 500, ev.vol * 0.6, now, 0, ev.pan); }
+      else if (ev.type === 'net') { burst(nNet, 1500, ev.vol, now, 0.7, ev.pan); burst(nThud, 260, ev.vol * 0.8, now, 0, ev.pan); }
+      else for (let i = 0; i < 5; i++) burst(nStep, 360, ev.vol * (0.6 + 0.1 * i), now + i * 330, 0, ev.pan);
+    },
     click() { tone(900, 900, 0.03, 'sine', 0.06); },
     good() { tone(880, 1320, 0.18, 'sine', 0.22); },
     warn() { tone(620, 620, 0.22, 'triangle', 0.22); },

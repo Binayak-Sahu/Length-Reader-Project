@@ -79,7 +79,7 @@ export function createWorld(canvas) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SKY); scene.fog = new THREE.Fog(SKY, 70, 190);
-  let skyMat = null;
+  let skyMat = null, stumpShadow = null;
   // Sky: a vertex-coloured dome (deeper blue overhead, hazy at the horizon) — one draw call, no texture
   { const g = new THREE.SphereGeometry(320, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), pos = g.attributes.position, col = [];
     const top = new THREE.Color(0x5d8fc4), hor = new THREE.Color(SKY), c = new THREE.Color();
@@ -99,6 +99,14 @@ export function createWorld(canvas) {
   Object.assign(sun.shadow.camera, { left: -11, right: 11, top: 11, bottom: -11, near: 1, far: 50 });
   sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02;
   const SUN_DIR = new THREE.Vector3(-7, 12, -9).normalize();
+  // Late-afternoon light (Settings → Light): a low sun behind the bowler — a darker bowler against a bright sky, long
+  // shadows toward you, a glare spot above the sight screen. Same physics; a harder look, like an evening net.
+  const SUN_DAY = SUN_DIR.clone(), SUN_LATE = new THREE.Vector3(8, 9, 50).normalize();
+  const glare = new THREE.Sprite(new THREE.SpriteMaterial({ map: (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d');
+    const g = c.createRadialGradient(64, 64, 4, 64, 64, 64); g.addColorStop(0, 'rgba(255,248,225,1)'); g.addColorStop(0.18, 'rgba(255,224,170,0.85)'); g.addColorStop(1, 'rgba(255,190,120,0)');
+    c.fillStyle = g; c.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; })(),
+    transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending }));
+  glare.scale.set(46, 46, 1); glare.visible = false; scene.add(glare);
 
   // Grass with mowing stripes (a depth cue), pitch, crease lines
   const gTex = noiseTex(128, 128, [70, 112, 58], 26, true); gTex.repeat.set(40, 45);
@@ -135,7 +143,42 @@ export function createWorld(canvas) {
     const sh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.04, len), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }), 3);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ang).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2)), p = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
     [-0.11, 0, 0.11].forEach((x, i) => sh.setMatrixAt(i, m.compose(p.set(x - SUN_DIR.x / SUN_DIR.y * 0.355, 0.006, Z_STUMPS - SUN_DIR.z / SUN_DIR.y * 0.355), q, one)));
-    scene.add(sh); }
+    scene.add(sh); stumpShadow = sh; }
+  function placeStumpShadow() {
+    const sh = stumpShadow, len = 0.711 * Math.hypot(SUN_DIR.x, SUN_DIR.z) / SUN_DIR.y, ang = Math.atan2(SUN_DIR.x, SUN_DIR.z);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ang).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2)), p = new THREE.Vector3();
+    [-0.11, 0, 0.11].forEach((x, i) => sh.setMatrixAt(i, m.compose(p.set(x - SUN_DIR.x / SUN_DIR.y * 0.355, 0.006, Z_STUMPS - SUN_DIR.z / SUN_DIR.y * 0.355), q, new THREE.Vector3(1, len / (0.711 * Math.hypot(SUN_DAY.x, SUN_DAY.z) / SUN_DAY.y), 1))));
+    sh.instanceMatrix.needsUpdate = true;
+  }
+  // Helmet cam only: your own shadow on the pitch (a batter in his stance, cast along the sun), and a sharper near pitch
+  // (scuffs and footholds by the crease) now that the pitch at your feet is in view.
+  const meShadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: (() => {
+    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 512; const c = cv.getContext('2d'); c.fillStyle = '#000';
+    c.filter = 'blur(5px)';                                                                       // a soft-edged shadow, not a cut-out
+    // drawn from the feet (bottom) to the helmet (top): two legs, a narrower waist, shoulders, helmet, bat grounded by the back foot
+    c.beginPath(); c.moveTo(40, 500); c.lineTo(54, 500); c.lineTo(60, 330); c.lineTo(46, 330); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(74, 500); c.lineTo(88, 500); c.lineTo(82, 330); c.lineTo(68, 330); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(44, 335); c.lineTo(84, 335); c.lineTo(90, 175); c.lineTo(38, 175); c.closePath(); c.fill();
+    c.beginPath(); c.ellipse(64, 140, 19, 25, 0, 0, 7); c.fill();
+    c.beginPath(); c.moveTo(92, 495); c.lineTo(100, 495); c.lineTo(94, 300); c.lineTo(88, 300); c.closePath(); c.fill();
+    const t = new THREE.CanvasTexture(cv); return t; })(), transparent: true, opacity: 0.26, depthWrite: false }));
+  meShadow.rotation.order = 'YXZ'; meShadow.visible = false; scene.add(meShadow);
+  function placeMeShadow() {
+    const h = 1.85, len = h * Math.hypot(SUN_DIR.x, SUN_DIR.z) / SUN_DIR.y, ang = Math.atan2(-SUN_DIR.x, -SUN_DIR.z);
+    const fx = -0.28 * hx, fz = 0.35;                                                  // your feet: leg side of middle, at the crease
+    meShadow.scale.set(0.5, Math.min(len, 9), 1); meShadow.rotation.set(-Math.PI / 2, ang, 0);
+    meShadow.position.set(fx + Math.sin(ang) * Math.min(len, 9) / 2, 0.0065, fz + Math.cos(ang) * Math.min(len, 9) / 2);
+  }
+  const nearPitch = new THREE.Mesh(new THREE.PlaneGeometry(3.05, 7), new THREE.MeshLambertMaterial({ map: (() => {
+    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 1176; const c = cv.getContext('2d'), px = 168;   // 168 px per metre
+    for (let i = 0; i < 2600; i++) { const x = Math.random() * 512, y = Math.random() * 1176; c.fillStyle = `rgba(${90 + Math.random() * 40},${80 + Math.random() * 30},${50 + Math.random() * 25},${0.12 + Math.random() * 0.18})`; c.fillRect(x, y, 1 + Math.random() * 2, 1 + Math.random() * 2); }
+    const crease = 1176 - 3.4 * px;                                                   // popping crease is 3.4 m from this plane's near edge
+    for (let i = 0; i < 60; i++) { const x = 256 + (Math.random() - 0.5) * 300, y = crease + (Math.random() - 0.3) * 1.3 * px, r = 6 + Math.random() * 16;   // footholds
+      const g = c.createRadialGradient(x, y, 1, x, y, r); g.addColorStop(0, 'rgba(70,52,34,0.28)'); g.addColorStop(1, 'rgba(70,52,34,0)'); c.fillStyle = g; c.fillRect(x - r, y - r, 2 * r, 2 * r); }
+    c.strokeStyle = 'rgba(60,45,30,0.35)'; c.lineWidth = 1.2;
+    for (let i = 0; i < 40; i++) { let x = Math.random() * 512, y = Math.random() * 1176; c.beginPath(); c.moveTo(x, y); for (let k = 0; k < 4; k++) { x += (Math.random() - 0.5) * 30; y += (Math.random() - 0.5) * 30; c.lineTo(x, y); } c.stroke(); }   // cracks
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = maxAniso; return t; })(), transparent: true, depthWrite: false }));
+  nearPitch.rotation.x = -Math.PI / 2; nearPitch.position.set(0, 0.0055, 0.1); nearPitch.receiveShadow = true; nearPitch.visible = false; scene.add(nearPitch);
 
   // Nets: two side nets (one texture) + instanced poles
   { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d');
@@ -248,20 +291,26 @@ export function createWorld(canvas) {
     return { full, screenH: screen.height, availH: screen.availHeight, innerH: innerHeight, innerW: innerWidth };
   }
   let calibrated = false;
-  // Helmet cam: a wide lens at helmet height (like a GoPro on the grille). The whole pitch down to your feet is in view;
-  // the bowler and ball look smaller than life (the ball keeps the size boost). Chosen in Settings; overrides calibration.
-  const helm = { on: false, pos: new THREE.Vector3(), look: new THREE.Vector3() };
-  function helmetView() {
-    const hf = (W < H ? 70 : 100) * d2r, vf = 2 * Math.atan(Math.tan(hf / 2) * H / W);
-    const down = Math.atan((0.5 - 0.32) * 2 * Math.tan(vf / 2));                        // horizon about a third down the screen
-    helm.pos.set(EYE.x * hx, EYE.y + 0.12, EYE.z - 0.05); helm.look.set(-0.1 * hx, EYE.y + 0.12 - 10 * Math.tan(down), 10);
-    camera.fov = vf / d2r; camera.near = 0.05; camera.position.copy(helm.pos); camera.up.set(0, 1, 0); camera.lookAt(helm.look);
-    camera.aspect = W / H; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+  // Helmet cam: a wide lens at helmet height (like a GoPro on the grille). The whole pitch down to your feet is in view.
+  // No head sway (it made Bink dizzy; the head should be still anyway). With a calibration for this orientation:
+  // the camera sits at your real eye height (+6 cm for the helmet) and the horizon at your real eye line on the screen,
+  // and the ball is drawn at its TRUE angular size (the wide lens would shrink it). Overrides calibration otherwise.
+  const helm = { on: false, ballScale: 1 };
+  function helmetView(S) {
+    const c = activeCalib(Object.assign({}, S, { view: 'auto' }), H > W);
+    const vf = Math.max(40, Math.min(120, +S.helmFov || 80)) * d2r;
+    const f = c ? Math.max(0.08, Math.min(0.5, 1 - (c.eyeCm - c.bottomCm) / c.hCm)) : 0.32;      // horizon, from the top of the screen
+    const eyeY = c ? c.eyeCm / 100 + 0.06 : EYE.y + 0.12, down = Math.atan((0.5 - f) * 2 * Math.tan(vf / 2));
+    camera.fov = vf / d2r; camera.near = 0.05; camera.far = 400; camera.position.set(EYE.x * hx, eyeY, EYE.z - 0.05); camera.up.set(0, 1, 0);
+    camera.lookAt(-0.1 * hx, eyeY - 10 * Math.tan(down), 10); camera.aspect = W / H; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+    // true angular size: this screen's real viewing angle vs the lens (needs the measured screen and distance)
+    const lifeV = c ? 2 * Math.atan(c.hCm / 2 / c.distCm) : null;
+    helm.ballScale = lifeV ? Math.max(1, Math.min(4, Math.tan(vf / 2) / Math.tan(lifeV / 2))) : (+S.boost || 1);
   }
   function applyView(S, hand) {
     view = S; hx = hand === 'L' ? -1 : 1; frame.scale.x = hx;
-    helm.on = S.view === 'helmet';
-    if (helm.on) { calibrated = false; helmetView(); ball.scale.setScalar(+S.boost || 1); placeHe(W, H); return; }
+    helm.on = S.view === 'helmet'; meShadow.visible = nearPitch.visible = helm.on;
+    if (helm.on) { calibrated = false; helmetView(S); placeMeShadow(); ball.scale.setScalar(helm.ballScale); placeHe(W, H); return; }
     const c = activeCalib(S, H > W);
     calibrated = !!c;
     if (calibrated) {
@@ -287,6 +336,19 @@ export function createWorld(canvas) {
     ball.scale.setScalar(S.view === 'life' ? 1 : (+S.boost || 1));     // life-size: true size, so its growth is a true timing cue
     placeHe(W, H);
   }
+  const look = { night: false, late: false };
+  function applyLook() {
+    const night = look.night, late = !night && look.late;
+    const skyC = night ? 0x26324a : late ? 0xe6c6a0 : SKY; scene.background.setHex(skyC); scene.fog.color.setHex(skyC);
+    skyMat.color.setHex(night ? 0x4a5670 : late ? 0xffd2a8 : 0xffffff);
+    hemi.intensity = night ? 0.9 : late ? 1.3 : 2.2; hemi.color.setHex(night ? 0x9fb0d0 : late ? 0xf3d2b0 : 0xe6eef6);
+    sun.intensity = night ? 2.2 : late ? 2.3 : 2.6; sun.color.setHex(night ? 0xf0f4ff : late ? 0xffad66 : 0xfff6e8);
+    renderer.toneMappingExposure = night ? 1.0 : late ? 1.02 : 0.95;
+    SUN_DIR.copy(late ? SUN_LATE : SUN_DAY);
+    sun.target.position.set(0, 0, late ? 12 : 24); sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 20);
+    glare.visible = late; glare.position.set(0, 1.5, 0).addScaledVector(SUN_DIR, 250);
+    placeStumpShadow(); placeMeShadow(); shadowDirty = true;
+  }
   function resize() { size(); renderer.setSize(W, H, false); if (view) applyView(view, hx === -1 ? 'L' : 'R'); else placeHe(W, H); }
   size(); applyTier(tier);
 
@@ -297,7 +359,7 @@ export function createWorld(canvas) {
       ballBlob.visible = true;
       ballBlob.position.set(x - h * SUN_DIR.x / SUN_DIR.y, 0.009, ball.position.z - h * SUN_DIR.z / SUN_DIR.y);
       const s = 2 * R * ball.scale.x * (1.1 + 0.6 * h); ballBlob.scale.set(s, s, 1);
-      ballBlob.material.opacity = 0.55 / (1 + 1.2 * h);
+      ballBlob.material.opacity = (helm.on ? 0.8 : 0.55) / (1 + 1.2 * h);       // Helmet cam: a clearer ball shadow (a real bounce cue)
     } else ballBlob.visible = false;
     if (bBlob.visible) bBlob.position.set(bowler.root.position.x, 0.01, bowler.root.position.z);
   }
@@ -309,14 +371,6 @@ export function createWorld(canvas) {
     toScreen(x, y, z) { v3.set(x, y, z).project(camera); return { x: (v3.x + 1) / 2 * W, y: (1 - v3.y) / 2 * H, behind: v3.z > 1 }; },
     applyTier, applyView, resize,
     get helmet() { return helm.on; },
-    // Helmet cam: a little natural head movement (amp 0–1). The game fades it to nothing before the back foot lands,
-    // so the head is still at release — as it should be.
-    sway(ts, amp) {
-      if (!helm.on) return;
-      const a = Math.max(0, Math.min(1, amp));
-      camera.position.set(helm.pos.x + a * 0.012 * Math.sin(ts * 0.0021), helm.pos.y + a * 0.008 * Math.sin(ts * 0.0033 + 1), helm.pos.z);
-      camera.up.set(a * 0.012 * Math.sin(ts * 0.0017), 1, 0); camera.lookAt(helm.look); camera.updateMatrixWorld();
-    },
     // Ball colour and matching sight screen (red ball → white screen; white ball → black screen), or no screen.
     // sightMode: 'dark' | 'white' | 'off' (older saves: true/false)
     setBall(colour, sightMode) {
@@ -325,11 +379,10 @@ export function createWorld(canvas) {
       sightMat.color.setHex(mode === 'white' ? 0xf2f2ee : 0x15171a); sight.visible = mode !== 'off'; shadowDirty = true;
     },
     // Night mode: dusk sky and floodlight-style light, much less glare
-    setNight(on) {
-      const skyC = on ? 0x26324a : SKY; scene.background.setHex(skyC); scene.fog.color.setHex(skyC);
-      skyMat.color.setHex(on ? 0x4a5670 : 0xffffff); hemi.intensity = on ? 0.9 : 2.2; hemi.color.setHex(on ? 0x9fb0d0 : 0xe6eef6);
-      sun.intensity = on ? 2.2 : 2.6; sun.color.setHex(on ? 0xf0f4ff : 0xfff6e8); renderer.toneMappingExposure = on ? 1.0 : 0.95; shadowDirty = true;
-    },
+    setNight(on) { look.night = !!on; applyLook(); },
+    // Light: 'day' (afternoon sun behind you) or 'late' (low sun behind the bowler). Night mode wins over both.
+    setLight(mode) { look.late = mode === 'late'; applyLook(); },
+    get light() { return look.night ? 'night' : look.late ? 'late' : 'day'; },
     // Length markings for this pace (null = hide)
     setLenMarks(kph, spin) {
       if (kph == null) { lenGroup.visible = false; return; }

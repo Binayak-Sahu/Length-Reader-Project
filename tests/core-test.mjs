@@ -7,6 +7,7 @@ import { sbResolve, sbClean, SB_ROWS, SB_DEF } from '../js/core/sandbox.js';
 import { personalLine, recentBalls, evidenceText } from '../js/core/readline.js';
 import { selectorReport, leaveReport, bestMark } from '../js/core/selection.js';
 import { makeCues } from '../js/core/cues.js';
+import { quietNow, nextAmbient } from '../js/core/ambience.js';
 import { poseAt } from '../js/core/action.js';
 import { T_REL as TREL, T_RUN as TRUN, T_BFC as TBFC } from '../js/core/physics.js';
 import { mulberry32 } from './util.mjs';
@@ -233,6 +234,15 @@ console.log('— pre-release cues: weak and noisy, like real bowlers —');
   ok(b - a > 0.06, `a short-ball bound is ${Math.round((b - a) * 100)} cm higher at its peak`);
   const e0 = poseAt(TREL - 0.1, prof, 0, {}).rw, e1 = poseAt(TREL - 0.1, prof, 0, {}, { bound: 0, arm: 0.86 }).rw;
   ok(e1 > e0 + 3, `slower arm turns ~14% slower through release (${(e1 - e0).toFixed(0)}° different 0.1 s before)`);
+}
+
+console.log('— sounds from the next net —');
+{
+  ok(quietNow('run', -0.9, 0.62) && quietNow('run', 0.5, 0.62) && quietNow('run', 0.9, 0.62), 'quiet from 1 s before release until your ball has gone past');
+  ok(!quietNow('run', -1.5, 0.62) && !quietNow('run', 1.0, 0.62) && !quietNow('result', 0.2, 0.62) && !quietNow('run', null, null), 'sounds allowed in the run-up, after the ball and between balls');
+  const rng = mulberry32(3), evs = Array.from({ length: 2000 }, () => nextAmbient(rng));
+  const share = (t) => evs.filter(e => e.type === t).length / evs.length;
+  ok(evs.every(e => Math.abs(e.pan) >= 0.4 && e.vol <= 0.13 && e.gap >= 2.5 && e.gap <= 7) && share('crack') > 0.5 && share('steps') > 0.15, 'always off to one side, quiet, every 2.5–7 s; mostly bat cracks');
 }
 
 console.log('— sandbox: pick every ball —');

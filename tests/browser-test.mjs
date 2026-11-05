@@ -571,11 +571,19 @@ await ctx.close();
   ok(life.cal && life.feet > life.H, 'calibrated life-size: the pitch near your feet is below the screen (true size)');
   const h = await q.evaluate(() => { const a = window.__lr.app; a.S.view = 'helmet'; a.applySettings('view'); const w = a.world;
     return { helmet: w.helmet, cal: w.calibrated, fov: w.camera.fov, feet: w.toScreen(0, 0, 1.5).y, horizon: w.toScreen(0, 1.62, 200).y, H: innerHeight }; });
-  ok(h.helmet && !h.cal && h.fov > 90 && h.feet > 0 && h.feet < h.H, `Helmet cam: wide lens (${h.fov.toFixed(0)}° tall), the pitch 1.5 m from you is on screen — overrides calibration`);
-  ok(h.horizon > h.H * 0.25 && h.horizon < h.H * 0.4, `Helmet cam: horizon about a third down the screen (${(100 * h.horizon / h.H).toFixed(0)}%)`);
+  ok(h.helmet && !h.cal && Math.abs(h.fov - 80) < 1e-6 && h.feet > 0 && h.feet < h.H, `Helmet cam: wide lens (${h.fov.toFixed(0)}° tall), the pitch 1.5 m from you is on screen — overrides calibration`);
+  // calibrated (Bink's upright 27"): horizon at his real eye line, camera at his eye height, ball at true angular size
+  ok(Math.abs(h.horizon / h.H - 9.8 / 59.8) < 0.01, `Helmet cam + calibration: horizon at your real eye line (${(100 * h.horizon / h.H).toFixed(1)}% from the top = 9.8 cm of 59.8)`);
+  const hv = await q.evaluate(() => { const a = window.__lr.app, w = a.world; return { y: w.camera.position.y, ball: w.ball.scale.x, fov: w.camera.fov }; });
+  const want = Math.tan(40 * Math.PI / 180) / Math.tan(Math.atan(59.8 / 2 / 130));
+  ok(Math.abs(hv.y - 1.56) < 1e-6 && Math.abs(hv.ball - Math.min(4, want)) < 0.01 && Math.abs(hv.fov - 80) < 1e-6, `camera at your eye height + 6 cm (${hv.y.toFixed(2)} m), 80° lens, ball drawn ${hv.ball.toFixed(2)}× = its true size on your screen`);
+  ok(await q.evaluate(() => { const a = window.__lr.app; a.S.helmFov = 60; a.applySettings('helmFov'); const f = a.world.camera.fov; a.S.helmFov = 80; a.applySettings('helmFov'); return Math.abs(f - 60) < 1e-6; }), 'lens setting changes the Helmet cam width');
+  ok(await q.evaluate(() => { const a = window.__lr.app, w = a.world; a.S.light = 'late'; a.applySettings('light'); const l1 = w.light; a.S.night = true; a.applySettings('night'); const l2 = w.light; a.S.night = false; a.S.light = 'day'; a.applySettings('light'); return l1 === 'late' && l2 === 'night' && w.light === 'day'; }), 'Light: late afternoon on and off; night mode wins over it');
   await q.evaluate(() => window.__lr.game.startSession('quick'));
-  await waitFor(q, () => { const g = window.__lr.game; return g.G.state === 'run' && g.clock.relTs !== null; });
-  ok(await q.evaluate(() => { const w = window.__lr.app.world, cam = w.camera.position; window.__lr.app.world.sway(performance.now(), 0); return Math.abs(cam.y - (1.5 + 0.12)) < 1e-6; }), 'Helmet cam: no head sway at release (head still)');
+  await waitFor(q, () => { const g = window.__lr.game; return g.G.state === 'run' && g.clock.started; });
+  const cam1 = await q.evaluate(() => window.__lr.app.world.camera.position.toArray().join());
+  await q.waitForTimeout(400);
+  ok(await q.evaluate((c1) => window.__lr.app.world.camera.position.toArray().join() === c1, cam1), 'Helmet cam: the camera stays dead still (no head sway)');
   await q.evaluate(() => window.__lr.game.abandonToHome());
   await c.close();
 }

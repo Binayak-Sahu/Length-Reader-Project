@@ -1,7 +1,6 @@
 // Boot + the frame loop + menu input. The loop runs every display refresh; the 3D scene is only rendered while a
 // ball is live (or after a change), so menus cost almost nothing.
 import { app, $, show } from './app.js';
-import { T_BFC } from './core/physics.js';
 import { load, save, KEY } from './core/store.js';
 import { TIERS as QTIERS, tierIndex, QualityController } from './core/quality.js';
 import { TIERS, bossById, careerState, recordTrial } from './core/career.js';
@@ -10,6 +9,7 @@ import { createWorld } from './engine/world.js';
 import { createPerf } from './engine/perf.js';
 import { createAudio, createVoice, createHaptics } from './audio.js';
 import { createPads } from './input.js';
+import { quietNow, nextAmbient } from './core/ambience.js';
 import { createTrajService } from './traj-service.js';
 import * as game from './game/game.js';
 import * as scr from './ui/screens.js';
@@ -17,7 +17,7 @@ import * as menu from './ui/menus.js';
 import { openCalib, mapPedals } from './ui/calib.js';
 import { createSync } from './sync-github.js';
 
-const VERSION = '5.9.0';
+const VERSION = '5.10.0';
 const qs = new URLSearchParams(location.search);
 
 // ---------- data ----------
@@ -42,7 +42,7 @@ const startTier = qs.get('tier') || (app.S.quality !== 'auto' ? app.S.quality : 
 app.quality = new QualityController(tierIndex(startTier), tierIndex(isTouch ? 'high' : 'ultra'));
 world.applyTier(QTIERS[app.quality.tier]);
 world.applyView(app.S, app.db.profile.hand);
-world.setBall(app.S.ball, app.S.sight); world.setNight(!!app.S.night);
+world.setBall(app.S.ball, app.S.sight); world.setLight(app.S.light); world.setNight(!!app.S.night);
 document.body.classList.toggle('life', world.calibrated);
 app.onBallStats = (st) => {
   if (app.S.quality !== 'auto') return;
@@ -54,7 +54,7 @@ function applySettings(k) {
   if (k === 'quality') { if (app.S.quality !== 'auto') app.quality.tier = tierIndex(app.S.quality); world.applyTier(QTIERS[app.quality.tier]); }
   if (k === 'overlay') app.perf.setOverlay(app.S.overlay);
   applyA11y();
-  world.setBall(app.S.ball, app.S.sight); world.setNight(!!app.S.night);
+  world.setBall(app.S.ball, app.S.sight); world.setLight(app.S.light); world.setNight(!!app.S.night);
   world.applyView(app.S, app.db.profile.hand); needsRender = true;
   document.body.classList.toggle('life', world.calibrated);
 }
@@ -234,6 +234,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && (ga
 addEventListener('resize', () => { world.resize(); needsRender = true; document.body.classList.toggle('life', world.calibrated); });
 
 // ---------- loop ----------
+let ambAt = 0;
 function loop(ts) {
   requestAnimationFrame(loop);
   const t0 = performance.now();
@@ -242,8 +243,13 @@ function loop(ts) {
   scr.rtFrame(ts);
   const st = game.G.state;
   const black = game.frame(ts);
+  // sounds from the next net: during a session, never from the bowler's last strides until your ball is done
+  if (app.S.ambience && game.G.sess && (st === 'run' || st === 'result' || st === 'intro') && ts >= ambAt) {
+    const ev = nextAmbient(), cur = game.G.cur;
+    if (!quietNow(st, game.clock.started ? game.clock.tau(ts) : null, cur && cur.tr ? cur.tr.ta : null)) app.audio.ambient(ev);
+    ambAt = ts + ev.gap * 1000;
+  }
   if (st === 'run' || st === 'result' || needsRender) {
-    if (world.helmet) world.sway(ts, st === 'run' && game.clock.started ? (T_BFC - game.clock.sceneTime(ts)) / 1.5 : 0.6);
     const q = app.perf.gpuBegin();
     world.render(world.heActive ? world.heCam : world.camera, black);
     app.perf.gpuEnd(q); needsRender = false;
