@@ -400,7 +400,7 @@ await ctx.close();
 
 // ---------- 8h. personal too-quick line: fast presses that are right stop counting as guesses ----------
 {
-  const c = await browser.newContext({ viewport: { width: 1000, height: 600 } });
+  const c = await browser.newContext({ viewport: { width: 640, height: 360 } });
   const balls = Array.from({ length: 60 }, (_, i) => ({ d: 8, lx: 0, kph: 100, lvl: 3, mode: 1, cat: 'Short', fe: i % 2 ? 'B' : 'F', foot: i % 2 ? 'B' : 'F', rt: 0.10 + (i % 10) * 0.02, fv: 'good', v: 'good', sc: 1, ok: true }));
   const seed = { v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, rtBase: 0.216, rtAt: '2026-10-29T10:00:00Z',
     settings: { sound: false, voice: false, fullscreen: false, feedback: 'always', hawk: false, sandbox: { bowler: 'pace', kph: 100, len: 'Short', line: 'stumps', occ: 'none', task: 1 } },
@@ -410,9 +410,17 @@ await ctx.close();
   await q.click('#nav button[data-tab="progress"]');
   ok(await q.evaluate(() => /learned from your results/.test(document.getElementById('rlNote').textContent)), 'Progress shows the evidence: ' + await q.evaluate(() => document.getElementById('rlNote').textContent));
   await q.evaluate(() => window.__lr.menu.renderHome && window.__lr.game.startSession('sandbox'));
-  // press stamped exactly 170 ms after the release frame (a real key press can land after the ball on a slow CI renderer)
-  await waitFor(q, () => { const g = window.__lr.game, c = g.clock; return g.G.state === 'run' && c.relTs !== null; });
-  await q.evaluate(() => { const g = window.__lr.game; g.act('B', g.clock.relTs + 170, 'key'); });
+  // press stamped exactly 170 ms after the release frame, sent from inside the page the moment that frame is stamped
+  // (on a slow CI renderer a press sent from the test runner can arrive after the ball has finished)
+  const acted = await q.evaluate(() => new Promise((res) => {
+    const g = window.__lr.game, poll = () => {
+      if (g.G.state === 'run' && g.clock.relTs !== null) { g.act('B', g.clock.relTs + 170, 'key'); return res(!!g.G.cur.foot); }
+      if (g.G.state === 'result') return res(false);
+      setTimeout(poll, 0);
+    };
+    poll();
+  }));
+  ok(acted, 'press landed while the ball was live');
   await waitFor(q, () => window.__lr.game.G.state === 'result', null, 20000);
   const r = await q.evaluate(() => { const b = window.__lr.game.G.sess.balls[0]; return { rt: b.rt, guess: !!b.guess, fv: b.fv, line: window.__lr.game.G.sess.pline.line }; });
   ok(r.line <= 0.13 && !r.guess && r.fv === 'good', `with fast, accurate history (line ${r.line} s) a back-foot press at ${r.rt} s is a good read, not "too quick"`);
@@ -516,6 +524,59 @@ await ctx.close();
   const src = await m.content();
   ok(!/EDGES|stride forward|back and across'|Feet not visible/.test(src) && /Head fell to the off side in/.test(src) && /Head check/.test(src), 'mirror is head-only: no stick figure or feet checks, with a head-fall count');
   ok(await m.evaluate(() => { const M = window.__mirror; M.TALLY.n = 5; M.TALLY.fell = 2; M.tallyShow(); return document.getElementById('tally').textContent; }) === 'Head fell to the off side in 2 of 5 shots', 'mirror head count reads right');
+  await c.close();
+}
+
+// ---------- 8j. My bowlers: an action copied from a (synthetic, side-on) clip, used in Sandbox ----------
+{
+  await import('./three-hook.mjs');
+  const THREE = await import('three'), { createBowler } = await import('../js/engine/bowler.js');
+  const { T_BFC, T_FFC, T_REL, T_END } = await import('../js/core/physics.js');
+  const rig = createBowler(new THREE.Scene()), prof = { s: 1, xo: 0, tw: 1, ao: 0 };
+  const IDX = { 11: 'ls', 12: 'rs', 13: 'le', 14: 're', 15: 'lw', 16: 'rw', 23: 'lh', 24: 'rh', 25: 'lk', 26: 'rk', 27: 'la', 28: 'ra' };
+  const frames = [];
+  for (let ts = 0; ts <= T_END - 2; ts += 1 / 30) {
+    rig.pose(2 + ts, prof, 0, 0); const J = rig.joints(), lm = Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0, visibility: 0.99 }));
+    for (const i in IDX) { const v = J[IDX[i]]; lm[i] = { x: -v.z, y: -v.y, z: -v.x, visibility: 0.99 }; }
+    frames.push({ t: ts, lm, hx: 0.5 + ts / 10 });
+  }
+  const c = await browser.newContext({ viewport: { width: 1000, height: 600 } });
+  const a = await page(c, 'action.html?nosw', `localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false, feedback: 'always' } }));`);
+  ok(await a.evaluate(async () => { const V = await import(new URL('vendor/mediapipe/vision_bundle.mjs', location.href).href); return typeof V.PoseLandmarker.createFromOptions === 'function'; }), 'My bowlers page: the pose tracker loads from this site');
+  const act = await a.evaluate(([f, m]) => window.__act.fromFrames(f, m, { name: 'Club quick', type: 'pace' }), [frames, { bfc: T_BFC - 2, ffc: T_FFC - 2, rel: T_REL - 2 }]);
+  ok(act.q >= 95 && await a.evaluate(() => document.querySelector('#list .item b').textContent === 'Club quick'), `action copied and listed (tracked ${act.q}%)`);
+  ok(await a.evaluate(() => { const d = JSON.parse(localStorage.getItem('lr5')); return d.actions.length === 1 && !JSON.stringify(d).includes('blob:'); }), 'saved in the app data as numbers only (no video)');
+  const q = await page(c, '?nosw');
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  await q.click('#bSandbox');
+  ok(await q.evaluate(() => !!document.querySelector('#sbRows .sbChip[data-k="bowler"][data-v^="act:"]')), 'Sandbox: the copied bowler is in the Bowler row');
+  await q.click('#sbRows .sbChip[data-k="bowler"][data-v^="act:"]');
+  await q.click('#bSbGo');
+  await waitFor(q, () => { const g = window.__lr.game; return g.G.state === 'run' && g.G.cur; });
+  const r = await q.evaluate(() => { const g = window.__lr.game.G.cur; return { id: g.prof.id, n: g.prof.n, mine: g.prof.mine }; });
+  ok(r.mine && r.id.startsWith('act:') && r.n === 'Club quick', 'Sandbox bowls with the copied bowler');
+  await waitFor(q, () => window.__lr.game.G.state === 'result', null, 20000);
+  ok(await q.evaluate(() => window.__lr.game.G.sess.balls[0].bowler === 'Club quick'), 'ball record names the copied bowler');
+  await q.evaluate(() => window.__lr.game.abandonToHome());
+  await c.close();
+}
+
+// ---------- 8k. Helmet cam view (wide lens, whole pitch to your feet) ----------
+{
+  const c = await browser.newContext({ viewport: { width: 540, height: 960 } });
+  const calib = { portrait: { orient: 'portrait', hCm: 59.8, wCm: 33.6, distCm: 130, eyeCm: 150, bottomCm: 100 } };
+  const q = await page(c, '?nosw', `localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false, calib: ${JSON.stringify(calib)} } }));`);
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  const life = await q.evaluate(() => { const w = window.__lr.app.world; return { cal: w.calibrated, feet: w.toScreen(0, 0, 1.5).y, H: innerHeight }; });
+  ok(life.cal && life.feet > life.H, 'calibrated life-size: the pitch near your feet is below the screen (true size)');
+  const h = await q.evaluate(() => { const a = window.__lr.app; a.S.view = 'helmet'; a.applySettings('view'); const w = a.world;
+    return { helmet: w.helmet, cal: w.calibrated, fov: w.camera.fov, feet: w.toScreen(0, 0, 1.5).y, horizon: w.toScreen(0, 1.62, 200).y, H: innerHeight }; });
+  ok(h.helmet && !h.cal && h.fov > 90 && h.feet > 0 && h.feet < h.H, `Helmet cam: wide lens (${h.fov.toFixed(0)}° tall), the pitch 1.5 m from you is on screen — overrides calibration`);
+  ok(h.horizon > h.H * 0.25 && h.horizon < h.H * 0.4, `Helmet cam: horizon about a third down the screen (${(100 * h.horizon / h.H).toFixed(0)}%)`);
+  await q.evaluate(() => window.__lr.game.startSession('quick'));
+  await waitFor(q, () => { const g = window.__lr.game; return g.G.state === 'run' && g.clock.relTs !== null; });
+  ok(await q.evaluate(() => { const w = window.__lr.app.world, cam = w.camera.position; window.__lr.app.world.sway(performance.now(), 0); return Math.abs(cam.y - (1.5 + 0.12)) < 1e-6; }), 'Helmet cam: no head sway at release (head still)');
+  await q.evaluate(() => window.__lr.game.abandonToHome());
   await c.close();
 }
 

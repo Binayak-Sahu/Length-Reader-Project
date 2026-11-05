@@ -22,7 +22,7 @@ export function newDB() {
     profile: { hand: 'R', onboarded: false, seenV5: false },
     settings: Object.assign({}, DEF),
     level: 0, levelD: 0.5, levelAt: null, rtBase: null, rtAt: null, cs: { pace: {}, spin: {} },
-    sessions: [], career: { tier: 0, trials: [] }, badges: {}, bosses: {},
+    sessions: [], career: { tier: 0, trials: [] }, badges: {}, bosses: {}, actions: [],
     v3: { merged: false, last: null, count: 0 }, imports: [],
   };
 }
@@ -36,6 +36,7 @@ export function normalize(db) {
   db.career = Object.assign({ tier: 0, trials: [] }, db.career || {});
   db.cs = db.cs || { pace: {}, spin: {} };
   db.sessions = (db.sessions || []).filter(s => s && s.date);
+  db.actions = Array.isArray(db.actions) ? db.actions.filter(a => a && a.id && a.keys) : [];
   if (!(db.levelD >= 0 && db.levelD <= 1)) db.levelD = 0.5;
   db.level = Math.max(0, Math.min(27, db.level | 0));
   return db;

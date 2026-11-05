@@ -1,6 +1,7 @@
 // Boot + the frame loop + menu input. The loop runs every display refresh; the 3D scene is only rendered while a
 // ball is live (or after a change), so menus cost almost nothing.
 import { app, $, show } from './app.js';
+import { T_BFC } from './core/physics.js';
 import { load, save, KEY } from './core/store.js';
 import { TIERS as QTIERS, tierIndex, QualityController } from './core/quality.js';
 import { TIERS, bossById, careerState, recordTrial } from './core/career.js';
@@ -16,7 +17,7 @@ import * as menu from './ui/menus.js';
 import { openCalib, mapPedals } from './ui/calib.js';
 import { createSync } from './sync-github.js';
 
-const VERSION = '5.7.0';
+const VERSION = '5.9.0';
 const qs = new URLSearchParams(location.search);
 
 // ---------- data ----------
@@ -151,6 +152,9 @@ $('pBtn').onclick = () => game.togglePause();
 $('rcHold').onclick = game.holdToggle; $('rcRep').onclick = () => game.replay(false); $('rcSlow').onclick = () => game.replay(true); $('rcNext').onclick = () => game.nextBall();
 $('bResume').onclick = () => game.togglePause(); $('bEndNow').onclick = () => game.endSession(); $('bHome2').onclick = () => game.abandonToHome();
 
+// My bowlers are added on action.html (same site): pick up its saves without losing them on our next save.
+addEventListener('storage', (e) => { if (e.key === KEY && e.newValue) { try { app.db.actions = JSON.parse(e.newValue).actions || app.db.actions; } catch (err) { /* keep ours */ } } });
+
 // ---------- sync (optional, the player's own GitHub) ----------
 app.sync = createSync(window.localStorage);
 const ago = (iso) => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago'; };
@@ -239,6 +243,7 @@ function loop(ts) {
   const st = game.G.state;
   const black = game.frame(ts);
   if (st === 'run' || st === 'result' || needsRender) {
+    if (world.helmet) world.sway(ts, st === 'run' && game.clock.started ? (T_BFC - game.clock.sceneTime(ts)) / 1.5 : 0.6);
     const q = app.perf.gpuBegin();
     world.render(world.heActive ? world.heCam : world.camera, black);
     app.perf.gpuEnd(q); needsRender = false;

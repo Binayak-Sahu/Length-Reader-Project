@@ -1,13 +1,14 @@
 // Sync between devices: the shared part of the save and a merge that never loses data. Pure (tested in Node).
-// Shared: sessions, level, career, badges, boss bests. Per device: settings (calibration, pedals), reaction time, feeding stats.
+// Shared: sessions, level, career, badges, boss bests, My bowlers (copied actions). Per device: settings (calibration, pedals), reaction time, feeding stats.
 import { mergeSessions, compact } from './store.js';
+import { mergeActions } from './myactions.js';
 
 export const SYNC_FILE = 'length-reader-sync.json', SYNC_MAX = 900_000;
 
 export function syncPayload(db, maxChars = SYNC_MAX) {
   const d = {
     sessions: db.sessions, level: db.level, levelD: db.levelD, levelAt: db.levelAt || null,
-    career: db.career, badges: db.badges, bosses: db.bosses,
+    career: db.career, badges: db.badges, bosses: db.bosses, actions: db.actions || [],
   };
   // the gist API is happiest under ~1 MB: drop ball detail from the oldest sessions of a copy (summaries stay)
   const copy = JSON.parse(JSON.stringify(d));
@@ -19,7 +20,8 @@ export function syncPayload(db, maxChars = SYNC_MAX) {
 export function mergeSynced(db, remote) {
   const r = remote && remote.app === 'length-reader-sync' && remote.data;
   if (!r) throw new Error('Not a Length Reader sync file');
-  const out = { sessions: 0, badges: 0, level: false };
+  const out = { sessions: 0, badges: 0, level: false, actions: 0 };
+  out.actions = mergeActions(db, r.actions);
   out.sessions = mergeSessions(db, (r.sessions || []).filter(s => s && s.date));
   for (const k in r.badges || {}) {
     if (!db.badges[k]) { db.badges[k] = r.badges[k]; out.badges++; }

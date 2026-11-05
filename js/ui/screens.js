@@ -10,7 +10,8 @@ import { TIERS } from '../core/quality.js';
 import { drawMap } from './session-ui.js';
 import { only } from './menus.js';
 import { BADGES, badgeSVG, badgeById } from '../core/badges.js';
-import { SB_ROWS, sbClean } from '../core/sandbox.js';
+import { SB_ROWS, sbClean, sbSetActions } from '../core/sandbox.js';
+import { actionProfiles } from '../core/myactions.js';
 import { personalLine, recentBalls, evidenceText } from '../core/readline.js';
 import { selectorReport, leaveReport } from '../core/selection.js';
 export { only };
@@ -111,7 +112,7 @@ const FIELDS = [
   { k: 'hand', l: 'BATTING HAND', t: 'select', o: [['R', 'Right-handed'], ['L', 'Left-handed']], prof: true, h: 'Mirrors the off side, the camera and spin for left-handers. The bowler stays right-arm over.' },
   { k: 'maxKph', l: 'TOP PACE (KPH)', t: 'number', min: 80, max: 150, h: 'Each level climbs 80 → 120 kph, then the blackout starts. Caps the pace.' },
   { k: 'trigger', l: 'TRIGGER BUTTON', t: 'check', h: 'Time your forward press: between the bowler’s back foot landing and release. Controller: LT · keyboard: Space · phone: first tap.' },
-  { k: 'view', l: 'VIEW', t: 'select', o: [['auto', 'Auto — fits flat or vertical screen'], ['wide', 'Wide — see more pitch'], ['tight', 'Tight'], ['life', 'Simple life-size (or use Calibrate my setup for true life-size)']], h: 'When you have calibrated, true life-size is used in every mode and these views are ignored.' },
+  { k: 'view', l: 'VIEW', t: 'select', o: [['auto', 'Auto — fits flat or vertical screen'], ['wide', 'Wide — see more pitch'], ['tight', 'Tight'], ['life', 'Simple life-size (or use Calibrate my setup for true life-size)'], ['helmet', 'Helmet cam — wide lens, whole pitch to your feet (like a GoPro on your helmet)']], h: 'When you have calibrated, true life-size is used in every mode and the other views are ignored — except Helmet cam, which always applies. Helmet cam feels more like being there, but the bowler and ball look smaller than life; for reading length, true life-size is the accurate one.' },
   { k: 'lifeCm', l: 'SIMPLE LIFE-SIZE: SCREEN HEIGHT (CM)', t: 'number', min: 10, max: 300, h: 'Height of the lit picture area. 27-inch 16:9: upright ≈ 59.8 · flat ≈ 33.6. Better: Calibrate my setup.' },
   { k: 'lifeM', l: 'LIFE-SIZE: YOUR DISTANCE FROM SCREEN (M)', t: 'number', min: 0.5, max: 6, step: 0.1, h: 'Eyes to screen, standing in your stance.' },
   { k: 'boost', l: 'BALL SIZE BOOST', t: 'number', min: 1, max: 3, step: 0.1, h: 'Makes the ball easier to see on screen. 1 = true size. Its growth rate (a timing cue) is unchanged.' },
@@ -215,7 +216,7 @@ export function rtClose(back) { if (RT) clearTimeout(RT.timer); RT = null; (back
 
 // ---------- sandbox: pick every ball (a row of chips per choice; Random rolls again every ball) ----------
 export function renderSandbox(inSession) {
-  const S = app.S; S.sandbox = sbClean(S.sandbox);
+  const S = app.S; sbSetActions(actionProfiles(app.db.actions)); S.sandbox = sbClean(S.sandbox);
   const box = $('sbRows');
   box.innerHTML = SB_ROWS.map(r => `<div class="sbRow"><label>${r.l}</label><div class="sbChips">` +
     [['rand', 'Random']].concat(r.o).map(([v, t]) => `<button class="sbChip${S.sandbox[r.k] === v ? ' on' : ''}" data-k="${r.k}" data-v="${v}" aria-pressed="${S.sandbox[r.k] === v}">${esc(t)}</button>`).join('') +

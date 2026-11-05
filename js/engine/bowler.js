@@ -64,6 +64,13 @@ export function createBowler(scene) {
     // Pose at scene time t (s). rel = release-angle offset (deg), jx = small sideways shift of the release.
     pose(t, prof, rel, jx, cue) { apply(poseAt(t, prof, rel, P, cue), prof, jx); },
     handWorld(out) { return rA.hand.getWorldPosition(out); },
+    // World positions of the main joints (tests: rig → landmarks → clip extraction round trip). Allocates; not for the frame loop.
+    joints() {
+      const w = (o) => o.getWorldPosition(new THREE.Vector3());
+      const ankle = (leg) => leg.kn.localToWorld(new THREE.Vector3(0, -0.46, 0));
+      return { rs: w(rA.sh), re: w(rA.el), rw: w(rA.hand), ls: w(lA.sh), le: w(lA.el), lw: w(lA.hand),
+        rh: w(rL.hip), rk: w(rL.kn), ra: ankle(rL), lh: w(lL.hip), lk: w(lL.kn), la: ankle(lL) };
+    },
     // Nets: walks back to his mark between balls. e = seconds since the ball finished; w = {from:{x,z}, dur (ms)}.
     walkBack(e, w, prof) {
       const Z1 = prof.spin ? 23 : RUN_START_Z, dist = Z1 - w.from.z, tw = dist / Math.max(1.5, dist / Math.max(1, w.dur / 1000 - 2.5));

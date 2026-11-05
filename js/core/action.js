@@ -1,6 +1,7 @@
 // The bowler's action as numbers: run-up, keyframes and footfalls. Pure (no three.js); the rig applies the pose.
 // Elite timings: run-up ≈ 6.2 m/s, bound ≈ 2.2 m, back-foot contact → front-foot contact 0.19 s, front-foot → release 0.10 s.
 import { T_RUN, T_BFC, T_FFC, T_REL } from './physics.js';
+import { ACT_KEYS, actionAt } from './clipaction.js';
 
 // Smooth curve through keyframes (Catmull-Rom), so the action never stops dead.
 export function crv(k, t) {
@@ -71,13 +72,15 @@ export function poseAt(t, prof, rel, p, cue) {
     p.rh = 35 * s * a; p.lh = -35 * s * a;
     p.rk = -20 - 55 * Math.max(0, Math.sin(ph - 0.9)) * a; p.lk = -20 - 55 * Math.max(0, Math.sin(ph + Math.PI - 0.9)) * a;
   } else for (let j = 0; j < KEYS.length; j++) { const k = KEYS[j]; p[k] = LINK[k] ? lin(K[k], t) : crv(K[k], t); }
+  if (prof.act && t >= T_RUN) for (let j = 0; j < ACT_KEYS.length; j++) { const v = actionAt(prof.act, t, ACT_KEYS[j]); if (v != null) p[ACT_KEYS[j]] = v; }   // a copied action
   if (prof.spin && t >= T_RUN && t < T_BFC) { const u = (t - T_RUN) / (T_BFC - T_RUN); p.z = 20.1 - 0.8 * u; p.y = 0.98 + 0.1 * Math.sin(Math.PI * u); }   // spinner: small hop
   if (cue) {
     if (cue.bound && t > T_RUN && t < T_BFC) { const u = (t - T_RUN) / (T_BFC - T_RUN); p.y += 0.07 * cue.bound * Math.sin(Math.PI * u); }
     // a slower (or faster) arm through the delivery stride, meeting the normal arm exactly at release
     if (cue.arm && cue.arm !== 1 && t > T_BFC && t < T_REL + 0.3) {
       const w = Math.sin(Math.PI * (t - T_BFC) / (T_REL + 0.3 - T_BFC));
-      p.rw += w * (crv(K.rw, T_REL + (t - T_REL) * cue.arm) - p.rw);
+      const ta = T_REL + (t - T_REL) * cue.arm, ra = prof.act ? actionAt(prof.act, ta, 'rw') : null;
+      p.rw += w * ((ra == null ? crv(K.rw, ta) : ra) - p.rw);
     }
   }
   const bump = Math.max(0, 1 - Math.abs(t - T_REL) / 0.2);
