@@ -293,8 +293,8 @@ export function createWorld(canvas) {
   let calibrated = false;
   // Helmet cam: a wide lens at helmet height (like a GoPro on the grille). The whole pitch down to your feet is in view.
   // No head sway (it made Bink dizzy; the head should be still anyway). With a calibration for this orientation:
-  // the camera sits at your real eye height (+6 cm for the helmet) and the horizon at your real eye line on the screen,
-  // and the ball is drawn at its TRUE angular size (the wide lens would shrink it). Overrides calibration otherwise.
+  // the camera sits at your real eye height (+6 cm for the helmet) and the horizon at your real eye line on the screen.
+  // The ball is scaled like everything else (× Ball size). Overrides calibration otherwise.
   const helm = { on: false, ballScale: 1 };
   function helmetView(S) {
     const c = activeCalib(Object.assign({}, S, { view: 'auto' }), H > W);
@@ -303,9 +303,9 @@ export function createWorld(canvas) {
     const eyeY = c ? c.eyeCm / 100 + 0.06 : EYE.y + 0.12, down = Math.atan((0.5 - f) * 2 * Math.tan(vf / 2));
     camera.fov = vf / d2r; camera.near = 0.05; camera.far = 400; camera.position.set(EYE.x * hx, eyeY, EYE.z - 0.05); camera.up.set(0, 1, 0);
     camera.lookAt(-0.1 * hx, eyeY - 10 * Math.tan(down), 10); camera.aspect = W / H; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
-    // true angular size: this screen's real viewing angle vs the lens (needs the measured screen and distance)
-    const lifeV = c ? 2 * Math.atan(c.hCm / 2 / c.distCm) : null;
-    helm.ballScale = lifeV ? Math.max(1, Math.min(4, Math.tan(vf / 2) / Math.tan(lifeV / 2))) : (+S.boost || 1);
+    // the ball follows Settings → Ball size (1 = the same scale as everything else in the picture). v5.10 drew it at its
+    // true angular size instead (×3.65 at 80° on Bink's monitor), which looked huge next to the smaller-than-life bowler.
+    helm.ballScale = +S.boost || 1;
   }
   function applyView(S, hand) {
     view = S; hx = hand === 'L' ? -1 : 1; frame.scale.x = hx;

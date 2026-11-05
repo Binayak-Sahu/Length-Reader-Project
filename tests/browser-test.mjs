@@ -575,8 +575,8 @@ await ctx.close();
   // calibrated (Bink's upright 27"): horizon at his real eye line, camera at his eye height, ball at true angular size
   ok(Math.abs(h.horizon / h.H - 9.8 / 59.8) < 0.01, `Helmet cam + calibration: horizon at your real eye line (${(100 * h.horizon / h.H).toFixed(1)}% from the top = 9.8 cm of 59.8)`);
   const hv = await q.evaluate(() => { const a = window.__lr.app, w = a.world; return { y: w.camera.position.y, ball: w.ball.scale.x, fov: w.camera.fov }; });
-  const want = Math.tan(40 * Math.PI / 180) / Math.tan(Math.atan(59.8 / 2 / 130));
-  ok(Math.abs(hv.y - 1.56) < 1e-6 && Math.abs(hv.ball - Math.min(4, want)) < 0.01 && Math.abs(hv.fov - 80) < 1e-6, `camera at your eye height + 6 cm (${hv.y.toFixed(2)} m), 80° lens, ball drawn ${hv.ball.toFixed(2)}× = its true size on your screen`);
+  ok(Math.abs(hv.y - 1.56) < 1e-6 && Math.abs(hv.ball - 1.8) < 1e-6 && Math.abs(hv.fov - 80) < 1e-6, `camera at your eye height + 6 cm (${hv.y.toFixed(2)} m), 80° lens, ball follows Ball size (${hv.ball}×, not a hidden true-size ×3.65)`);
+  ok(await q.evaluate(() => { const a = window.__lr.app; a.S.boost = 1; a.applySettings('boost'); const s = a.world.ball.scale.x; a.S.boost = 1.8; a.applySettings('boost'); return s === 1; }), 'Helmet cam: Ball size 1 = the ball at the same scale as the scene');
   ok(await q.evaluate(() => { const a = window.__lr.app; a.S.helmFov = 60; a.applySettings('helmFov'); const f = a.world.camera.fov; a.S.helmFov = 80; a.applySettings('helmFov'); return Math.abs(f - 60) < 1e-6; }), 'lens setting changes the Helmet cam width');
   ok(await q.evaluate(() => { const a = window.__lr.app, w = a.world; a.S.light = 'late'; a.applySettings('light'); const l1 = w.light; a.S.night = true; a.applySettings('night'); const l2 = w.light; a.S.night = false; a.S.light = 'day'; a.applySettings('light'); return l1 === 'late' && l2 === 'night' && w.light === 'day'; }), 'Light: late afternoon on and off; night mode wins over it');
   await q.evaluate(() => window.__lr.game.startSession('quick'));
@@ -585,6 +585,28 @@ await ctx.close();
   await q.waitForTimeout(400);
   ok(await q.evaluate((c1) => window.__lr.app.world.camera.position.toArray().join() === c1, cam1), 'Helmet cam: the camera stays dead still (no head sway)');
   await q.evaluate(() => window.__lr.game.abandonToHome());
+  await c.close();
+}
+
+// ---------- 8l. Sandbox Look panel: change the view mid-session, see it at once, saved ----------
+{
+  const c = await browser.newContext({ viewport: { width: 1000, height: 600 } });
+  const q = await page(c, '?nosw', `localStorage.setItem('lr5', JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false } }));`);
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  await q.click('#bSandbox'); await q.click('#bSbGo');
+  await waitFor(q, () => window.__lr.game.G.state === 'run');
+  await q.keyboard.press('c');
+  ok(await q.evaluate(() => { const s = document.getElementById('sandbox'), r = s.getBoundingClientRect(); return s.classList.contains('drawer') && r.left > innerWidth * 0.4 && !!document.getElementById('sl_view'); }), 'mid-session the Sandbox panel is a side panel (the scene stays in view) with the Look settings');
+  await q.selectOption('#sl_view', 'helmet');
+  await q.selectOption('#sl_light', 'late');
+  await q.fill('#sl_boost', '1'); await q.dispatchEvent('#sl_boost', 'change');
+  const r = await q.evaluate(() => { const w = window.__lr.app.world, d = JSON.parse(localStorage.getItem('lr5')).settings; return { helmet: w.helmet, light: w.light, ball: w.ball.scale.x, saved: d.view === 'helmet' && d.light === 'late' && d.boost === 1, paused: window.__lr.game.G.state === 'paused' }; });
+  ok(r.helmet && r.light === 'late' && r.ball === 1 && r.saved && r.paused, 'Look changes apply to the paused scene at once and are saved (Helmet cam, late light, ball size 1)');
+  await q.click('#bSbGo');
+  ok(await q.evaluate(() => !document.getElementById('sandbox').classList.contains('hidden') === false && window.__lr.game.G.state !== 'paused'), 'Resume closes the panel and carries on');
+  await q.evaluate(() => window.__lr.game.abandonToHome());
+  await q.click('#bSandbox');
+  ok(await q.evaluate(() => !document.getElementById('sandbox').classList.contains('drawer')), 'from the Play tab it is the normal full screen again');
   await c.close();
 }
 

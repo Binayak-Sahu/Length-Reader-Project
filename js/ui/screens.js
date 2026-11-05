@@ -143,17 +143,18 @@ const FIELDS = [
   { k: 'quality', l: 'GRAPHICS QUALITY', t: 'select', o: [['auto', 'Auto — keeps every frame on time'], ...TIERS.map(t => [t.id, t.id[0].toUpperCase() + t.id.slice(1)])], h: 'Auto lowers resolution or shadows between balls if frames are late. Never changes mid-delivery.' },
   { k: 'overlay', l: 'FPS COUNTER / FRAME TIMES', t: 'check', h: 'Refresh rate, FPS, frame times and dropped frames. Shortcut: F2 or the ` key.' },
 ];
-export function renderSettings(onChange) {
+// Settings fields into a container (the Settings page, or the Look panel in Sandbox). Each change is saved at once.
+function fieldsInto(box, fields, onChange, idp = 'f_') {
   const { S, db } = app;
   const val = f => f.prof ? db.profile[f.k] : S[f.k];
-  $('form').innerHTML = FIELDS.map(f => {
-    let inp; const id = 'f_' + f.k;
+  box.innerHTML = fields.map(f => {
+    let inp; const id = idp + f.k;
     if (f.t === 'select') inp = `<select id="${id}" data-k="${f.k}">${f.o.map(([v, n]) => `<option value="${v}" ${String(val(f)) === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
     else if (f.t === 'check') inp = `<input id="${id}" type="checkbox" data-k="${f.k}" ${val(f) ? 'checked' : ''}>`;
     else inp = `<input id="${id}" type="number" data-k="${f.k}" value="${val(f)}" min="${f.min}" max="${f.max}" step="${f.step || 1}">`;
     return `<div class="field"><label for="${id}">${f.l}</label>${inp}${f.h ? `<div class="help">${f.h}</div>` : ''}</div>`;
   }).join('');
-  $('form').querySelectorAll('[data-k]').forEach(el => el.addEventListener('change', () => {
+  box.querySelectorAll('[data-k]').forEach(el => el.addEventListener('change', () => {
     const f = FIELDS.find(x => x.k === el.dataset.k);
     let v;
     if (f.t === 'check') v = el.checked;
@@ -162,6 +163,10 @@ export function renderSettings(onChange) {
     if (f.prof) db.profile[f.k] = v; else S[f.k] = v;
     app.saveNow(); onChange && onChange(f.k);
   }));
+}
+export function renderSettings(onChange) {
+  const { db } = app;
+  fieldsInto($('form'), FIELDS, onChange);
   $('dataInfo').innerHTML = `${db.sessions.length} sessions saved on this device${db.v3.count ? ` (${db.v3.count} carried over from v4)` : ''}. ` +
     `Saved data lives only in this browser, on this web address (${esc(location.host || 'this device')}). Data from another address — like the old claude.ai copy — or another browser can’t be read from here: open that copy, tap <b>Export data</b>, then <b>Import</b> the file here.`;
   only('settings');
@@ -231,6 +236,10 @@ export function renderSandbox(inSession) {
     S.sandbox[row.k] = opt ? opt[0] : 'rand'; app.saveNow();
     box.querySelectorAll(`.sbChip[data-k="${row.k}"]`).forEach(c => { const on = c === b; c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); });
   };
+  // Look: view settings, applied to the scene behind the panel straight away and saved
+  const LOOK = ['view', 'helmFov', 'boost', 'light', 'night', 'ball', 'sight', 'lenMarks'];
+  fieldsInto($('sbLook'), LOOK.map(k => FIELDS.find(f => f.k === k)).filter(Boolean), (k) => { app.applySettings(k); app.renderNow(); }, 'sl_');
+  $('sandbox').classList.toggle('drawer', !!inSession);
   $('bSbGo').textContent = inSession ? 'Resume ▶ (new balls from the next one)' : 'Bowl ▶';
   $('bSbBack').classList.toggle('hidden', !!inSession);
   only('sandbox');
