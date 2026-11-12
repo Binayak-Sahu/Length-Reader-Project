@@ -52,7 +52,7 @@ Also read:
   - The session runner is `js/game/game.js`.
   - Mode plans are in `js/game/modes.js`.
 - **Styles:** `css/app.css` = design system + every menu screen (tokens at the top; use them). `css/play.css` = in-play layer.
-- **This PC (D:\\Gen_AI\\Exp\\Length-Reader-Project):** git has no saved GitHub login, so pushing needs Bink to sign in once. Keep `core.autocrlf false` (LF), or the offline stamp will not match CI. Playwright: `npm install --no-save playwright@1.63.0 && npx playwright install chromium`.
+- **This PC (D:\\Gen_AI\\Exp\\Length-Reader-Project):** Bink signed git in to GitHub on 12 Nov 2026, so pushing works; there is no `gh`, and the public GitHub API rate-limits quickly, so read CI from the Actions page in a browser. Keep `core.autocrlf false` (LF), or the offline stamp will not match CI. Playwright: `npm install --no-save playwright@1.63.0 && npx playwright install chromium`.
 - **No build step.** ES modules plus an import map. Vendored libraries are in `vendor/` and are re-created by `tools/vendor.sh`.
 - **Saved data:** `localStorage` key `lr5`.
   - Sync (v5.3): `js/core/sync.js` (merge, tested in Node) and `js/sync-github.js` (gist client; token in key `lr5-sync`). More → Sync phone + PC.
@@ -194,8 +194,7 @@ Also read:
 - **v5.4 shipped (29 Oct 2026):** Sandbox mode. **v5.4.1:** timing fix ("too quick" at pace). **v5.5:** personal too-quick line from his own results.
 - **v5.6 shipped (2 Nov 2026):** Selection sim, Leave drill, head-only mirror. **v5.7:** pre-release cues (bound, arm speed). **v5.8:** My bowlers (real actions copied from clips). **v5.9:** Helmet cam view. **v5.10:** Helmet cam improvements, late-afternoon light, next-net sounds.
 - **v5.6 shipped (1 Nov 2026):** Real bowlers page (More → Real bowlers). Portrait crop view (default) and Bink's first video `enRiR-kqxE4`; he's finding more himself.
-- **v6.0 built (12 Nov 2026), branch `v6-foundation`, NOT pushed:** design system for all menu screens, grouped Play, 5-step first run, Skill check, daily backups, honest How it works, grouped Settings. Live drills untouched. See CHANGELOG.md.
-- **Waiting on Bink:** a GitHub sign-in on this PC so v6.0 can be pushed (then CI, then merge).
+- **v6.0 shipped (12 Nov 2026, merged to `main`, CI green, live site checked):** design system for all menu screens, grouped Play, 5-step first run, Skill check, daily backups, honest How it works, grouped Settings. Live drills untouched. See CHANGELOG.md.
 - **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
 - **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).
 - **Later (Bink paused it):** a PC mirror using the S25+ as a webcam, with pose checks on the big screen.

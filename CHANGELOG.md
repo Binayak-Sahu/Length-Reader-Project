@@ -2,7 +2,7 @@
 
 Plain-language list of what changed, newest first. One line says what to try.
 
-## v6.0 (12 Nov 2026) — not live yet: waiting on a GitHub sign-in to push
+## v6.0 (12 Nov 2026) — live
 
 **Live drills are untouched.** Every existing mode bowls, times and grades exactly as in v5.10.1, and looks the same once the ball is coming (the in-play styles were moved to their own file without changes).
 
@@ -28,4 +28,4 @@ Fixed
 - The starter video in Real bowlers was labelled with Bink's name for every player.
 - Tools (`stamp`, `serve`) crashed on Windows; line endings are now fixed to LF so the offline stamp matches CI.
 
-Try it (after it goes live): **PC and S25+ → Play → Skill check** (3 minutes), then look at **Progress**.
+Try it: **PC and S25+ → Play → Skill check** (3 minutes), then look at **Progress**.

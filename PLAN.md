@@ -54,7 +54,7 @@ First user: Bink (right-handed). Selection nets after 15 Nov 2026 against pace u
 
 ## Roadmap
 
-Status (12 Nov 2026): M1–M3 and v5.2–v5.10 shipped. **v6.0 (finished-product pass) is built on branch `v6-foundation`, not yet pushed.** See "What finished means" and "Next" below, and CHANGELOG.md.
+Status (12 Nov 2026): M1–M3 and v5.2–v5.10 shipped. **v6.0 (finished-product pass) shipped 12 Nov 2026.** See "What finished means" and "Next" below, and CHANGELOG.md.
 
 
 ### Milestone 1: "train on it today"
@@ -123,11 +123,11 @@ Tick only what has been checked on a screen or by a test.
 | Engineering | Offline, installable, private | ✅ |
 | Engineering | Saved data can't be lost | ✅ backups, damaged-save rescue, tab merge (tests) |
 | Engineering | Frame rate measured on the real devices | ❌ waiting on Bink (S25+, 165 Hz PC) |
-| Engineering | Tests for all logic and main flows; CI green | ✅ locally (all Node suites and 142 browser checks) · CI not run: nothing pushed yet |
+| Engineering | Tests for all logic and main flows; CI green | ✅ all Node suites and 143 browser checks, CI green on v6.0 |
 
 ## Next (in order)
 
-1. Push v6.0 (needs Bink's GitHub sign-in on this PC), watch CI, merge, check the live site and the update prompt.
+1. Hear from Bink how v6.0 feels on the S25+ and the PC (update prompt, Skill check, new menus).
 2. After the selection: redesign the in-play layer (HUD, result card, tap zones, banners) on the new design system, behind a setting first.
 3. Real nets diary (carry-over), then bring mirror / real / action pages onto the design system.
 4. Screen-reader pass and a data table behind the progress chart.
