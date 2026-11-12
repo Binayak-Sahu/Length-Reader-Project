@@ -48,7 +48,7 @@ export function parseStart(s) {
 }
 
 // Videos Bink chose; added once to every library (removing one keeps it removed).
-export const STARTERS = [{ id: 'enRiR-kqxE4', title: 'Net session (Bink’s pick)' }];
+export const STARTERS = [{ id: 'enRiR-kqxE4', title: 'Net session (starter video)' }];
 export const VIEWS = ['wide', 'portrait'];
 export const SHIFT_STEP = 0.1;
 export const clampShift = (x) => Math.max(-1, Math.min(1, Math.round((+x || 0) * 100) / 100));

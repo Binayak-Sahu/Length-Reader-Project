@@ -16,11 +16,21 @@ import * as scr from './ui/screens.js';
 import * as menu from './ui/menus.js';
 import { openCalib, mapPedals } from './ui/calib.js';
 import { createSync } from './sync-github.js';
+import { createBackups } from './backup-idb.js';
+import { inspectRaw, restoreSnapshot, mergeOtherTab, DAMAGED_KEY } from './core/backup.js';
 
-const VERSION = '5.10.1';
+const VERSION = '6.0.0';
 const qs = new URLSearchParams(location.search);
 
 // ---------- data ----------
+// A save that can't be read is put aside before anything is written, then the newest backup is brought back (below).
+let rawSave = null; try { rawSave = window.localStorage.getItem(KEY); } catch (e) { rawSave = null; }
+const saveState = inspectRaw(rawSave);
+app.backups = createBackups();
+if (saveState === 'damaged') {
+  app.backups.keepDamaged(rawSave);
+  if (rawSave.length < 400000) { try { window.localStorage.setItem(DAMAGED_KEY, rawSave); } catch (e) { /* no room: the IndexedDB copy is enough */ } }   // small only: it must never crowd out the real save
+}
 const boot = load(window.localStorage);
 app.db = boot.db; app.S = app.db.settings; app.storage = window.localStorage;
 app.saveNow = () => { if (!save(window.localStorage, app.db)) toast('Couldn’t save — storage is full or blocked. Export your data from More.'); };
@@ -96,8 +106,9 @@ game.setHooks({
       extra.trial = Object.assign(r, { tierName: TIERS[r.tier] });
     } else if (s.kind === 'boss') db.bosses[s.boss.id] = Math.max(db.bosses[s.boss.id] || 0, score);
     if (s.kind === 'tutorial') db.profile.onboarded = true;
-    extra.badges = checkBadges(db, rec);
+    extra.badges = s.kind === 'check' ? [] : checkBadges(db, rec);      // a test earns nothing
     app.saveNow();
+    app.backups.snapshot(db);
     doSync(true);
     scr.renderEnd(s, score, rec, extra);
     if (extra.trial && extra.trial.promoted) { audio.fanfare(); haptics.reward(); app.voice.say(`Promoted to ${TIERS[extra.trial.tier]}!`); }
@@ -108,6 +119,7 @@ $('bDaily').onclick = () => start('daily');
 $('bStart').onclick = () => start('session');
 $('bQuick').onclick = () => start('quick');
 $('bSelection').onclick = () => start('selection');
+$('bCheck').onclick = () => start('check');
 $('bLeave').onclick = () => start('leave');
 $('bSandbox').onclick = () => scr.renderSandbox(false);
 $('bSbGo').onclick = () => { if (game.G.sbOpen) game.closeSandbox(); else start('sandbox'); };
@@ -121,7 +133,7 @@ $('bNets').onclick = () => start('nets');
 $('bTrialTile').onclick = () => { const cs = careerState(app.db); if (cs.next && cs.unlocked) start('trial', { boss: cs.next }); else TAB.career(); };
 $('bAgain').onclick = () => {
   const s = game.G.sess;
-  if (s && s.kind === 'tutorial') start('daily'); else start(last.kind, last.opts);
+  if (s && s.kind === 'tutorial') start('daily'); else if (s && s.kind === 'check') goHome(); else start(last.kind, last.opts);
 };
 $('bHome3').onclick = goHome;
 
@@ -131,7 +143,7 @@ function reaction(backFn) { rtBack = backFn || (() => menu.renderMore()); scr.rt
 $('bRT').onclick = () => reaction();
 $('bHow').onclick = () => menu.only('howto');
 $('bHowBack').onclick = () => menu.renderMore();
-$('bControls').onclick = () => { $('controls').classList.toggle('hidden'); };
+$('bControls').onclick = () => { const open = $('controls').classList.toggle('hidden') === false; $('bControls').setAttribute('aria-expanded', open); if (open) $('controls').scrollIntoView({ block: 'nearest', behavior: app.S.reduceMotion ? 'auto' : 'smooth' }); };
 $('bTrig').onclick = () => { app.S.trigger = !app.S.trigger; app.saveNow(); menu.renderMore(); };
 $('bSettings').onclick = () => scr.renderSettings(applySettings);
 app.openSettings = () => scr.renderSettings(applySettings);
@@ -152,8 +164,24 @@ $('pBtn').onclick = () => game.togglePause();
 $('rcHold').onclick = game.holdToggle; $('rcRep').onclick = () => game.replay(false); $('rcSlow').onclick = () => game.replay(true); $('rcNext').onclick = () => game.nextBall();
 $('bResume').onclick = () => game.togglePause(); $('bEndNow').onclick = () => game.endSession(); $('bHome2').onclick = () => game.abandonToHome();
 
-// My bowlers are added on action.html (same site): pick up its saves without losing them on our next save.
-addEventListener('storage', (e) => { if (e.key === KEY && e.newValue) { try { app.db.actions = JSON.parse(e.newValue).actions || app.db.actions; } catch (err) { /* keep ours */ } } });
+// Another tab (or the My bowlers page) saved: take what it has that we don't, so our next save can't wipe it.
+addEventListener('storage', (e) => {
+  if (e.key !== KEY || !e.newValue) return;
+  const r = mergeOtherTab(app.db, e.newValue);
+  if (r.sessions) app.saveNow();                  // write the union back, so it survives even if this tab never saves again
+  if (r.sessions && !game.G.sess) { if (app.state === 'home') goHome(); else if (app.state === 'progress') TAB.progress(); }
+});
+// Backups: one snapshot a day on this device. A restore only adds what is missing, then the app reloads.
+app.restoreBackup = async (k, full) => {
+  const snap = await app.backups.get(k);
+  if (!snap) { toast('That backup couldn’t be opened.'); return false; }
+  const copy = JSON.parse(JSON.stringify(app.db));              // work on a copy: nothing changes unless the result saves
+  try { restoreSnapshot(copy, snap.text, !!full); } catch (err) { toast(err.message); return false; }
+  try { window.localStorage.removeItem(DAMAGED_KEY); } catch (err) { /* fine */ }   // the IndexedDB copy of a damaged save stays
+  if (!save(window.localStorage, copy)) { toast('Couldn’t save — storage is full or blocked.'); return false; }
+  try { sessionStorage.setItem('lr-restored', new Date(snap.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })); } catch (err) { /* only the message is lost */ }
+  location.reload(); return true;
+};
 
 // ---------- sync (optional, the player's own GitHub) ----------
 app.sync = createSync(window.localStorage);
@@ -293,6 +321,21 @@ else {
   else if (!app.db.profile.seenV5) toast('New: Daily session, career trials with boss bowlers, badges and offline install.');
 }
 app.db.profile.seenV5 = true; app.saveNow();
+// Backups at start: rescue a damaged save, offer one if the save has vanished, otherwise take today's snapshot.
+(async () => {
+  let was = null; try { was = sessionStorage.getItem('lr-restored'); sessionStorage.removeItem('lr-restored'); } catch (e) { was = null; }
+  if (was) { toast(`Backup from ${was} restored. Nothing was removed.`); return; }
+  const lost = saveState === 'damaged' || !app.db.sessions.length;
+  if (lost) {
+    const list = await app.backups.list(), newest = list.find(x => x.n > 0);
+    if (!newest) return;
+    if (saveState === 'damaged') { app.restoreBackup(newest.k, true); return; }
+    const d = new Date(newest.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    toast(`Found a backup from ${d} with ${newest.n} session${newest.n === 1 ? '' : 's'}.`, 'Restore', () => app.restoreBackup(newest.k, true));
+    return;
+  }
+  app.backups.snapshot(app.db);
+})();
 syncView(); doSync(true);
 requestAnimationFrame(loop);
 // Test hook (headless browser tests): read-only peek at state.

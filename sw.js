@@ -4,11 +4,12 @@
 // • MediaPipe (≈15 MB) is cached the first time the mirror uses it, in its own cache that survives app updates.
 // • A new version waits until the player taps "Reload" (never mid-session).
 // @stamp-start
-const VERSION = '48b5e385d78c';
+const VERSION = '9bba69635525';
 const CORE = [
   './',
   'action.html',
   'css/app.css',
+  'css/play.css',
   'fonts/OFL-barlow-condensed.txt',
   'fonts/barlow-condensed-latin-600-normal.woff2',
   'fonts/barlow-condensed-latin-700-normal.woff2',
@@ -20,12 +21,15 @@ const CORE = [
   'index.html',
   'js/app.js',
   'js/audio.js',
+  'js/backup-idb.js',
   'js/core/action.js',
   'js/core/ambience.js',
+  'js/core/backup.js',
   'js/core/badges.js',
   'js/core/bowling.js',
   'js/core/calib.js',
   'js/core/career.js',
+  'js/core/check.js',
   'js/core/clipaction.js',
   'js/core/cues.js',
   'js/core/levels.js',

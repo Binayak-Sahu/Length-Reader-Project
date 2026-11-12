@@ -14,6 +14,7 @@ import { SB_ROWS, sbClean, sbSetActions } from '../core/sandbox.js';
 import { actionProfiles } from '../core/myactions.js';
 import { personalLine, recentBalls, evidenceText } from '../core/readline.js';
 import { selectorReport, leaveReport } from '../core/selection.js';
+import { checkReport, checkAdvice, checkHistory, checkTrend, checkDue, CHECK_NOISE } from '../core/check.js';
 export { only };
 
 // ---------- end of session ----------
@@ -22,17 +23,23 @@ export function renderEnd(s, score, rec, extra = {}) {
   const silentEnd = s.plan.segs.every(x => x.fb === 'end');
   if (s.match) { const m = s.match; $('eScore').textContent = `${m.runs}/${m.wk}`; $('eScore').style.color = m.won ? 'var(--good)' : 'var(--bad)'; $('eTitle').textContent = (m.won ? 'WON · ' : 'LOST · ') + m.res + ` · target ${m.target}`; }
   else { $('eScore').textContent = score + '%'; $('eScore').style.color = score >= 80 ? 'var(--good)' : score >= 60 ? 'var(--warn)' : 'var(--bad)'; $('eTitle').textContent = s.plan.segs.length > 1 || s.kind !== 'session' ? s.title.toUpperCase() : 'SESSION COMPLETE'; }
-  $('eCounts').innerHTML = `<span class="g">● ${cnt('good')} right</span><br><span class="w">▲ ${cnt('warn')} late or guessed</span><br><span class="b">✕ ${cnt('bad')} wrong</span>`;
+  $('eCounts').innerHTML = `<span class="g">● ${cnt('good')} right</span><br><span class="w">▲ ${cnt('warn')} late or too quick</span><br><span class="b">✕ ${cnt('bad')} wrong</span>`;
   const rts = b.filter(x => x.foot && x.fv === 'good' && x.rt != null).map(x => x.rt);
   const pct = f => Math.round(100 * b.filter(f).length / b.length) + '%';
   const pl = b.filter(x => x.pv), trg = b.filter(x => x.tv), gs = b.filter(x => x.guess).length;
   const avg = rts.length ? rts.reduce((a, c) => a + c, 0) / rts.length : null;
-  $('eMeta').innerHTML = `<b class="xpbig">+${rec.xp} XP</b> · ${b.length} ball${b.length === 1 ? '' : 's'} · peak ${esc(LEVELS[s.peak].n)} · best streak ${s.best} · feet right ${pct(x => x.fv === 'good')}`
-    + (pl.length ? ` · play/leave right ${Math.round(100 * pl.filter(x => x.pv === 'good').length / pl.length)}%` : '')
-    + (trg.length ? ` · trigger on time ${Math.round(100 * trg.filter(x => x.tv === 'good').length / trg.length)}%` : '')
-    + (gs ? ` · ${gs} guess${gs > 1 ? 'es' : ''} (too quick to be a read)` : '')
-    + `<br>${esc(evidenceText(personalLine(recentBalls(app.db.sessions), app.db.rtBase)))}`
-    + (avg != null ? ` · avg feet decision ${avg.toFixed(2)} s after release` + (app.db.rtBase ? ` (reading ${Math.max(0, avg - app.db.rtBase).toFixed(2)} s)` : '') : '');
+  const tile = (v, l, cls = '') => `<div class="st ${cls}"><b>${v}</b><small>${l}</small></div>`;
+  const isTest = s.kind === 'check', isTut = s.kind === 'tutorial';
+  $('eMeta').innerHTML = '<div class="statg">'
+    + (isTest ? '' : tile('+' + rec.xp + ' XP', 'earned for real reads', 'xp'))
+    + tile(pct(x => x.fv === 'good'), 'feet right, on time')
+    + (pl.length ? tile(Math.round(100 * pl.filter(x => x.pv === 'good').length / pl.length) + '%', 'play / leave right') : '')
+    + (trg.length ? tile(Math.round(100 * trg.filter(x => x.tv === 'good').length / trg.length) + '%', 'trigger on time') : '')
+    + (avg != null ? tile(avg.toFixed(2) + ' s', 'feet decided after release') : '')
+    + tile(s.best, 'best streak') + (gs ? tile(gs, 'too quick to be a read') : '') + '</div>'
+    + `<details><summary>Timing details</summary>${b.length} ball${b.length === 1 ? '' : 's'} · top level ${esc(LEVELS[s.peak].n)}`
+    + (avg != null && app.db.rtBase ? ` · reading time ${Math.max(0, avg - app.db.rtBase).toFixed(2)} s (decision time minus your button speed)` : '')
+    + `<br>${esc(evidenceText(personalLine(recentBalls(app.db.sessions), app.db.rtBase)))}</details>`;
   const cats = ['Full toss', 'Yorker', 'Full', 'Good', 'Short', 'Bouncer', 'Wide off', 'vs Spin', 'Variety balls'];
   $('eBars').innerHTML = cats.map(c => {
     const xs = c === 'vs Spin' ? b.filter(x => x.spin) : c === 'Variety balls' ? b.filter(x => x.varn && !x.spin) : b.filter(x => x.cat === c);
@@ -48,19 +55,39 @@ export function renderEnd(s, score, rec, extra = {}) {
     if (x.pv === 'bad') { const k = x.pe === 'LEAVE' ? 'Played at balls you should leave' : 'Left balls hitting the stumps'; errs[k] = (errs[k] || 0) + 1; }
   });
   const top = Object.entries(errs).sort((a, c) => c[1] - a[1])[0];
-  if (top && top[1] >= 2) { show('eLeak', true); $('eLeak').innerHTML = `<b>Biggest leak:</b> ${esc(top[0])} (${top[1]}×)`; }
+  if (top && top[1] >= 2 && !isTest && !isTut) { show('eLeak', true); $('eLeak').innerHTML = `<b>Biggest leak:</b> ${esc(top[0])} (${top[1]}×)`; }
   else show('eLeak', false);
-  show('eSel', s.kind === 'selection' || s.kind === 'leave');
+  show('eSel', s.kind === 'selection' || s.kind === 'leave' || isTest);
   if (s.kind === 'selection') {
     const r = selectorReport(b, s.pline ? s.pline.line : null), yn = (v) => v == null ? '—' : v + '%';
-    $('eSel').innerHTML = `<div class="stars" aria-label="${r.stars} of 5">${'★'.repeat(r.stars)}<i>${'★'.repeat(5 - r.stars)}</i></div>
-      <b>Selector's note:</b> ${esc(r.fix)}<br>Feet right ${yn(r.reads)} · play/leave right ${yn(r.playLeave)} · vs pace ${yn(r.pace)} · vs spin ${yn(r.spin)}
+    $('eSel').innerHTML = `<div class="stars" role="img" aria-label="${r.stars} of 5 stars">${'★'.repeat(r.stars)}<i>${'★'.repeat(5 - r.stars)}</i></div>
+      <small class="lbl">Selector's note</small><div class="fix">${esc(r.fix)}</div>Feet right ${yn(r.reads)} · play/leave right ${yn(r.playLeave)} · vs pace ${yn(r.pace)} · vs spin ${yn(r.spin)}
       <br>First ball (cold): ${r.cold == null ? '—' : r.cold ? '✓ read it' : '✕ missed it'} · early commits ${r.early} · forward to short ${r.fwdShort} · played at wides ${r.playedWide} · left hitting ${r.leftHitting}`;
   } else if (s.kind === 'leave') {
     const r = leaveReport(b);
     $('eSel').innerHTML = `<b>Left ${r.leftWide} of ${r.wide} wide ones</b> · played at ${r.playedWide} · left ${r.leftHitting} of ${r.hitting} hitting the stumps<br>Check the mirror's count: how often did your head fall to the off side?`;
   }
-  $('eNote').textContent = silentEnd ? 'Nets rules: this is your first look at how you did.' : '';
+  if (isTest) {
+    const r = rec.check || checkReport(b), hist = checkHistory(app.db.sessions), t = checkTrend(hist), yn = (v) => v == null ? '—' : v + '%';
+    const cmp = !r.complete ? 'Stopped early, so this one isn\u2019t kept as a test result. Finish all 24 balls to get a score you can compare.'
+      : t.state === 'first' ? 'That\u2019s your starting mark. Take it again in about a week, fresh, before you train.'
+      : t.state === 'up' ? `Up ${t.delta} points since your first test (${t.first.score}%). ${t.clear ? 'That is a clear improvement.' : 'Probably real improvement; the next test will confirm it.'}`
+      : t.state === 'down' ? `Down ${-t.delta} points on your first test (${t.first.score}%). One off day happens; test again next week before reading much into it.`
+      : `About the same as your first test (${t.first.score}%). A change under ${CHECK_NOISE} points on 24 balls can be luck either way.`;
+    $('eSel').innerHTML = `<small class="lbl">What to work on</small><div class="fix">${esc(checkAdvice(r))}</div>
+      Short balls ${yn(r.short)} · pitched-up ${yn(r.full)} · full view ${yn(r.seen)} · blacked out ${yn(r.dark)} · pace ${yn(r.pace)} · spin ${yn(r.spin)}
+      <br>Tells short from full: <b>${r.tell == null ? '—' : r.tell + ' / 100'}</b>${r.lean ? ` · may lean <b>${r.lean === 'front' ? 'forward' : 'back'}</b> when unsure` : ''}${r.early != null ? ` · feet decided ${Math.round(Math.abs(r.early) * 1000)} ms ${r.early >= 0 ? 'before' : 'after'} the bounce on a typical ball` : ''}
+      <br><small>${esc(cmp)}</small>`;
+  }
+  $('eScoreLbl').textContent = isTest ? 'Read score' : 'Score';
+  show('eWelcome', isTut); show('eScoreRow', !isTut); show('eMeta', !isTut); show('eBarsP', !isTut);
+  if (isTut) {
+    const own = b.slice(2), ok2 = own.filter(x => x.v === 'good').length;
+    $('eWelcome').innerHTML = `<h2>${own.length && ok2 === own.length ? 'You\u2019ve got it.' : 'That\u2019s the idea.'}</h2>
+      <p>You read <b>${ok2} of ${own.length || 2}</b> on your own. Pitched up, go forward. Short, go back. Decide before it bounces, and make the real step every time.</p>
+      <p>Next: your first daily session. About 10 minutes. It starts easy and gets harder only as you get them right.</p>`;
+  }
+  $('eNote').textContent = isTest ? 'A test: no XP, and your level doesn\u2019t move.' : silentEnd ? 'Nets rules: this is your first look at how you did.' : '';
   const tr = extra.trial, et = $('eTrial');
   if (tr) {
     et.className = 'trialRes ' + (tr.passed ? 'pass' : 'fail');
@@ -70,7 +97,7 @@ export function renderEnd(s, score, rec, extra = {}) {
   } else { et.className = 'trialRes hidden'; et.innerHTML = ''; }
   const nb = extra.badges || [];
   $('eBadges').innerHTML = nb.map(id => { const b = badgeById(id); return `<div class="bdg">${badgeSVG(b, true)}<b>${esc(b.n)}</b><small>${esc(b.d)}</small></div>`; }).join('');
-  $('bAgain').textContent = s.kind === 'tutorial' ? 'Start your first daily session' : s.kind === 'trial' && !(tr && tr.passed) ? 'Try the trial again' : 'Go again (Enter · A)';
+  $('bAgain').textContent = s.kind === 'tutorial' ? 'Start your first daily session' : s.kind === 'trial' && !(tr && tr.passed) ? 'Try the trial again' : isTest ? 'Back to training' : 'Go again (Enter · A)';
   only('end');
   requestAnimationFrame(() => drawMap($('endMap'), b, null, app.db.profile.hand));
 }
@@ -78,6 +105,7 @@ export function renderEnd(s, score, rec, extra = {}) {
 // ---------- progress ----------
 export function renderProgress() {
   const D = progressData(app.db); show('progEmpty', !D.length);
+  renderCheckCard();
   const cell = v => v == null ? '—' : `<span class="${v >= 80 ? 'g' : v >= 60 ? 'w' : 'b'}">${v}%</span>`;
   $('progTable').innerHTML = D.length ? `<table><thead><tr><th>Day</th><th>Balls</th><th>Score</th><th>Reading</th><th>Full</th><th>Short</th><th>Wide off</th><th>Spin</th><th>XP</th><th>Matches</th><th>Level</th></tr></thead><tbody>` +
     D.slice().reverse().map(r => `<tr><td>${r.k.slice(5)}</td><td>${r.n}</td><td>${cell(r.score)}</td><td>${r.read == null ? '—' : r.read.toFixed(2) + ' s'}</td><td>${cell(r.full)}</td><td>${cell(r.short)}</td><td>${cell(r.wide)}</td><td>${cell(r.spin)}</td><td>${r.xp || '—'}</td><td>${r.matches ? r.wins + '/' + r.matches + ' won' : '—'}</td><td>L${LEVELS[r.lvl].m} · ${LEVELS[r.lvl].k}</td></tr>`).join('') + '</tbody></table>' : '';
@@ -105,6 +133,27 @@ function drawProg(cv, D) {
       c.fill(); });
   };
   line(r => r.score, Ys, '#22c55e', 'dot'); line(r => r.short, Ys, '#f5a524', 'tri'); line(r => r.read, Yr, '#38bdf8', 'sq');
+}
+
+// The Skill check card: the one number that can be compared from week to week.
+function renderCheckCard() {
+  const hist = checkHistory(app.db.sessions), t = checkTrend(hist), due = checkDue(app.db.sessions), el = $('ckCard');
+  const btn = (txt) => `<div class="row"><button class="btn go" id="bCheck2">${txt}</button></div>`;
+  if (t.state === 'none') {
+    el.innerHTML = `<div><h3>Skill check</h3><p>The same 24-ball test every time: front or back, no feedback, half of them blacked out just after release, always at 110 kph. Three minutes. Take it now for your starting mark, then about once a week.</p>${btn('Take the Skill check')}</div>`;
+  } else {
+    const L = t.last, when = new Date(L.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    const msg = t.state === 'first' ? 'Your starting mark. Take it again in about a week, fresh, before you train.'
+      : t.state === 'up' ? `Up <b>${t.delta} points</b> since your first test (${t.first.score}%). ${t.clear ? 'That is a clear improvement.' : 'Probably real improvement; the next test will confirm it.'}`
+      : t.state === 'down' ? `Down ${-t.delta} points on your first test (${t.first.score}%). Test again next week before reading much into one off day.`
+      : `About the same as your first test (${t.first.score}%). Under ${CHECK_NOISE} points either way can be luck on 24 balls.`;
+    const bars = hist.slice(-8).map(h => `<span>${h.score}<i style="height:${Math.max(4, h.score * 0.7)}%"></i></span>`).join('');
+    el.innerHTML = `<div><div class="num">${L.score}<small>%</small></div>${hist.length > 1 ? `<div class="ckBars" role="img" aria-label="Skill check scores, oldest first: ${hist.slice(-8).map(h => h.score + '%').join(', ')}">${bars}</div>` : ''}</div>
+      <div><h3>Skill check · ${when}</h3><p>${msg}</p>
+      <div class="ckFacts"><span>Short balls <b>${L.short == null ? '—' : L.short + '%'}</b></span><span>Pitched-up <b>${L.full == null ? '—' : L.full + '%'}</b></span><span>Blacked out <b>${L.dark == null ? '—' : L.dark + '%'}</b></span><span>Tells short from full <b>${L.tell == null ? '—' : L.tell + '/100'}</b></span>${L.lean ? `<span>May lean <b>${L.lean === 'front' ? 'forward' : 'back'}</b></span>` : ''}</div>
+      ${btn(due.due ? 'Take it again (it\u2019s been ' + due.days + ' days)' : 'Take it again')}${due.due ? '' : '<p class="note" style="margin-top:.6rem">Best about once a week. Taking it every day just teaches the test.</p>'}</div>`;
+  }
+  const b2 = $('bCheck2'); if (b2) b2.onclick = () => $('bCheck').click();
 }
 
 // ---------- settings ----------
@@ -141,19 +190,29 @@ const FIELDS = [
   { k: 'contrast', l: 'HIGH CONTRAST', t: 'check', h: 'Stronger outlines and solid panels. Verdicts always use shape as well as colour.' },
   { k: 'reduceMotion', l: 'REDUCE MOTION', t: 'check', h: 'No zoom or slide animations (the ball itself always moves, of course).' },
   { k: 'quality', l: 'GRAPHICS QUALITY', t: 'select', o: [['auto', 'Auto — keeps every frame on time'], ...TIERS.map(t => [t.id, t.id[0].toUpperCase() + t.id.slice(1)])], h: 'Auto lowers resolution or shadows between balls if frames are late. Never changes mid-delivery.' },
-  { k: 'overlay', l: 'FPS COUNTER / FRAME TIMES', t: 'check', h: 'Refresh rate, FPS, frame times and dropped frames. Shortcut: F2 or the ` key.' },
+  { k: 'overlay', l: 'FRAME-RATE COUNTER', t: 'check', h: 'Refresh rate, FPS, frame times and dropped frames. Shortcut: F2 or the ` key.' },
 ];
 // Settings fields into a container (the Settings page, or the Look panel in Sandbox). Each change is saved at once.
-function fieldsInto(box, fields, onChange, idp = 'f_') {
+const GROUPS = [
+  ['You', ['hand', 'textScale', 'contrast', 'reduceMotion']],
+  ['Training', ['levelMode', 'feedback', 'maxKph', 'gap', 'hawk', 'smart', 'trigger', 'stepCue']],
+  ['Bowlers', ['spinners', 'club', 'rotate', 'netsGap', 'widePct', 'bouncerPct']],
+  ['Picture', ['view', 'helmFov', 'lifeCm', 'lifeM', 'boost', 'ball', 'sight', 'lenMarks', 'light', 'night', 'quality', 'overlay']],
+  ['Sound and feel', ['sound', 'voice', 'ambience', 'haptics', 'fullscreen']],
+];
+function fieldsInto(box, fields, onChange, idp = 'f_', groups = null) {
   const { S, db } = app;
   const val = f => f.prof ? db.profile[f.k] : S[f.k];
-  box.innerHTML = fields.map(f => {
+  const one = (f) => {
     let inp; const id = idp + f.k;
     if (f.t === 'select') inp = `<select id="${id}" data-k="${f.k}">${f.o.map(([v, n]) => `<option value="${v}" ${String(val(f)) === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
     else if (f.t === 'check') inp = `<input id="${id}" type="checkbox" data-k="${f.k}" ${val(f) ? 'checked' : ''}>`;
     else inp = `<input id="${id}" type="number" data-k="${f.k}" value="${val(f)}" min="${f.min}" max="${f.max}" step="${f.step || 1}">`;
-    return `<div class="field"><label for="${id}">${f.l}</label>${inp}${f.h ? `<div class="help">${f.h}</div>` : ''}</div>`;
-  }).join('');
+    return `<div class="field${f.t === 'check' ? ' sw' : ''}"><label for="${id}">${f.l}</label>${inp}${f.h ? `<div class="help">${f.h}</div>` : ''}</div>`;
+  };
+  const left = groups ? fields.filter(f => !groups.some(g => g[1].includes(f.k))) : [];
+  box.innerHTML = groups ? groups.concat(left.length ? [['Other', left.map(f => f.k)]] : []).map(([name, ks], i) =>
+    `<h2${i ? '' : ' style="margin-top:0"'}>${name}</h2><div class="form">${ks.map(k => fields.find(f => f.k === k)).filter(Boolean).map(one).join('')}</div>`).join('') : fields.map(one).join('');
   box.querySelectorAll('[data-k]').forEach(el => el.addEventListener('change', () => {
     const f = FIELDS.find(x => x.k === el.dataset.k);
     let v;
@@ -166,10 +225,28 @@ function fieldsInto(box, fields, onChange, idp = 'f_') {
 }
 export function renderSettings(onChange) {
   const { db } = app;
-  fieldsInto($('form'), FIELDS, onChange);
+  fieldsInto($('form'), FIELDS, onChange, 'f_', GROUPS);
+  renderBackups();
   $('dataInfo').innerHTML = `${db.sessions.length} sessions saved on this device${db.v3.count ? ` (${db.v3.count} carried over from v4)` : ''}. ` +
     `Saved data lives only in this browser, on this web address (${esc(location.host || 'this device')}). Data from another address — like the old claude.ai copy — or another browser can’t be read from here: open that copy, tap <b>Export data</b>, then <b>Import</b> the file here.`;
   only('settings');
+}
+
+// Backups kept by themselves on this device. Restoring only ever adds what is missing.
+let bkArm = { k: null, at: 0 };
+export function renderBackups() {
+  const box = $('bkList'), info = $('bkInfo'); if (!box || !app.backups) return;
+  info.textContent = 'Looking for backups…'; box.innerHTML = '';
+  app.backups.list().then((list) => {
+    if (app.state !== 'settings') return;
+    info.textContent = list.length ? 'If something ever goes missing, put a day back. Restoring adds what is missing and never removes a session; your level can only go up from it, never down.'
+      : 'No backups yet. The first one is made after your first session.';
+    box.innerHTML = list.map(x => `<div class="bk"><span><b>${new Date(x.at).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}</b> · ${x.n} session${x.n === 1 ? '' : 's'} · ${x.balls} balls</span><button class="btn" data-bk="${esc(x.k)}">Restore</button></div>`).join('');
+    box.querySelectorAll('[data-bk]').forEach(b => b.onclick = () => {
+      if (bkArm.k !== b.dataset.bk || Date.now() - bkArm.at > 4000) { bkArm = { k: b.dataset.bk, at: Date.now() }; b.textContent = 'Tap again to restore'; setTimeout(() => { b.textContent = 'Restore'; }, 4000); return; }
+      app.restoreBackup(b.dataset.bk);
+    });
+  });
 }
 
 export function doExport() {
@@ -192,6 +269,8 @@ export function resetAll() {
   Object.assign(S, DEF); fresh.settings = S;
   for (const k of Object.keys(app.db)) delete app.db[k];
   Object.assign(app.db, fresh); app.saveNow();
+  if (app.backups) app.backups.clear();           // delete means delete: the backups go too
+  try { app.storage.removeItem('lr5-damaged'); } catch (e) { /* fine */ }
 }
 
 // ---------- reaction test: your pure button delay, so the app can show real reading time ----------

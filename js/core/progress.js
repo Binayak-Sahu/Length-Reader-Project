@@ -54,7 +54,8 @@ export function dayKey(d) {
 export const isSandbox = (s) => s && s.kind === 'sandbox';
 export function progressData(db) {
   const by = {};
-  for (const s of db.sessions) { if (isSandbox(s)) continue; const k = dayKey(s.date); (by[k] = by[k] || []).push(s); }
+  // Sandbox (the player's own picks) and the Skill check (a fixed test with its own card) are not training days' scores.
+  for (const s of db.sessions) { if (isSandbox(s) || s.kind === 'check') continue; const k = dayKey(s.date); (by[k] = by[k] || []).push(s); }
   return Object.keys(by).sort().map(k => {
     const ss = by[k], acc = { n: 0, sc: 0, read: [0, 0], cats: {}, spin: [0, 0] };
     for (const c of CATS) acc.cats[c] = [0, 0];

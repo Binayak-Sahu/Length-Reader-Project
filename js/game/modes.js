@@ -1,3 +1,5 @@
+import { checkBalls, CHECK_KPH, CHECK_N } from '../core/check.js';
+
 // Every mode is a plan: one or more segments with their own rules. The runner (game.js) just follows the plan.
 //   n        balls in the segment (Infinity = endless)
 //   adapt    the 85% staircase moves your level during this segment
@@ -10,10 +12,12 @@
 //   boss     boss bowler (profile + trademark ball)
 //   spell    selection sim: 'pace' | 'spin' | 'mixed' (who bowls the segment)
 //   sandbox  the player picks every ball (settings.sandbox); never moves the level, earns no XP
+//   test     a standard test (Skill check): no XP, no smart-feeding stats, no length bands, trigger not scored
+//   balls    per-ball plan for a test ([{cat, occ, spin}]); the same bowlers every time
 //   script   fixed balls for the tutorial ([{cat, d, lx}])      coach  a banner before each ball      labels  keep tap-zone labels on
 export function seg(o) {
   return Object.assign({ n: 50, name: '', adapt: true, levelDelta: 0, fb: 'auto', walk: false, drill: null, weakP: 0.4,
-    xpCtx: '', fixed: null, boss: null, intro: null, spell: null, sandbox: false, script: null, coach: null, labels: false }, o);
+    xpCtx: '', fixed: null, boss: null, intro: null, spell: null, sandbox: false, test: false, balls: null, script: null, coach: null, labels: false }, o);
 }
 
 export const MODE_INFO = {
@@ -28,6 +32,7 @@ export const MODE_INFO = {
   selection: { title: 'Selection sim', sub: '4 spells · pace + spin · ~120 kph · no feedback till the end' },
   leave: { title: 'Leave drill', sub: '30 balls · 40% wide outside off · use the mirror for your head' },
   sandbox: { title: 'Sandbox', sub: 'Pick every ball · keeps bowling' },
+  check: { title: 'Skill check', sub: '24 balls · the same test every time · shows real change' },
 };
 
 export function buildPlan(kind, opts = {}) {
@@ -61,6 +66,9 @@ export function buildPlan(kind, opts = {}) {
     case 'leave': return { kind, title: 'Leave drill', drill: 'leave', segs: [seg({ n: 30, name: 'Leave drill', adapt: false, fb: 'full', weakP: 0, drill: 'leave',
       fixed: { m: 2, k: 115, o: null }, intro: 'LEAVE DRILL · phone on the mirror, front-on · leave the wide ones, play at the stumps, head still' })] };
     case 'sandbox': return { kind, title: 'Sandbox', segs: [seg({ n: Infinity, name: 'Sandbox', adapt: false, fb: 'full', weakP: 0, sandbox: true })] };
+    // The standard test: 24 planned balls at a fixed pace, feet only, no feedback until the end. Never moves the level.
+    case 'check': return { kind, title: 'Skill check', segs: [seg({ n: CHECK_N, name: 'Skill check', adapt: false, fb: 'end', weakP: 0, test: true,
+      fixed: { m: 1, k: CHECK_KPH, o: null }, balls: checkBalls(opts.rng), intro: 'SKILL CHECK · 24 balls · front or back · no feedback till the end' })] };
     case 'nets': return { kind, title: 'Nets session', drill: 'nets', segs: [seg({ n: 24, adapt: false, fb: 'end', walk: true, weakP: 0, xpCtx: 'nets', gap: S.netsGap })] };
     case 'trial': case 'boss': {
       const b = opts.boss;
