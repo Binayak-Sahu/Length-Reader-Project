@@ -16,6 +16,7 @@ import { sbResolve, sbLabel, sbSetActions } from '../core/sandbox.js';
 import { actionProfiles } from '../core/myactions.js';
 import { personalLine, recentBalls } from '../core/readline.js';
 import { selectorReport } from '../core/selection.js';
+import { checkReport } from '../core/check.js';
 import * as ui from '../ui/session-ui.js';
 
 const NAMES = { F: 'FRONT', B: 'BACK', P: 'PLAY' };
@@ -105,6 +106,7 @@ export function nextBall() {
   if (seg.intro && sess.introShown !== sess.segI) { sess.introShown = sess.segI; banner(seg.intro, 2400); return; }
   if (seg.coach && seg.coach[sess.segN] && sess.coached !== sess.segN) { sess.coached = sess.segN; banner(seg.coach[sess.segN], 2600); return; }
   $('zones').classList.toggle('lbl', sess.balls.length < 3 || seg.labels);
+  const pb = seg.balls ? seg.balls[sess.segN] : null;            // Skill check: every ball is laid down by the plan (length, blackout, pace or spin)
   const perBall = !m && (seg.walk || S.rotate === 'ball');
   const sb = seg.sandbox ? sbResolve(S.sandbox, Math.random, { spinOf: (id) => ((sess.acts || []).find(p => p.id === id) || {}).spin || null }) : null;        // sandbox: the player's choices, Random rows rolled per ball
   if (sb) {
@@ -112,6 +114,9 @@ export function nextBall() {
     const want = act || (sb.spin ? BOWLERS[sb.spin === 'off' ? SPINNERS[0] : SPINNERS[1]] : (PROF.spin || PROF.mine ? BOWLERS[PACE[sess.over % 3]] : PROF));
     if (want !== PROF || !sess.balls.length) { sess.over++; PROF = want; world.bowler.setKit(PROF.c); }
     sess.sb = sb;
+  } else if (pb) {                                               // the same bowlers every time, so tests are comparable
+    const want = BOWLERS[pb.spin ? SPINNERS[pb.spin === 'off' ? 0 : 1] : PACE[0]];
+    if (want !== PROF || !sess.balls.length) { sess.over++; PROF = want; world.bowler.setKit(PROF.c); }
   } else if (perBall || sess.balls.length % 6 === 0) { sess.over++; PROF = pickBowler(seg); world.bowler.setKit(PROF.c); }
   const lvl = clampLevel(sess.level + seg.levelDelta);
   const LV = seg.fixed ? { m: seg.fixed.m, k: seg.fixed.k, o: seg.fixed.o == null ? null : seg.fixed.o } : LEVELS[lvl];
@@ -119,10 +124,10 @@ export function nextBall() {
   const type = PROF.spin ? 'spin' : 'pace';
   const weak = (S.smart && seg.weakP > 0 && !m) ? weakest(type, gm) : null;
   const kph = sb ? sb.kph : m ? Math.max(100, Math.min(LEVELS[db.level].k, S.maxKph)) : Math.min(LV.k, S.maxKph);
-  const occ = sb ? sb.occ : m ? null : (seg.walk && !seg.fixed ? null : LV.o);
+  const occ = sb ? sb.occ : pb ? pb.occ : m ? null : (seg.walk && !seg.fixed ? null : LV.o);
   const g = genBall(S, { kph, mode: gm, drill: seg.drill, spin: PROF.spin || null, weak, weakP: seg.weakP, hand: db.profile.hand,
     club: S.club && !['short', 'spin', 'leave'].includes(seg.drill) && !seg.boss && !seg.script, trademark: seg.boss ? seg.boss.trademark : null,
-    force: sb ? { cat: sb.cat, line: sb.line } : null });
+    force: sb ? { cat: sb.cat, line: sb.line } : pb ? { cat: pb.cat, line: 'stumps' } : null });
   const sc = seg.script && seg.script[sess.segN];
   if (sc) { g.d = sc.d; g.lx = sc.lx || 0; g.cat = sc.cat; g.opt = { varn: null }; }
   const cue = makeCues(g, sb ? sb.cues : 'real'), rel = cue.rel, jx = rnd(-0.1, 0.1);   // pre-release cues (weak, like real bowlers)
@@ -131,9 +136,9 @@ export function nextBall() {
   world.bowler.pose(0, PROF, rel, jx, cue); world.bowlerMoved(); world.ballToHand();
   world.ball.visible = true; world.ball.rotation.set(0, 0, 0);
   // faint length markings: auto = Level 1 only
-  const marks = S.lenMarks === 'on' || (S.lenMarks === 'auto' && gm === 1);
+  const marks = !seg.test && (S.lenMarks === 'on' || (S.lenMarks === 'auto' && gm === 1));     // a test never shows the length bands
   if (marks) world.setLenMarks(g.kph, !!PROF.spin); else world.setLenMarks(null);
-  if (S.stepCue && gm === 1) ui.stepCue();
+  if (S.stepCue && gm === 1 && !seg.test) ui.stepCue();
   G.cur = { g, job, tr: null, prof: PROF, rel, jx, cue, occ, mode: gm, type, lvl, seg, fed: weak && g.cat === weak ? weak : null,
     trig: null, foot: null, padFoot: null, played: false, shot: null, src: null, si: 0, sounds: false, lblOff: !!seg.labels };
   clock.reset();
@@ -244,10 +249,10 @@ function finishBall() {
   if (cur.mode === 4 && cur.padFoot && !cur.shot) { cur.shot = cur.padFoot === 'F' ? 'FD' : 'BD'; cur.played = true; }   // foot but no stick: a defensive shot
   app.onBallStats(perf.ballEnd());                                    // adaptive quality decides between balls
   const rt = clock.rtOf('foot'), tbP = clock.tbPresented(tr.tb), lim = sess.pline ? sess.pline.line : guessLimit(db.rtBase), opt = { tbP, guessBelow: lim, ev: sess.pline };
-  const trigArg = S.trigger ? cur.trig : undefined;
+  const trigArg = S.trigger && !seg.test ? cur.trig : undefined;   // the Skill check scores the read only
   const g = cur.mode === 4 ? gradeShot(tr, cur.shot, rt, trigArg, opt) : grade(tr, cur.foot, rt, cur.played, cur.mode, trigArg, opt);
   if (g.guess && !db.rtAt) g.fmsg += ' · Do More → Reaction test with the controller you play with';
-  const xp = g.read && !seg.sandbox ? xpForBall({ lvl: cur.lvl }, ctxMult(seg.xpCtx)) : 0;
+  const xp = g.read && !seg.sandbox && !seg.test ? xpForBall({ lvl: cur.lvl }, ctxMult(seg.xpCtx)) : 0;
   const occA = clock.occPresented();
   const rec = {
     d: +tr.d.toFixed(2), lx: +tr.lxArr.toFixed(3), lxB: +tr.lxB.toFixed(3), kph: cur.g.kph, occ: cur.occ, lvl: cur.lvl, mode: cur.mode,
@@ -262,7 +267,7 @@ function finishBall() {
   sess.balls.push(rec); sess.segN++; sess.xp += xp;
   if (sess.balls.length % 10 === 0) sess.pline = personalLine(recentBalls(db.sessions, sess.balls), db.rtBase);   // keeps learning
   ui.speedGun(cur.g.kph);
-  if (!seg.sandbox) feedLog(cur.type, rec.cat === 'Yorker' ? 'Full' : rec.cat, g.sc);
+  if (!seg.sandbox && !seg.test) feedLog(cur.type, rec.cat === 'Yorker' ? 'Full' : rec.cat, g.sc);
   sess.streak = g.v === 'good' ? sess.streak + 1 : 0; sess.best = Math.max(sess.best, sess.streak);
   const silent = seg.fb === 'end' || (S.feedback === 'end' && !sess.match);
   if (silent) {                         // nets rules: no verdict; the bowler walks back (or a short pause)
@@ -349,6 +354,7 @@ function hudUpdate() {
   if (s.match) lv = `<small>MATCH</small>${s.match.runs}/${s.match.wk} · need ${Math.max(0, s.match.target - s.match.runs)} off ${18 - s.balls.length}`;
   else if (seg && seg.sandbox && s.sb) lv = `<small>SANDBOX</small>${sbLabel(s.sb)} · ${['', 'feet', 'play/leave', '', 'shots'][s.sb.mode]} · ${s.sb.occ == null ? 'full view' : s.sb.occ === 0 ? 'black at release' : 'black +' + Math.round(s.sb.occ * 1000) + ' ms'} <span class="sbKey">· C / View = change</span>`;
   else if (s.boss) lv = `<small>${s.kind === 'trial' ? 'TRIAL' : 'BOSS'}</small>${s.boss.n} · ${pace}`;
+  else if (seg && seg.test) lv = `<small>SKILL CHECK</small>${pace} · no feedback till the end`;
   else if (silent) lv = `<small>NETS</small>L${LV.m} · ${pace} · no feedback`;
   else if (seg && seg.drill) lv = `<small>DRILL</small>${seg.drill === 'spin' ? 'SPIN' : 'SHORT BALLS · ' + pace}`;
   else lv = `<small>LEVEL ${clampLevel(s.level + (seg ? seg.levelDelta : 0)) + 1}</small>${LV.n.replace(/\d+ kph/, pace)}${seg && seg.adapt ? `<i class="lvbar"><u style="width:${Math.round(s.d * 100)}%"></u></i>` : ''}`;
@@ -430,6 +436,7 @@ export function endSession() {
   }
   const rec = { id: s.start.toString(36), date: new Date(s.start).toISOString(), kind: s.kind, drill: s.plan.drill || null, match: s.match || null,
     n, score, peak: s.peak, end: s.level, bestStreak: s.best, balls: s.balls, xp: s.xp, sum: summarize(s.balls), boss: s.boss ? s.boss.id : undefined };
+  if (s.kind === 'check') rec.check = checkReport(s.balls);
   if (s.kind === 'selection') rec.mark = selectorReport(s.balls, s.pline ? s.pline.line : null).stars;
   db.sessions.push(rec);
   if (S.levelMode === 'auto' && s.plan.segs.some(x => x.adapt)) { if (db.level !== s.level) db.levelAt = new Date().toISOString(); db.level = s.level; db.levelD = s.d; }
