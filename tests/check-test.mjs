@@ -6,7 +6,7 @@ import { makeTraj } from '../js/core/physics.js';
 import { footFor, categorize } from '../js/core/rules.js';
 import { inspectRaw, makeSnapshot, shouldReplace, pruneList, restoreSnapshot, mergeOtherTab, snapKey } from '../js/core/backup.js';
 import { newDB, save, load, KEY, DEF } from '../js/core/store.js';
-import { streak, totalXP } from '../js/core/progress.js';
+import { streak, totalXP, progressData } from '../js/core/progress.js';
 import { mulberry32, makeOk, fakeStorage } from './util.mjs';
 const { ok, done } = makeOk('check');
 
@@ -92,6 +92,7 @@ ok(Math.abs(zOf(0.975) - 1.96) < 0.001 && Math.abs(zOf(0.5)) < 1e-9 && Math.abs(
   db.sessions.push({ date: new Date().toISOString(), kind: 'check', n: 24, score: 100, balls, xp: 0, check: checkReport(balls) });
   ok(totalXP(db) === 0, 'a Skill check earns no XP (nothing to farm)');
   ok(streak(db) === 1, 'it still counts as a practice day (24 real balls)');
+  ok(progressData(db).length === 0, 'and it stays out of the day-by-day training table (it has its own card)');
 }
 
 console.log('— backups: a save is never lost —');

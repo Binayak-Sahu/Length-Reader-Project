@@ -168,13 +168,13 @@ await ctx.close();
   await q.click('#obNext');                                      // welcome → hand
   await q.click('[data-h="L"]');                                 // left-handed
   ok(await q.evaluate(() => window.__lr.app.db.profile.hand === 'L' && window.__lr.app.world.camera.position.x > 0), 'choosing left-handed mirrors the view straight away');
-  await q.click('#obNext');                                      // setup → life-size calibration
-  await q.click('#obNext');                                      // open "Calibrate my setup"
+  await q.click('#obCal');                                       // set-up step → "make the bowler life-size"
   await waitFor(q, () => !document.getElementById('calib').classList.contains('hidden'));
   ok(await q.evaluate(() => /VERTICAL VIEW/.test(document.getElementById('calRes').textContent)), 'onboarding offers calibration with live results');
   await q.click('#cSave');
   await waitFor(q, () => document.querySelector('#onboard:not(.hidden)'));
   ok(await q.evaluate(() => window.__lr.app.world.calibrated && !!window.__lr.app.S.calib.landscape), 'saving the calibration turns on true life-size');
+  await q.click('#obNext');                                      // set-up → button speed
   await q.click('#obSkip');                                      // skip the reaction test
   await q.click('#obNext');                                      // bowl the tutorial
   await waitFor(q, () => window.__lr.game.G.state === 'intro' && /BALL 1/.test(document.getElementById('banner').textContent));

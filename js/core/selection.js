@@ -28,8 +28,8 @@ export function selectorReport(balls, line) {
   faults.sort((a, b) => b[0] - a[0]);
   const cold = balls[0] ? balls[0].fv === 'good' && (!balls[0].pv || balls[0].pv === 'good') : null;
   return {
-    n, stars, sc: sc == null ? null : Math.round(100 * sc), reads: pc(c.reads, n), playLeave: pc(c.plOk, c.plN),
-    pace: pace == null ? null : Math.round(100 * pace), spin: spin == null ? null : Math.round(100 * spin), cold, ...c,
+    ...c, n, stars, sc: sc == null ? null : Math.round(100 * sc), reads: pc(c.reads, n), playLeave: pc(c.plOk, c.plN),      // reads = % (the count in c must not overwrite it)
+    pace: pace == null ? null : Math.round(100 * pace), spin: spin == null ? null : Math.round(100 * spin), cold,
     fix: faults.length ? faults[0][1] : 'Nothing to fix — that is selection form',
   };
 }

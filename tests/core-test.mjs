@@ -205,6 +205,7 @@ console.log('— leave drill and selector report —');
   ok(r.n === 6 && r.fwdShort === 2 && r.playedWide === 1 && r.early === 1 && r.cold === false, 'selector report counts forward-to-short, wides, early commits and the cold first ball');
   ok(/2 times forward to a short ball/.test(r.fix) && r.stars === 1, `biggest fix + stars: ${r.stars}★ · ${r.fix}`);
   ok(selectorReport(Array.from({ length: 24 }, () => B({})), 0.27).stars === 5, 'all right = 5 stars, nothing to fix');
+  ok(r.reads === 67 && r.playLeave === 50, `report shows feet right as a percentage (${r.reads}%), not a count`);
   const lr = leaveReport([B({ pe: 'LEAVE', pv: 'good' }), B({ pe: 'LEAVE', pv: 'bad' }), B({ pe: 'PLAY', pv: 'bad' }), B({ pe: 'PLAY', pv: 'good' })]);
   ok(lr.wide === 2 && lr.leftWide === 1 && lr.playedWide === 1 && lr.leftHitting === 1, 'leave report counts');
   ok(JSON.stringify(bestMark([{ kind: 'selection', mark: 3 }, { kind: 'selection', mark: 4 }, { kind: 'selection', mark: 2 }])) === '{"last":2,"best":4}', 'Play tile: last and best mark');
