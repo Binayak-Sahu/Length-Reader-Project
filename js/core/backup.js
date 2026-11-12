@@ -24,7 +24,12 @@ export function makeSnapshot(db, now = new Date()) {
 }
 // Should `next` replace the snapshot already stored under the same key? Not if it holds fewer sessions:
 // if something went wrong today, the fuller copy from earlier in the day is the one to keep.
-export function shouldReplace(existing, next) { return !existing || (next.n | 0) >= (existing.n | 0); }
+// Same number of sessions but much less text means ball detail was dropped to fit storage: keep the fuller one too.
+export function shouldReplace(existing, next) {
+  if (!existing) return true;
+  if ((next.n | 0) !== (existing.n | 0)) return (next.n | 0) > (existing.n | 0);
+  return !existing.text || !next.text || next.text.length >= existing.text.length * 0.8;
+}
 
 // Which daily keys to delete so that only the newest `keep` remain.
 export function pruneList(keys, keep = KEEP_DAYS) {
@@ -51,9 +56,11 @@ export function restoreSnapshot(db, text, full) {
   return { added, full: false };
 }
 
-// Another tab of the app saved: take the sessions and bowlers it has that we don't (never drop ours).
+// Another tab of the app saved: take the sessions it has that we don't (never drop ours), and its bowler list as it is.
 export function mergeOtherTab(db, raw) {
   if (inspectRaw(raw) !== 'ok') return { sessions: 0, actions: 0 };
   let other; try { other = normalize(JSON.parse(raw)); } catch (e) { return { sessions: 0, actions: 0 }; }
-  return { sessions: mergeSessions(db, other.sessions), actions: mergeActions(db, other.actions) };
+  const before = JSON.stringify(db.actions || []);
+  db.actions = other.actions;                      // the My bowlers page owns this list: a bowler deleted there stays deleted
+  return { sessions: mergeSessions(db, other.sessions), actions: JSON.stringify(db.actions) !== before ? 1 : 0 };
 }

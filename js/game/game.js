@@ -123,7 +123,7 @@ export function nextBall() {
   const gm = sb ? sb.mode : m ? sess.mmode : (seg.drill === 'short' ? 1 : (seg.drill === 'spin' ? Math.max(1, LV.m) : LV.m));
   const type = PROF.spin ? 'spin' : 'pace';
   const weak = (S.smart && seg.weakP > 0 && !m) ? weakest(type, gm) : null;
-  const kph = sb ? sb.kph : m ? Math.max(100, Math.min(LEVELS[db.level].k, S.maxKph)) : Math.min(LV.k, S.maxKph);
+  const kph = sb ? sb.kph : seg.test ? LV.k : m ? Math.max(100, Math.min(LEVELS[db.level].k, S.maxKph)) : Math.min(LV.k, S.maxKph);   // a test ignores Top pace
   const occ = sb ? sb.occ : pb ? pb.occ : m ? null : (seg.walk && !seg.fixed ? null : LV.o);
   const g = genBall(S, { kph, mode: gm, drill: seg.drill, spin: PROF.spin || null, weak, weakP: seg.weakP, hand: db.profile.hand,
     club: S.club && !['short', 'spin', 'leave'].includes(seg.drill) && !seg.boss && !seg.script, trademark: seg.boss ? seg.boss.trademark : null,
@@ -248,7 +248,7 @@ function finishBall() {
   G.state = 'result'; world.ball.visible = false;
   if (cur.mode === 4 && cur.padFoot && !cur.shot) { cur.shot = cur.padFoot === 'F' ? 'FD' : 'BD'; cur.played = true; }   // foot but no stick: a defensive shot
   app.onBallStats(perf.ballEnd());                                    // adaptive quality decides between balls
-  const rt = clock.rtOf('foot'), tbP = clock.tbPresented(tr.tb), lim = sess.pline ? sess.pline.line : guessLimit(db.rtBase), opt = { tbP, guessBelow: lim, ev: sess.pline };
+  const rt = clock.rtOf('foot'), tbP = clock.tbPresented(tr.tb), lim = seg.test ? guessLimit(db.rtBase) : sess.pline ? sess.pline.line : guessLimit(db.rtBase), opt = { tbP, guessBelow: lim, ev: seg.test ? null : sess.pline };   // a test uses the fixed too-quick line
   const trigArg = S.trigger && !seg.test ? cur.trig : undefined;   // the Skill check scores the read only
   const g = cur.mode === 4 ? gradeShot(tr, cur.shot, rt, trigArg, opt) : grade(tr, cur.foot, rt, cur.played, cur.mode, trigArg, opt);
   if (g.guess && !db.rtAt) g.fmsg += ' · Do More → Reaction test with the controller you play with';
@@ -354,7 +354,7 @@ function hudUpdate() {
   if (s.match) lv = `<small>MATCH</small>${s.match.runs}/${s.match.wk} · need ${Math.max(0, s.match.target - s.match.runs)} off ${18 - s.balls.length}`;
   else if (seg && seg.sandbox && s.sb) lv = `<small>SANDBOX</small>${sbLabel(s.sb)} · ${['', 'feet', 'play/leave', '', 'shots'][s.sb.mode]} · ${s.sb.occ == null ? 'full view' : s.sb.occ === 0 ? 'black at release' : 'black +' + Math.round(s.sb.occ * 1000) + ' ms'} <span class="sbKey">· C / View = change</span>`;
   else if (s.boss) lv = `<small>${s.kind === 'trial' ? 'TRIAL' : 'BOSS'}</small>${s.boss.n} · ${pace}`;
-  else if (seg && seg.test) lv = `<small>SKILL CHECK</small>${pace} · no feedback till the end`;
+  else if (seg && seg.test) lv = `<small>SKILL CHECK</small>${PROF.spin ? 'spin' : seg.fixed.k + ' kph'} · no feedback till the end`;
   else if (silent) lv = `<small>NETS</small>L${LV.m} · ${pace} · no feedback`;
   else if (seg && seg.drill) lv = `<small>DRILL</small>${seg.drill === 'spin' ? 'SPIN' : 'SHORT BALLS · ' + pace}`;
   else lv = `<small>LEVEL ${clampLevel(s.level + (seg ? seg.levelDelta : 0)) + 1}</small>${LV.n.replace(/\d+ kph/, pace)}${seg && seg.adapt ? `<i class="lvbar"><u style="width:${Math.round(s.d * 100)}%"></u></i>` : ''}`;

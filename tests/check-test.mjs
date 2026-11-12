@@ -18,8 +18,9 @@ for (const seed of [1, 2, 3]) {
   ok(B.length === CHECK_N && pace.length === 18 && spin.length === 6, `seed ${seed}: 24 balls, 18 pace and 6 spin`);
   ok(count(pace, b => b.cat === 'Full') === 8 && count(pace, b => b.cat === 'Short') === 8 && count(pace, b => b.cat === 'Good') === 2
     && count(spin, b => b.cat === 'Full') === 3 && count(spin, b => b.cat === 'Short') === 3, `seed ${seed}: the same lengths every time (pace 8 full, 8 short, 2 good · spin 3 full, 3 short)`);
-  ok(count(B, b => b.cat === 'Full' && b.occ === CHECK_OCC) === 5 && count(B, b => b.cat === 'Short' && b.occ === CHECK_OCC) === 5 && B.every(b => b.occ === null || b.occ === CHECK_OCC),
-    `seed ${seed}: full and short are blacked out equally often (5 each at +160 ms)`);
+  const dF = count(B, b => b.cat === 'Full' && b.occ === CHECK_OCC), dS = count(B, b => b.cat === 'Short' && b.occ === CHECK_OCC);
+  ok(count(B, b => b.occ === CHECK_OCC) === 12 && Math.abs(dF - dS) <= 1 && B.every(b => b.occ === null || b.occ === CHECK_OCC), `seed ${seed}: exactly 12 of 24 blacked out at +160 ms, full and short alike (${dF} and ${dS})`);
+  ok(['off', 'leg'].every(sp => count(B, b => b.spin === sp && b.cat === 'Full') === count(B, b => b.spin === sp && b.cat === 'Short') && count(B, b => b.spin === sp) >= 2), `seed ${seed}: each spinner bowls as many full as short (the bowler gives nothing away)`);
   let run = 1, worst = 1; for (let i = 1; i < B.length; i++) { run = B[i].cat === B[i - 1].cat ? run + 1 : 1; worst = Math.max(worst, run); }
   ok(worst <= 3, `seed ${seed}: never more than 3 of one length in a row (longest run ${worst})`);
 }
@@ -70,7 +71,7 @@ const test = (f) => { const out = []; for (let i = 0; i < 11; i++) { out.push(f(
 }
 {
   const r = checkReport(test((fe, i) => mk(fe, i < 2 ? null : fe)));
-  ok(r.froze === 4 && /move on 4/.test(checkAdvice(r)), 'frozen feet are counted and called out');
+  ok(r.froze === 4 && /move on 4/.test(checkAdvice(r)) && r.lean === null, 'frozen feet are counted and called out, and do not count as a lean');
   const part = checkReport(test((fe) => mk(fe, fe)).slice(0, 10));
   ok(!part.complete && part.n === 10, 'a test stopped early is marked incomplete');
 }
@@ -82,6 +83,7 @@ ok(Math.abs(zOf(0.975) - 1.96) < 0.001 && Math.abs(zOf(0.5)) < 1e-9 && Math.abs(
   ok(h.length === 3 && h[0].score === 62 && h[2].score === 79, 'history keeps complete tests only (one stopped early is left out)');
   const t = checkTrend(h);
   ok(t.state === 'up' && t.delta === 17 && t.best === 79, 'three tests, +17 since the first: real improvement');
+  ok(t.clear === false && checkTrend([h[0], { ...h[2], score: 84 }]).clear === true, '+17 is "probably"; only +20 or more is called a clear improvement');
   ok(checkTrend(h.slice(0, 2)).state === 'flat' && CHECK_NOISE === 10, '+5 between two 24-ball tests is called "about the same", not progress (within the noise)');
   ok(checkTrend([]).state === 'none' && checkTrend(h.slice(0, 1)).state === 'first', 'no test yet / first test handled');
   ok(checkDue(ss, Date.parse('2026-11-20T10:00:00Z')).due === false && checkDue(ss, Date.parse('2026-11-23T10:00:00Z')).due === true, 'due again a week after the last test');
@@ -105,6 +107,7 @@ const sess = (d, n = 30) => ({ date: d, kind: 'quick', n, score: 80, xp: 100, ba
   const now = new Date(2026, 10, 12, 9, 0), s = makeSnapshot(db, now);
   ok(s.k === 'day-2026-11-12' && s.k === snapKey(now) && s.n === 2 && s.balls === 60 && JSON.parse(s.text).sessions.length === 2, 'snapshot: one per day, with the whole save inside');
   ok(shouldReplace(null, s) && shouldReplace({ n: 2 }, s) && shouldReplace({ n: 1 }, s) && !shouldReplace({ n: 3 }, s), 'a snapshot with fewer sessions never replaces a fuller one from the same day');
+  ok(!shouldReplace({ n: 2, text: 'x'.repeat(s.text.length * 3) }, s) && shouldReplace({ n: 2, text: s.text + ' ' }, s), 'nor does one with the same sessions but the ball detail stripped out');
   const keys = ['day-2026-11-01', 'day-2026-11-03', 'damaged-2026-11-02T00:00:00.000Z', ...Array.from({ length: 7 }, (_, i) => 'day-2026-11-' + String(5 + i).padStart(2, '0'))];
   ok(JSON.stringify(pruneList(keys)) === JSON.stringify(['day-2026-11-01', 'day-2026-11-03']), 'keeps the newest 7 days, drops older ones, never touches a kept damaged save');
 }
@@ -134,9 +137,11 @@ const sess = (d, n = 30) => ({ date: d, kind: 'quick', n, score: 80, xp: 100, ba
 }
 {
   const a = newDB(); a.sessions.push(sess('2026-11-12T09:00:00.000Z'));
+  a.actions.push({ id: 'gone', keys: [1], created: '1' });
   const b = newDB(); b.sessions.push(sess('2026-11-12T09:00:00.000Z'), sess('2026-11-12T09:30:00.000Z')); b.actions.push({ id: 'z', keys: [1], created: '1' });
   const r = mergeOtherTab(a, JSON.stringify(b));
   ok(r.sessions === 1 && r.actions === 1 && a.sessions.length === 2, 'two tabs open: a session saved by the other tab is picked up, not overwritten');
+  ok(a.actions.length === 1 && a.actions[0].id === 'z', 'a bowler deleted on the My bowlers page stays deleted (the list follows that page)');
   ok(mergeOtherTab(a, 'garbage').sessions === 0 && a.sessions.length === 2, 'garbage from another tab is ignored');
 }
 done();

@@ -2,11 +2,12 @@
 //
 // Why it exists: in training the level moves to keep you right about 85% of the time, so a training score can't show
 // improvement (and how you do during practice is a poor guide to what you have learned: Soderstrom & Bjork 2015).
-// A fixed test with no feedback, taken fresh, can. It never moves the level and earns no XP, so there is nothing to farm.
+// A fixed test with no feedback, taken fresh, can. It never moves the level and earns no XP or badges, so there is nothing to farm.
 //
 // The test: 24 balls, feet only, all on the stumps, no feedback until the end.
-//   pace (110 kph): 8 full, 8 short, 2 good-length      spin: 3 full, 3 short
-//   half of each group is blacked out 160 ms after release (the early pick-up), half is seen all the way.
+//   pace (110 kph, whatever Top pace is set to): 8 full, 8 short, 2 good-length      spin: 3 full, 3 short
+//   12 of the 24 are blacked out 160 ms after release (the early pick-up), 12 are seen all the way.
+//   The too-quick line is the fixed one (button speed + 50 ms), not the personal line, so the marking never moves.
 import { isRead } from './progress.js';
 
 export const CHECK_KPH = 110, CHECK_OCC = 0.16, CHECK_N = 24, CHECK_VERSION = 1;
@@ -16,7 +17,9 @@ export function checkBalls(rng = Math.random) {
   const cells = [];
   const add = (spin, cat, n) => { for (let i = 0; i < n; i++) cells.push({ spin, cat, occ: i % 2 ? CHECK_OCC : null }); };
   add(null, 'Full', 8); add(null, 'Short', 8); add(null, 'Good', 2);
-  add('off', 'Full', 2); add('off', 'Short', 1); add('leg', 'Full', 1); add('leg', 'Short', 2);
+  // spin comes in full + short pairs, so neither spinner bowls more of one length (the bowler must not give the length away)
+  const pair = (spin, dark) => cells.push({ spin, cat: 'Full', occ: dark === 'F' ? CHECK_OCC : null }, { spin, cat: 'Short', occ: dark === 'S' ? CHECK_OCC : null });
+  pair('off', 'F'); pair('leg', 'S'); pair(rng() < 0.5 ? 'off' : 'leg', rng() < 0.5 ? 'F' : 'S');     // 12 of the 24 are blacked out
   const runOk = (xs) => { let run = 1; for (let i = 1; i < xs.length; i++) { run = xs[i].cat === xs[i - 1].cat ? run + 1 : 1; if (run > 3) return false; } return true; };
   let out = cells;
   for (let tries = 0; tries < 200; tries++) {
@@ -54,10 +57,12 @@ export function checkReport(balls) {
   const reads = balls.filter(isRead).length;
   const wentBack = (xs) => xs.filter(b => b.foot === 'B').length;
   // Signal detection on the foot choice: "short" is the signal, a back-foot move is "yes".
-  // Log-linear correction (+0.5 / +1) keeps perfect scores finite. No move at all counts as not going back.
+  // Log-linear correction (+0.5 / +1) keeps perfect scores finite. Balls with no move at all are left out: they say
+  // nothing about which way the feet lean (they still count against the score).
   let dprime = null, bias = null;
-  if (short.length >= 3 && full.length >= 3) {
-    const H = (wentBack(short) + 0.5) / (short.length + 1), F = (wentBack(full) + 0.5) / (full.length + 1);
+  const mS = short.filter(b => b.foot), mF = full.filter(b => b.foot);
+  if (mS.length >= 3 && mF.length >= 3) {
+    const H = (wentBack(mS) + 0.5) / (mS.length + 1), F = (wentBack(mF) + 0.5) / (mF.length + 1);
     dprime = zOf(H) - zOf(F); bias = -(zOf(H) + zOf(F)) / 2;
   }
   const tell = dprime == null ? null : Math.max(0, Math.min(100, Math.round(100 * dprime / 3)));   // d′ of 3 ≈ 93% right both ways: call that 100
@@ -98,15 +103,16 @@ export function checkHistory(sessions) {
 }
 
 // How the latest check compares. With 24 balls, a few points either way is noise: say so instead of cheering.
-// ~10 points is about one standard error of the difference between two 24-ball tests at 70–85%.
-export const CHECK_NOISE = 10;
+// The standard error of the difference between two 24-ball tests is about 10–13 points at 70–85%, so under 10 is
+// "about the same", 10–19 is "probably" (state up/down), and only 20+ (about two standard errors) is called clear.
+export const CHECK_NOISE = 10, CHECK_CLEAR = 20;
 export function checkTrend(hist) {
   if (!hist.length) return { state: 'none' };
   const last = hist[hist.length - 1];
   if (hist.length === 1) return { state: 'first', last };
   const first = hist[0], prev = hist[hist.length - 2], best = Math.max(...hist.map(h => h.score));
   const d = last.score - first.score;
-  return { state: d >= CHECK_NOISE ? 'up' : d <= -CHECK_NOISE ? 'down' : 'flat', last, first, prev, best, delta: d, n: hist.length };
+  return { state: d >= CHECK_NOISE ? 'up' : d <= -CHECK_NOISE ? 'down' : 'flat', clear: Math.abs(d) >= CHECK_CLEAR, last, first, prev, best, delta: d, n: hist.length };
 }
 
 // When to suggest the next one: a week after the last (or now, if never taken and there's some practice behind you).

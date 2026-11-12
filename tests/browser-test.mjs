@@ -631,7 +631,7 @@ await ctx2.close();
   const c = await browser.newContext({ viewport: { width: 900, height: 600 } });
   const q = await page(c, '?nosw', `if(!sessionStorage.seeded){ localStorage.setItem('lr_v3', ${JSON.stringify(JSON.stringify(v4))}); sessionStorage.seeded=1; }`);
   await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
-  await q.evaluate(() => { const S = window.__lr.app.S; S.sound = false; S.voice = false; S.fullscreen = false; S.gap = 1; S.trigger = true; S.lenMarks = 'on'; });
+  await q.evaluate(() => { const S = window.__lr.app.S; S.sound = false; S.voice = false; S.fullscreen = false; S.gap = 1; S.trigger = true; S.lenMarks = 'on'; S.maxKph = 90; });
   const before = await q.evaluate(() => { const d = window.__lr.app.db; return { lvl: d.level, d: d.levelD, cs: JSON.stringify(d.cs), xp: d.sessions.reduce((a, s) => a + (s.xp || 0), 0) }; });
   ok(await q.evaluate(() => ['gTest', 'gDrill', 'gFree'].every(id => document.getElementById(id)) && document.getElementById('bCheck').closest('section').querySelector('h2').id === 'gTest'), 'Play groups the modes: Test yourself · Drills · Free practice');
   await q.click('#bCheck');
@@ -639,13 +639,14 @@ await ctx2.close();
   const seen = [];
   for (let i = 0; i < 3; i++) {
     await waitFor(q, () => window.__lr.game.G.state === 'run' && window.__lr.game.clock.relTs !== null, null, 30000);
-    seen.push(await q.evaluate(() => { const G = window.__lr.game.G, w = window.__lr.app.world, pb = G.cur.seg.balls[G.sess.segN]; return { occ: G.cur.occ, want: pb.occ, cat: pb.cat, mode: G.cur.mode, bowler: G.cur.prof.n, spin: !!pb.spin, hud: document.getElementById('hLevel').textContent }; }));
+    seen.push(await q.evaluate(() => { const G = window.__lr.game.G, w = window.__lr.app.world, pb = G.cur.seg.balls[G.sess.segN]; return { occ: G.cur.occ, want: pb.occ, cat: pb.cat, mode: G.cur.mode, kph: G.cur.g.kph, bowler: G.cur.prof.n, spin: !!pb.spin, hud: document.getElementById('hLevel').textContent }; }));
     await q.waitForTimeout(330);
     await q.keyboard.press('ArrowLeft');
     await waitFor(q, k => window.__lr.game.G.sess.balls.length > k, i, 20000);
     if (i === 0) ok(await q.evaluate(() => document.getElementById('card').classList.contains('hidden')), 'Skill check: no verdict card after a ball (no feedback till the end)');
     await q.evaluate(() => window.__lr.game.nextBall());
   }
+  ok(seen.filter(s => !s.spin).every(s => Math.abs(s.kph - 110) <= 3), 'Skill check: always 110 kph, whatever Top pace is set to');
   ok(seen.every(s => s.occ === s.want && s.mode === 1 && /SKILL CHECK/.test(s.hud) && (s.spin ? /spinner/i.test(s.bowler) : s.bowler === 'Tall quick')), 'Skill check: each ball follows the plan (blackout, feet only, the same bowlers every time)');
   // finish the test quickly: the remaining balls are filled in as recorded balls, then the session ends the normal way
   await q.evaluate(() => { const g = window.__lr.game, s = g.G.sess; while (s.balls.length < 24) s.balls.push(Object.assign({}, s.balls[s.balls.length % 3])); g.endSession(); });
@@ -670,7 +671,7 @@ await ctx2.close();
   await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)') && /restored/.test(document.getElementById('toast').textContent), null, 20000);
   const back = await q.evaluate(() => { const d = window.__lr.app.db; return { n: d.sessions.length, kinds: d.sessions.map(s => s.kind).join(), kept: !!localStorage.getItem('lr5-damaged'), ok: (() => { try { JSON.parse(localStorage.getItem('lr5')); return true; } catch (e) { return false; } })(), onb: d.profile.onboarded }; });
   ok(back.n === 2 && /check/.test(back.kinds) && back.ok && back.onb, 'a damaged save is rescued from the backup at start: both sessions are back and the player is not sent to onboarding');
-  ok(back.kept, 'the damaged save is kept aside, not thrown away');
+  ok(await q.evaluate(async () => { const d = indexedDB.open('lr-backup'); const db = await new Promise(r => { d.onsuccess = () => r(d.result); }); const keys = await new Promise(r => { const g = db.transaction('snaps').objectStore('snaps').getAllKeys(); g.onsuccess = () => r(g.result); }); return keys.some(k => String(k).startsWith('damaged-')); }) && !back.kept, 'the damaged save is kept aside in the backup store (and no longer takes room in the save slot)');
   // two tabs: a session saved by another tab is merged, not overwritten
   const q2 = await page(c, '?nosw');
   await waitFor(q2, () => window.__lr && document.querySelector('#home:not(.hidden)'));

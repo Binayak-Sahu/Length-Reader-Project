@@ -71,12 +71,12 @@ export function renderEnd(s, score, rec, extra = {}) {
     const r = rec.check || checkReport(b), hist = checkHistory(app.db.sessions), t = checkTrend(hist), yn = (v) => v == null ? '—' : v + '%';
     const cmp = !r.complete ? 'Stopped early, so this one isn\u2019t kept as a test result. Finish all 24 balls to get a score you can compare.'
       : t.state === 'first' ? 'That\u2019s your starting mark. Take it again in about a week, fresh, before you train.'
-      : t.state === 'up' ? `Up ${t.delta} points since your first test (${t.first.score}%). That is real improvement, not luck.`
+      : t.state === 'up' ? `Up ${t.delta} points since your first test (${t.first.score}%). ${t.clear ? 'That is a clear improvement.' : 'Probably real improvement; the next test will confirm it.'}`
       : t.state === 'down' ? `Down ${-t.delta} points on your first test (${t.first.score}%). One off day happens; test again next week before reading much into it.`
       : `About the same as your first test (${t.first.score}%). A change under ${CHECK_NOISE} points on 24 balls can be luck either way.`;
     $('eSel').innerHTML = `<small class="lbl">What to work on</small><div class="fix">${esc(checkAdvice(r))}</div>
       Short balls ${yn(r.short)} · pitched-up ${yn(r.full)} · full view ${yn(r.seen)} · blacked out ${yn(r.dark)} · pace ${yn(r.pace)} · spin ${yn(r.spin)}
-      <br>Tells short from full: <b>${r.tell == null ? '—' : r.tell + ' / 100'}</b>${r.lean ? ` · leans <b>${r.lean === 'front' ? 'forward' : 'back'}</b> when unsure` : ''}${r.early != null ? ` · feet decided ${Math.round(Math.abs(r.early) * 1000)} ms ${r.early >= 0 ? 'before' : 'after'} the bounce on a typical ball` : ''}
+      <br>Tells short from full: <b>${r.tell == null ? '—' : r.tell + ' / 100'}</b>${r.lean ? ` · may lean <b>${r.lean === 'front' ? 'forward' : 'back'}</b> when unsure` : ''}${r.early != null ? ` · feet decided ${Math.round(Math.abs(r.early) * 1000)} ms ${r.early >= 0 ? 'before' : 'after'} the bounce on a typical ball` : ''}
       <br><small>${esc(cmp)}</small>`;
   }
   $('eScoreLbl').textContent = isTest ? 'Read score' : 'Score';
@@ -140,17 +140,17 @@ function renderCheckCard() {
   const hist = checkHistory(app.db.sessions), t = checkTrend(hist), due = checkDue(app.db.sessions), el = $('ckCard');
   const btn = (txt) => `<div class="row"><button class="btn go" id="bCheck2">${txt}</button></div>`;
   if (t.state === 'none') {
-    el.innerHTML = `<div><h3>Skill check</h3><p>The same 24-ball test every time: front or back, no feedback, half of them blacked out just after release. Three minutes. Take it now for your starting mark, then about once a week.</p>${btn('Take the Skill check')}</div>`;
+    el.innerHTML = `<div><h3>Skill check</h3><p>The same 24-ball test every time: front or back, no feedback, half of them blacked out just after release, always at 110 kph. Three minutes. Take it now for your starting mark, then about once a week.</p>${btn('Take the Skill check')}</div>`;
   } else {
     const L = t.last, when = new Date(L.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
     const msg = t.state === 'first' ? 'Your starting mark. Take it again in about a week, fresh, before you train.'
-      : t.state === 'up' ? `Up <b>${t.delta} points</b> since your first test (${t.first.score}%). That is real improvement.`
+      : t.state === 'up' ? `Up <b>${t.delta} points</b> since your first test (${t.first.score}%). ${t.clear ? 'That is a clear improvement.' : 'Probably real improvement; the next test will confirm it.'}`
       : t.state === 'down' ? `Down ${-t.delta} points on your first test (${t.first.score}%). Test again next week before reading much into one off day.`
       : `About the same as your first test (${t.first.score}%). Under ${CHECK_NOISE} points either way can be luck on 24 balls.`;
     const bars = hist.slice(-8).map(h => `<span>${h.score}<i style="height:${Math.max(4, h.score * 0.7)}%"></i></span>`).join('');
     el.innerHTML = `<div><div class="num">${L.score}<small>%</small></div>${hist.length > 1 ? `<div class="ckBars" role="img" aria-label="Skill check scores, oldest first: ${hist.slice(-8).map(h => h.score + '%').join(', ')}">${bars}</div>` : ''}</div>
       <div><h3>Skill check · ${when}</h3><p>${msg}</p>
-      <div class="ckFacts"><span>Short balls <b>${L.short == null ? '—' : L.short + '%'}</b></span><span>Pitched-up <b>${L.full == null ? '—' : L.full + '%'}</b></span><span>Blacked out <b>${L.dark == null ? '—' : L.dark + '%'}</b></span><span>Tells short from full <b>${L.tell == null ? '—' : L.tell + '/100'}</b></span>${L.lean ? `<span>Leans <b>${L.lean === 'front' ? 'forward' : 'back'}</b></span>` : ''}</div>
+      <div class="ckFacts"><span>Short balls <b>${L.short == null ? '—' : L.short + '%'}</b></span><span>Pitched-up <b>${L.full == null ? '—' : L.full + '%'}</b></span><span>Blacked out <b>${L.dark == null ? '—' : L.dark + '%'}</b></span><span>Tells short from full <b>${L.tell == null ? '—' : L.tell + '/100'}</b></span>${L.lean ? `<span>May lean <b>${L.lean === 'front' ? 'forward' : 'back'}</b></span>` : ''}</div>
       ${btn(due.due ? 'Take it again (it\u2019s been ' + due.days + ' days)' : 'Take it again')}${due.due ? '' : '<p class="note" style="margin-top:.6rem">Best about once a week. Taking it every day just teaches the test.</p>'}</div>`;
   }
   const b2 = $('bCheck2'); if (b2) b2.onclick = () => $('bCheck').click();
@@ -239,7 +239,7 @@ export function renderBackups() {
   info.textContent = 'Looking for backups…'; box.innerHTML = '';
   app.backups.list().then((list) => {
     if (app.state !== 'settings') return;
-    info.textContent = list.length ? 'If something ever goes missing, put a day back. Restoring only adds what is missing: it never removes sessions you have now.'
+    info.textContent = list.length ? 'If something ever goes missing, put a day back. Restoring adds what is missing and never removes a session; your level can only go up from it, never down.'
       : 'No backups yet. The first one is made after your first session.';
     box.innerHTML = list.map(x => `<div class="bk"><span><b>${new Date(x.at).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}</b> · ${x.n} session${x.n === 1 ? '' : 's'} · ${x.balls} balls</span><button class="btn" data-bk="${esc(x.k)}">Restore</button></div>`).join('');
     box.querySelectorAll('[data-bk]').forEach(b => b.onclick = () => {
@@ -270,6 +270,7 @@ export function resetAll() {
   for (const k of Object.keys(app.db)) delete app.db[k];
   Object.assign(app.db, fresh); app.saveNow();
   if (app.backups) app.backups.clear();           // delete means delete: the backups go too
+  try { app.storage.removeItem('lr5-damaged'); } catch (e) { /* fine */ }
 }
 
 // ---------- reaction test: your pure button delay, so the app can show real reading time ----------

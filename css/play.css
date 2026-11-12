@@ -1,6 +1,8 @@
 /* In-play styles: the HUD, tap zones, call flash, result card, speed gun, calibration check, reaction test.
    Moved here unchanged from v5.10.1 so that live drills look and feel exactly the same (see DECISIONS U1).
    In-session elements avoid backdrop-filter (it re-blurs every frame over the moving 3D view). */
+#hud,#hint,#card,#rctl,#pBtn,#zones,#speed,#stepcue,#rtest,#toast,#perf,#calCheck,#pedalMap{--bg:#07090c;--panel:#10151c;--panel2:#161d26;--muted:#8d99a8;font-family:"Segoe UI Variable Display","Segoe UI",Roboto,system-ui,sans-serif}
+#pBtn:focus-visible,#rctl button:focus-visible{outline:revert;outline-offset:revert}
 body.insession{cursor:none;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #c{position:fixed;inset:0;width:100vw;height:100vh;display:block}
 

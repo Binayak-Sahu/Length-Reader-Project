@@ -7,7 +7,7 @@ Plain-language list of what changed, newest first. One line says what to try.
 **Live drills are untouched.** Every existing mode bowls, times and grades exactly as in v5.10.1, and looks the same once the ball is coming (the in-play styles were moved to their own file without changes).
 
 New
-- **Skill check** (Play → Test yourself). The same 24-ball test every time: front or back, no feedback, half the balls blacked out just after release. It gives a read score you can compare week to week, says the one thing to work on, and tells you when a change is too small to mean anything. No XP, and it never moves your level.
+- **Skill check** (Play → Test yourself). The same 24-ball test every time: front or back, no feedback, half the balls blacked out just after release, always at 110 kph. It gives a read score you can compare week to week, says the one thing to work on, and tells you when a change is too small to mean anything. No XP or badges, and it never moves your level.
 - **Automatic backups.** The app keeps one copy of your save per day for 7 days on the device. If the save is ever damaged it is repaired from the newest copy when the app opens. Settings → Backups lets you put a day back (it only adds what is missing).
 - **Two tabs are safe.** A session saved in another tab is merged in, not overwritten.
 

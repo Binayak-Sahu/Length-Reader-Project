@@ -27,7 +27,10 @@ const qs = new URLSearchParams(location.search);
 let rawSave = null; try { rawSave = window.localStorage.getItem(KEY); } catch (e) { rawSave = null; }
 const saveState = inspectRaw(rawSave);
 app.backups = createBackups();
-if (saveState === 'damaged') { try { window.localStorage.setItem(DAMAGED_KEY, rawSave); } catch (e) { /* no room: the IndexedDB copy below is enough */ } app.backups.keepDamaged(rawSave); }
+if (saveState === 'damaged') {
+  app.backups.keepDamaged(rawSave);
+  if (rawSave.length < 400000) { try { window.localStorage.setItem(DAMAGED_KEY, rawSave); } catch (e) { /* no room: the IndexedDB copy is enough */ } }   // small only: it must never crowd out the real save
+}
 const boot = load(window.localStorage);
 app.db = boot.db; app.S = app.db.settings; app.storage = window.localStorage;
 app.saveNow = () => { if (!save(window.localStorage, app.db)) toast('Couldn’t save — storage is full or blocked. Export your data from More.'); };
@@ -103,7 +106,7 @@ game.setHooks({
       extra.trial = Object.assign(r, { tierName: TIERS[r.tier] });
     } else if (s.kind === 'boss') db.bosses[s.boss.id] = Math.max(db.bosses[s.boss.id] || 0, score);
     if (s.kind === 'tutorial') db.profile.onboarded = true;
-    extra.badges = checkBadges(db, rec);
+    extra.badges = s.kind === 'check' ? [] : checkBadges(db, rec);      // a test earns nothing
     app.saveNow();
     app.backups.snapshot(db);
     doSync(true);
@@ -165,14 +168,17 @@ $('bResume').onclick = () => game.togglePause(); $('bEndNow').onclick = () => ga
 addEventListener('storage', (e) => {
   if (e.key !== KEY || !e.newValue) return;
   const r = mergeOtherTab(app.db, e.newValue);
+  if (r.sessions) app.saveNow();                  // write the union back, so it survives even if this tab never saves again
   if (r.sessions && !game.G.sess) { if (app.state === 'home') goHome(); else if (app.state === 'progress') TAB.progress(); }
 });
 // Backups: one snapshot a day on this device. A restore only adds what is missing, then the app reloads.
 app.restoreBackup = async (k, full) => {
   const snap = await app.backups.get(k);
   if (!snap) { toast('That backup couldn’t be opened.'); return false; }
-  try { restoreSnapshot(app.db, snap.text, !!full); } catch (err) { toast(err.message); return false; }
-  if (!save(window.localStorage, app.db)) { toast('Couldn’t save — storage is full or blocked.'); return false; }
+  const copy = JSON.parse(JSON.stringify(app.db));              // work on a copy: nothing changes unless the result saves
+  try { restoreSnapshot(copy, snap.text, !!full); } catch (err) { toast(err.message); return false; }
+  try { window.localStorage.removeItem(DAMAGED_KEY); } catch (err) { /* fine */ }   // the IndexedDB copy of a damaged save stays
+  if (!save(window.localStorage, copy)) { toast('Couldn’t save — storage is full or blocked.'); return false; }
   try { sessionStorage.setItem('lr-restored', new Date(snap.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })); } catch (err) { /* only the message is lost */ }
   location.reload(); return true;
 };
@@ -319,7 +325,7 @@ app.db.profile.seenV5 = true; app.saveNow();
 (async () => {
   let was = null; try { was = sessionStorage.getItem('lr-restored'); sessionStorage.removeItem('lr-restored'); } catch (e) { was = null; }
   if (was) { toast(`Backup from ${was} restored. Nothing was removed.`); return; }
-  const lost = saveState === 'damaged' || (saveState === 'empty' && !boot.fromV4);
+  const lost = saveState === 'damaged' || !app.db.sessions.length;
   if (lost) {
     const list = await app.backups.list(), newest = list.find(x => x.n > 0);
     if (!newest) return;
