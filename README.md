@@ -5,6 +5,7 @@ A cricket batting trainer that teaches one skill: **read the length early and mo
 - Realistic bowlers, real pace and flight.
 - Blackout training, an 85% difficulty staircase, and a career ladder with boss bowlers.
 - My bowlers: copy a real bowling action from a side-on clip (only joint angles are kept, no video).
+- Skill check: the same 24-ball test every time, so you can see real improvement week to week.
 - Selection sim (4 spells like the selection nets, with a selector's report) and a Leave drill.
 - Sandbox: pick the bowler, pace, length, line, blackout and task, and it keeps bowling that ball (practice only, never counted).
 - XP only for correct, on-time reads.
@@ -41,7 +42,7 @@ Videos need the internet. Some owners block playing outside YouTube; the app mar
 - **Phone + PC:** More → **Sync phone + PC** merges your sessions, level, career and badges through a secret gist in your own GitHub account. Paste the same token on each device (GitHub → Settings → Developer settings → Fine-grained tokens → Account permissions → Gists: Read and write). Settings, calibration and reaction time stay per device.
 - Your **v4 data on the same address** came across automatically: sessions, level, reaction time and settings. If you use v4 again, its new sessions are merged too.
 - Data from another address, like the old claude.ai copy, can't be read from here. Open that copy, tap **Export data**, then use **More → Settings → Import data** here. Both v4 and v5 files work.
-- Back up any time with **More → Export data**.
+- Back up any time with **More → Export data**. The app also keeps its own copy once a day for 7 days (Settings → Backups) and repairs a damaged save from it.
 - The mirror's camera images stay in memory for the slow-mo replay. They are never saved or uploaded.
 
 ## Set up a monitor for true life-size
@@ -105,7 +106,7 @@ node tools/serve.mjs          # → http://localhost:8080/
 ## Tests
 
 ```sh
-node tests/run-all.mjs        # physics, grading, timing, game logic, career, badges, saved data, offline-file stamp
+node tests/run-all.mjs        # physics, grading, timing, game logic, career, badges, saved data, Skill check, backups, offline-file stamp
 node tests/browser-test.mjs   # headless Chromium (see below for what it checks)
 ```
 
@@ -141,7 +142,9 @@ CI runs both test suites on every push and PR (`.github/workflows/ci.yml`).
 
 | Path | What |
 |---|---|
-| `index.html`, `css/app.css`, `fonts/` | App shell, styles, display font (Barlow Condensed, SIL OFL) |
+| `index.html`, `fonts/` | App shell, display font (Barlow Condensed, SIL OFL) |
+| `css/app.css`, `css/play.css` | Design system and menu screens · the in-play layer |
+| `js/core/check.js`, `js/core/backup.js`, `js/backup-idb.js` | Skill check (standard test) · daily backups and damaged-save rescue |
 | `js/sync-github.js` | Optional sync through a secret gist (merge logic in `js/core/sync.js`) |
 | `js/core/` | Pure logic, tested in Node: `physics`, `rules` (grading), `bowling`, `levels` (85% staircase), `timing`, `progress` (XP, streaks), `badges`, `career` (ladder, bosses), `store` (saving, migration), `quality`, `action` (bowler keyframes) |
 | `js/engine/` | three.js: `world` (scene, ball, Hawk-Eye, sight screen), `bowler`, `perf` (frame-time overlay) |
@@ -153,7 +156,7 @@ CI runs both test suites on every push and PR (`.github/workflows/ci.yml`).
 | `sw.js`, `manifest.webmanifest`, `icons/` | Offline + install |
 | `vendor/` | Vendored libraries (see `vendor/VERSIONS.txt`) |
 | `legacy/v4.html` | The previous version, kept as a fallback |
-| `PLAN.md`, `DECISIONS.md`, `CLAUDE.md` | Plan, decision log, project handoff |
+| `PLAN.md`, `DECISIONS.md`, `CLAUDE.md`, `CHANGELOG.md` | Plan and "finished" checklist, decision log, project handoff, what shipped |
 
 ## Debug
 

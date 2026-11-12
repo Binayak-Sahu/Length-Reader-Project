@@ -5,7 +5,8 @@ Keep it up to date when decisions change.
 
 Also read:
 
-- **PLAN.md**: vision, architecture and roadmap.
+- **PLAN.md**: vision, architecture, the "finished" checklist and what is next.
+- **CHANGELOG.md**: plain-language list of what shipped.
 - **DECISIONS.md**: every major choice and why.
 - **README.md**: how to run, test and deploy.
 
@@ -31,6 +32,8 @@ Also read:
   - `node tests/run-all.mjs` and `node tests/browser-test.mjs`.
   - Then `node tools/stamp.mjs` (a test fails if you forget).
   - Say what was tested and what couldn't be (real-device FPS).
+- **Until Bink says the selection is over: do not change how live drills feel or are graded** (DECISIONS U1). `css/play.css`, the ball, timing, grading and existing mode plans are frozen; new behaviour goes behind a setting that is off by default.
+- **Before merging anything that touches grading, timing, saved data or training design:** a separate reviewer subagent checks the diff.
 - **Never leave the live site broken.** Work on a branch and merge to `main` only when the tests pass. `main` is live on GitHub Pages.
 - Be honest when the app is wrong or a request won't help his cricket.
 
@@ -48,13 +51,16 @@ Also read:
   - three.js code is in `js/engine/`.
   - The session runner is `js/game/game.js`.
   - Mode plans are in `js/game/modes.js`.
+- **Styles:** `css/app.css` = design system + every menu screen (tokens at the top; use them). `css/play.css` = in-play layer.
+- **This PC (D:\\Gen_AI\\Exp\\Length-Reader-Project):** git has no saved GitHub login, so pushing needs Bink to sign in once. Keep `core.autocrlf false` (LF), or the offline stamp will not match CI. Playwright: `npm install --no-save playwright@1.63.0 && npx playwright install chromium`.
 - **No build step.** ES modules plus an import map. Vendored libraries are in `vendor/` and are re-created by `tools/vendor.sh`.
 - **Saved data:** `localStorage` key `lr5`.
   - Sync (v5.3): `js/core/sync.js` (merge, tested in Node) and `js/sync-github.js` (gist client; token in key `lr5-sync`). More → Sync phone + PC.
   - v4's `lr_v3` is migrated, and later v4 sessions are merged on each start.
   - Import and export accept both v4 and v5 files.
+  - Backups (v6.0, D1): one snapshot a day in IndexedDB `lr-backup` (7 kept), damaged saves rescued at start, restore in Settings. Other tabs are merged on the `storage` event (D2).
 
-## How it works (v5)
+## How it works (v5 engine, v6 shell)
 
 **Physics** (`js/core/physics.js`): same model and constants as v4.
 
@@ -108,6 +114,7 @@ Also read:
 - **Selection sim (v5.6):** 4 spells × 6 (pace, spin, pace, mixed), ~120 kph, play/leave, nets rules, cold first ball, selector report (stars + biggest fix; `js/core/selection.js`).
 - **Leave drill (v5.6):** 30 balls, 40% wide off / 15% channel / 45% stumps; use with the head-only mirror.
 - **Sandbox (v5.4):** pick every ball (bowler, pace, length, line, blackout, task; each with Random). Endless; C / View / Pause → Change balls mid-session opens a side panel with the balls and the Look settings (view, lens, ball size, light…), applied live and saved (v5.10.1). Saved as `sandbox`, never counts (level, XP, streak, badges). `js/core/sandbox.js`, `genBall({force})`.
+- **Skill check (v6.0, S8):** the standard 24-ball test (`js/core/check.js`). Fixed pace and lengths, half blacked out at +160 ms, no feedback, no XP, level untouched. Saved as `check` with `rec.check` (score, tell, lean…). Progress leads with it.
 - **Reaction test:** median of 8 presses; it uses the same frame-stamped pipeline as the game.
 
 **Feedback:**
@@ -187,6 +194,8 @@ Also read:
 - **v5.4 shipped (29 Oct 2026):** Sandbox mode. **v5.4.1:** timing fix ("too quick" at pace). **v5.5:** personal too-quick line from his own results.
 - **v5.6 shipped (2 Nov 2026):** Selection sim, Leave drill, head-only mirror. **v5.7:** pre-release cues (bound, arm speed). **v5.8:** My bowlers (real actions copied from clips). **v5.9:** Helmet cam view. **v5.10:** Helmet cam improvements, late-afternoon light, next-net sounds.
 - **v5.6 shipped (1 Nov 2026):** Real bowlers page (More → Real bowlers). Portrait crop view (default) and Bink's first video `enRiR-kqxE4`; he's finding more himself.
+- **v6.0 built (12 Nov 2026), branch `v6-foundation`, NOT pushed:** design system for all menu screens, grouped Play, 5-step first run, Skill check, daily backups, honest How it works, grouped Settings. Live drills untouched. See CHANGELOG.md.
+- **Waiting on Bink:** a GitHub sign-in on this PC so v6.0 can be pushed (then CI, then merge).
 - **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
 - **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).
 - **Later (Bink paused it):** a PC mirror using the S25+ as a webcam, with pose checks on the big screen.

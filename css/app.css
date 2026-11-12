@@ -293,7 +293,7 @@ body.touch .ctaHint{display:none}
 .ob ul.pts li::before{content:"";width:.55rem;height:.55rem;border-radius:50%;background:var(--good);margin:.5rem 0 0 .4rem}
 .ob ul.pts b{color:#fff}
 .ob .how{margin-top:var(--s5);display:grid;gap:.6rem}
-.ob .how div{display:grid;grid-template-columns:8.5rem 1fr;gap:1rem;align-items:center;padding:.75rem 1rem;border-radius:var(--r-m);background:var(--panel);border:1px solid var(--line)}
+.ob .how div{display:grid;grid-template-columns:13rem 1fr;gap:1rem;align-items:center;padding:.75rem 1rem;border-radius:var(--r-m);background:var(--panel);border:1px solid var(--line)}
 .ob .how kbd{font:800 1.25rem/1.1 var(--display);letter-spacing:.06em;color:#fff}
 .ob .how .f kbd{color:#7dd3fc}.ob .how .bk kbd{color:#c4b5fd}
 .ob .how span{color:var(--text2);line-height:1.4}

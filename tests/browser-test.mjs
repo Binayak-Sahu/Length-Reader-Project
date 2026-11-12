@@ -625,6 +625,86 @@ await waitFor(p, () => window.__lr.game.G.state === 'run' && window.__lr.game.cl
 ok(true, 'offline: a ball is bowled');
 await ctx2.close();
 
+
+// ---------- v6: Skill check, backups, damaged-save rescue, phone layout ----------
+{
+  const c = await browser.newContext({ viewport: { width: 900, height: 600 } });
+  const q = await page(c, '?nosw', `if(!sessionStorage.seeded){ localStorage.setItem('lr_v3', ${JSON.stringify(JSON.stringify(v4))}); sessionStorage.seeded=1; }`);
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  await q.evaluate(() => { const S = window.__lr.app.S; S.sound = false; S.voice = false; S.fullscreen = false; S.gap = 1; S.trigger = true; S.lenMarks = 'on'; });
+  const before = await q.evaluate(() => { const d = window.__lr.app.db; return { lvl: d.level, d: d.levelD, cs: JSON.stringify(d.cs), xp: d.sessions.reduce((a, s) => a + (s.xp || 0), 0) }; });
+  ok(await q.evaluate(() => ['gTest', 'gDrill', 'gFree'].every(id => document.getElementById(id)) && document.getElementById('bCheck').closest('section').querySelector('h2').id === 'gTest'), 'Play groups the modes: Test yourself · Drills · Free practice');
+  await q.click('#bCheck');
+  await waitFor(q, () => window.__lr.game.G.state === 'intro' && /SKILL CHECK/.test(document.getElementById('banner').textContent));
+  const seen = [];
+  for (let i = 0; i < 3; i++) {
+    await waitFor(q, () => window.__lr.game.G.state === 'run' && window.__lr.game.clock.relTs !== null, null, 30000);
+    seen.push(await q.evaluate(() => { const G = window.__lr.game.G, w = window.__lr.app.world, pb = G.cur.seg.balls[G.sess.segN]; return { occ: G.cur.occ, want: pb.occ, cat: pb.cat, mode: G.cur.mode, bowler: G.cur.prof.n, spin: !!pb.spin, hud: document.getElementById('hLevel').textContent }; }));
+    await q.waitForTimeout(330);
+    await q.keyboard.press('ArrowLeft');
+    await waitFor(q, k => window.__lr.game.G.sess.balls.length > k, i, 20000);
+    if (i === 0) ok(await q.evaluate(() => document.getElementById('card').classList.contains('hidden')), 'Skill check: no verdict card after a ball (no feedback till the end)');
+    await q.evaluate(() => window.__lr.game.nextBall());
+  }
+  ok(seen.every(s => s.occ === s.want && s.mode === 1 && /SKILL CHECK/.test(s.hud) && (s.spin ? /spinner/i.test(s.bowler) : s.bowler === 'Tall quick')), 'Skill check: each ball follows the plan (blackout, feet only, the same bowlers every time)');
+  // finish the test quickly: the remaining balls are filled in as recorded balls, then the session ends the normal way
+  await q.evaluate(() => { const g = window.__lr.game, s = g.G.sess; while (s.balls.length < 24) s.balls.push(Object.assign({}, s.balls[s.balls.length % 3])); g.endSession(); });
+  await waitFor(q, () => !document.getElementById('end').classList.contains('hidden'));
+  const r = await q.evaluate(() => { const d = window.__lr.app.db, s = d.sessions[d.sessions.length - 1]; return { kind: s.kind, xp: s.xp, ck: s.check, tv: s.balls[0].tv, lvl: d.level, d: d.levelD, cs: JSON.stringify(d.cs), total: d.sessions.reduce((a, x) => a + (x.xp || 0), 0),
+    lbl: document.getElementById('eScoreLbl').textContent, sel: document.getElementById('eSel').textContent, again: document.getElementById('bAgain').textContent }; });
+  ok(r.kind === 'check' && r.ck && r.ck.complete && r.ck.n === 24 && r.ck.score != null, `Skill check is saved with its report (read score ${r.ck && r.ck.score}%)`);
+  ok(r.xp === 0 && r.total === before.xp && r.lvl === before.lvl && r.d === before.d && r.cs === before.cs && r.tv === null, 'a Skill check earns no XP, leaves the level and the weak-spot stats alone, and ignores the trigger setting');
+  ok(/Read score/i.test(r.lbl) && /What to work on/i.test(r.sel) && /starting mark/.test(r.sel) && /training/i.test(r.again), 'end screen: read score, one thing to work on, and "your starting mark"');
+  await q.click('#bHome3'); await q.click('#nav button[data-tab="progress"]');
+  ok(await q.evaluate(() => /Skill check/i.test(document.getElementById('ckCard').textContent) && !!document.getElementById('bCheck2') && document.querySelectorAll('#progTable tbody tr').length === 1), 'Progress leads with the Skill check card; the test stays out of the day-by-day table');
+
+  // backups: a snapshot is written by itself; a damaged save is rescued from it at the next start
+  await waitFor(q, async () => (await window.__lr.app.backups.list()).length === 1, null, 8000);
+  const snap = await q.evaluate(async () => (await window.__lr.app.backups.list())[0]);
+  ok(snap.n === 2 && /^day-/.test(snap.k), `a backup is made by itself after a session (${snap.n} sessions)`);
+  await q.evaluate(() => window.__lr.app.openSettings());
+  await waitFor(q, () => document.querySelectorAll('#bkList [data-bk]').length === 1);
+  ok(await q.evaluate(() => ['You', 'Training', 'Bowlers', 'Picture', 'Sound and feel'].every(n => [...document.querySelectorAll('#form h2')].some(h => h.textContent === n)) && document.querySelectorAll('#form [data-k]').length >= 35), 'Settings are grouped (You · Training · Bowlers · Picture · Sound and feel) and every setting is still there');
+  await q.evaluate(() => { const raw = localStorage.getItem('lr5'); localStorage.setItem('lr5', raw.slice(0, raw.length - 60)); localStorage.removeItem('lr_v3'); });
+  await q.reload({ waitUntil: 'load' });
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)') && /restored/.test(document.getElementById('toast').textContent), null, 20000);
+  const back = await q.evaluate(() => { const d = window.__lr.app.db; return { n: d.sessions.length, kinds: d.sessions.map(s => s.kind).join(), kept: !!localStorage.getItem('lr5-damaged'), ok: (() => { try { JSON.parse(localStorage.getItem('lr5')); return true; } catch (e) { return false; } })(), onb: d.profile.onboarded }; });
+  ok(back.n === 2 && /check/.test(back.kinds) && back.ok && back.onb, 'a damaged save is rescued from the backup at start: both sessions are back and the player is not sent to onboarding');
+  ok(back.kept, 'the damaged save is kept aside, not thrown away');
+  // two tabs: a session saved by another tab is merged, not overwritten
+  const q2 = await page(c, '?nosw');
+  await waitFor(q2, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  await q2.evaluate(() => { const a = window.__lr.app; a.db.sessions.push({ date: '2026-11-12T23:00:00.000Z', kind: 'quick', n: 30, score: 80, xp: 50, balls: [] }); a.saveNow(); });
+  await waitFor(q, () => window.__lr.app.db.sessions.length === 3, null, 8000);
+  await q.evaluate(() => window.__lr.app.saveNow());
+  ok(await q.evaluate(() => JSON.parse(localStorage.getItem('lr5')).sessions.length === 3), 'two tabs open: the first tab picks up the other tab\'s session before it saves');
+  await c.close();
+}
+{
+  // phone, portrait: nothing wider than the screen, every tap target at least 44 px, and the first run reaches a ball
+  const c = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+  const q = await page(c, '?nosw');
+  await waitFor(q, () => window.__lr && document.querySelector('#onboard:not(.hidden)'));
+  const fit = () => q.evaluate(() => { const s = document.querySelector('.screen:not(.hidden)'); const small = [...s.querySelectorAll('button, a.tile, a.btn, select, input:not([type=file])')].filter(e => e.offsetParent && (e.getBoundingClientRect().height < 43.5)).map(e => e.id || e.textContent.slice(0, 20));
+    return { wide: s.scrollWidth > s.clientWidth + 1, small }; });
+  let f = await fit(); ok(!f.wide && !f.small.length, 'phone: welcome fits the screen' + (f.small.length ? ' — small targets: ' + f.small.join(', ') : ''));
+  await q.tap('#obNext'); await q.tap('[data-h="R"]');
+  ok(await q.evaluate(() => /TOP HALF/.test(document.getElementById('obBody').textContent) && !/controller/i.test(document.getElementById('obBody').textContent) && !document.getElementById('obCal')), 'phone: the set-up step shows phone controls only (no controller or monitor text)');
+  await q.tap('#obNext'); await q.tap('#obSkip');
+  await q.evaluate(() => { const S = window.__lr.app.S; S.sound = false; S.voice = false; S.fullscreen = false; });
+  await q.tap('#obNext');
+  await waitFor(q, () => window.__lr.game.G.state === 'run', null, 20000);
+  await q.evaluate(() => { const g = window.__lr.game, s = g.G.sess; g.G.sess.balls.push({ sc: 1, v: 'good', fv: 'good', foot: 'F', fe: 'F', cat: 'Full', d: 3, lxB: 0, kph: 80, rt: 0.4, xp: 10, ok: true }, { sc: 1, v: 'good', fv: 'good', foot: 'B', fe: 'B', cat: 'Short', d: 8, lxB: 0, kph: 80, rt: 0.4, xp: 10, ok: true },
+    { sc: 1, v: 'good', fv: 'good', foot: 'B', fe: 'B', cat: 'Short', d: 8, lxB: 0, kph: 80, rt: 0.4, xp: 10, ok: true }, { sc: 0, v: 'bad', fv: 'bad', foot: 'B', fe: 'F', cat: 'Full', d: 3, lxB: 0, kph: 80, rt: 0.4, xp: 0, ok: false }); g.endSession(); });
+  await waitFor(q, () => !document.getElementById('end').classList.contains('hidden'));
+  ok(await q.evaluate(() => /1 of 2/.test(document.getElementById('eWelcome').textContent) && document.getElementById('eScoreRow').classList.contains('hidden') && document.getElementById('eLeak').classList.contains('hidden') && /first daily session/.test(document.getElementById('bAgain').textContent)),
+    'after the practice balls a new player gets a welcome and a next step, not a red score and a "leak"');
+  await q.tap('#bHome3');
+  for (const tab of ['home', 'career', 'progress', 'more']) { await q.tap(`#nav button[data-tab="${tab}"]`); f = await fit(); ok(!f.wide && !f.small.length, `phone: ${tab} fits the screen, all tap targets ≥ 44 px` + (f.small.length ? ' — small: ' + f.small.join(', ') : '')); }
+  ok(await q.evaluate(() => document.querySelector('#nav button.on').getAttribute('aria-current') === 'page'), 'the tab bar marks the current tab for screen readers');
+  await c.close();
+}
+
 const real = errors.filter(e => !/favicon|net::ERR_INTERNET_DISCONNECTED|Failed to load resource/.test(e));
 ok(real.length === 0, 'no page errors' + (real.length ? ':\n  ' + real.join('\n  ') : ''));
 await browser.close(); srv.close();

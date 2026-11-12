@@ -25,6 +25,9 @@ First user: Bink (right-handed). Selection nets after 15 Nov 2026 against pace u
   - `progress`: XP, badges, streaks and career.
   - `store`: saved data, v4 migration, import/export and compaction.
   - `quality`: adaptive-quality decisions.
+  - `check`: the Skill check (standard test): plan, report, trend.
+  - `backup`: daily snapshots, damaged-save rescue, restore and tab-merge rules.
+- **`css/`**: `app.css` is the design system and every menu screen; `play.css` is the in-play layer (frozen, see DECISIONS U1).
 - **`js/engine/`** is three.js:
   - `world`: environment, quality tiers and shadows updated only when casters move.
   - `bowler`: rig and keyframes, with no per-frame allocation.
@@ -51,7 +54,7 @@ First user: Bink (right-handed). Selection nets after 15 Nov 2026 against pace u
 
 ## Roadmap
 
-Status (26 Oct 2026): **M1, M2 and M3 shipped.** The next ideas are listed at the bottom.
+Status (12 Nov 2026): M1–M3 and v5.2–v5.10 shipped. **v6.0 (finished-product pass) is built on branch `v6-foundation`, not yet pushed.** See "What finished means" and "Next" below, and CHANGELOG.md.
 
 
 ### Milestone 1: "train on it today"
@@ -100,6 +103,35 @@ Status (26 Oct 2026): **M1, M2 and M3 shipped.** The next ideas are listed at th
 1. Run `node tests/run-all.mjs`. This covers physics, rules, timing, game logic and storage, and checks the service-worker stamp.
 2. Run `node tests/browser-test.mjs`. Headless Chromium covers boot, migration, a played ball with synthetic timestamped input, offline reload and frame-time sampling.
 3. Push the branch, open a PR, and merge to `main` once tests pass. GitHub Pages then serves the new version, and the service worker shows an "update ready" prompt.
+
+## What "finished" means (checklist, kept honest)
+
+Tick only what has been checked on a screen or by a test.
+
+| Area | Done means | State (12 Nov 2026) |
+|---|---|---|
+| Science | Every claim in the app traces to a checked source; limits stated | ✅ v6.0 |
+| Science | The app can show real improvement, separate from practice scores | ✅ Skill check (needs real use to prove useful) |
+| Science | Carry-over to real nets is tracked | ❌ next: a 3-tap "real nets diary" on Progress |
+| Game layer | Rewards only real reads | ✅ (tests) · Skill check earns nothing |
+| Design | One design system on every menu screen | ✅ index.html · ❌ mirror / real / action pages still have their own styles |
+| Design | Phone portrait and big monitor both look designed | ✅ menus (screenshots) · in-play unchanged on purpose |
+| Design | In-play HUD, result card and tap zones redesigned | ❌ frozen until after the selection (DECISIONS U1) |
+| Onboarding | Stranger to first ball in under 2 minutes, device-specific | ✅ |
+| Accessibility | WCAG 2.1 AA: contrast, focus, 44 px targets, labels, reduced motion | ◐ contrast, focus, targets and tab state done and tested; no full screen-reader pass yet; canvas charts have labels but no data table for the chart |
+| Input | Touch, keyboard, mouse, controller; left- and right-handers | ✅ (unchanged; tests) · controller feel needs Bink's hands |
+| Engineering | Offline, installable, private | ✅ |
+| Engineering | Saved data can't be lost | ✅ backups, damaged-save rescue, tab merge (tests) |
+| Engineering | Frame rate measured on the real devices | ❌ waiting on Bink (S25+, 165 Hz PC) |
+| Engineering | Tests for all logic and main flows; CI green | ✅ locally (all Node suites and 142 browser checks) · CI not run: nothing pushed yet |
+
+## Next (in order)
+
+1. Push v6.0 (needs Bink's GitHub sign-in on this PC), watch CI, merge, check the live site and the update prompt.
+2. After the selection: redesign the in-play layer (HUD, result card, tap zones, banners) on the new design system, behind a setting first.
+3. Real nets diary (carry-over), then bring mirror / real / action pages onto the design system.
+4. Screen-reader pass and a data table behind the progress chart.
+5. Device results from Bink (frame rates, controller, audio latency).
 
 ## Known limits (stated in the app too)
 

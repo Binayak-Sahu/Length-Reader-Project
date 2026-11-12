@@ -14,7 +14,7 @@ export function only(id) {
   app.state = id || 'none';
   const tab = TABS.includes(id);
   show('nav', tab);
-  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === id));
+  document.querySelectorAll('#nav button').forEach(b => { const on = b.dataset.tab === id; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   if (id) { const el = $(id); if (el) el.scrollTop = 0; }
 }
 
