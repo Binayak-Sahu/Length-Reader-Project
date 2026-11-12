@@ -3,8 +3,9 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml', '.wasm': 'application/wasm', '.task': 'application/octet-stream',
   '.woff2': 'font/woff2', '.txt': 'text/plain' };
@@ -20,7 +21,7 @@ export function serve(port = 8080) {
   });
   return new Promise(r => srv.listen(port, () => r(srv)));
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
   const port = +process.argv[2] || 8080;
   serve(port).then(() => console.log(`Length Reader on http://localhost:${port}/`));
 }
