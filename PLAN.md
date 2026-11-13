@@ -114,9 +114,9 @@ Tick only what has been checked on a screen or by a test.
 | Science | The app can show real improvement, separate from practice scores | ✅ Skill check (needs real use to prove useful) |
 | Science | Carry-over to real nets is tracked | ❌ next: a 3-tap "real nets diary" on Progress |
 | Game layer | Rewards only real reads | ✅ (tests) · Skill check earns nothing |
-| Design | One design system on every menu screen | ✅ index.html · ❌ mirror / real / action pages still have their own styles |
-| Design | Phone portrait and big monitor both look designed | ✅ menus (screenshots) · in-play unchanged on purpose |
-| Design | In-play HUD, result card and tap zones redesigned | ❌ frozen until after the selection (DECISIONS U1) |
+| Design | One design system on every menu screen | ✅ index.html · ❌ real / action pages still have their own styles (mirror page dropped by Bink, 13 Nov) |
+| Design | Phone portrait and big monitor both look designed | ✅ menus (screenshots) · in-play: ✅ with New look on (screenshots), classic kept as the default |
+| Design | In-play ground, HUD and result card redesigned | ◐ v6.1 behind Settings → New look in play (off by default, U6) · bowler model and making it the default: after the selection |
 | Onboarding | Stranger to first ball in under 2 minutes, device-specific | ✅ |
 | Accessibility | WCAG 2.1 AA: contrast, focus, 44 px targets, labels, reduced motion | ◐ contrast, focus, targets and tab state done and tested; no full screen-reader pass yet; canvas charts have labels but no data table for the chart |
 | Input | Touch, keyboard, mouse, controller; left- and right-handers | ✅ (unchanged; tests) · controller feel needs Bink's hands |
@@ -127,9 +127,9 @@ Tick only what has been checked on a screen or by a test.
 
 ## Next (in order)
 
-1. Hear from Bink how v6.0 feels on the S25+ and the PC (update prompt, Skill check, new menus).
-2. After the selection: redesign the in-play layer (HUD, result card, tap zones, banners) on the new design system, behind a setting first.
-3. Real nets diary (carry-over), then bring mirror / real / action pages onto the design system.
+1. Hear from Bink how v6.1's New look feels on the S25+ and the PC (and v6.0: update prompt, Skill check, new menus).
+2. After the selection: a better bowler model, then make the New look the default.
+3. Real nets diary (carry-over), then bring the real / action pages onto the design system (mirror page: dropped by Bink).
 4. Screen-reader pass and a data table behind the progress chart.
 5. Device results from Bink (frame rates, controller, audio latency).
 

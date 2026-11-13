@@ -51,7 +51,7 @@ Also read:
   - three.js code is in `js/engine/`.
   - The session runner is `js/game/game.js`.
   - Mode plans are in `js/game/modes.js`.
-- **Styles:** `css/app.css` = design system + every menu screen (tokens at the top; use them). `css/play.css` = in-play layer.
+- **Styles:** `css/app.css` = design system + every menu screen (tokens at the top; use them). `css/play.css` = in-play layer (frozen). `css/play2.css` = the New look in play, every rule under `body.newlook` (v6.1, U6); its ground pictures are in `js/engine/scene2.js`.
 - **This PC (D:\\Gen_AI\\Exp\\Length-Reader-Project):** Bink signed git in to GitHub on 12 Nov 2026, so pushing works; there is no `gh`, and the public GitHub API rate-limits quickly, so read CI from the Actions page in a browser. Keep `core.autocrlf false` (LF), or the offline stamp will not match CI. Playwright: `npm install --no-save playwright@1.63.0 && npx playwright install chromium`.
 - **No build step.** ES modules plus an import map. Vendored libraries are in `vendor/` and are re-created by `tools/vendor.sh`.
 - **Saved data:** `localStorage` key `lr5`.
@@ -195,6 +195,7 @@ Also read:
 - **v5.6 shipped (2 Nov 2026):** Selection sim, Leave drill, head-only mirror. **v5.7:** pre-release cues (bound, arm speed). **v5.8:** My bowlers (real actions copied from clips). **v5.9:** Helmet cam view. **v5.10:** Helmet cam improvements, late-afternoon light, next-net sounds.
 - **v5.6 shipped (1 Nov 2026):** Real bowlers page (More → Real bowlers). Portrait crop view (default) and Bink's first video `enRiR-kqxE4`; he's finding more himself.
 - **v6.0 shipped (12 Nov 2026, merged to `main`, CI green, live site checked):** design system for all menu screens, grouped Play, 5-step first run, Skill check, daily backups, honest How it works, grouped Settings. Live drills untouched. See CHANGELOG.md.
+- **v6.1 (13 Nov 2026):** New look in play behind Settings → Picture (off by default, DECISIONS U6): new sky, tree line, grass, pitch surface, nets, HUD, result card. Ball, bowler, timing and grading untouched. Bink dropped the mirror restyle.
 - **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
 - **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).
 - **Later (Bink paused it):** a PC mirror using the S25+ as a webcam, with pose checks on the big screen.

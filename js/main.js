@@ -19,7 +19,7 @@ import { createSync } from './sync-github.js';
 import { createBackups } from './backup-idb.js';
 import { inspectRaw, restoreSnapshot, mergeOtherTab, DAMAGED_KEY } from './core/backup.js';
 
-const VERSION = '6.0.0';
+const VERSION = '6.1.0';
 const qs = new URLSearchParams(location.search);
 
 // ---------- data ----------
@@ -52,6 +52,7 @@ const startTier = qs.get('tier') || (app.S.quality !== 'auto' ? app.S.quality : 
 app.quality = new QualityController(tierIndex(startTier), tierIndex(isTouch ? 'high' : 'ultra'));
 world.applyTier(QTIERS[app.quality.tier]);
 world.applyView(app.S, app.db.profile.hand);
+world.setStyle(!!app.S.newLook); document.body.classList.toggle('newlook', !!app.S.newLook);
 world.setBall(app.S.ball, app.S.sight); world.setLight(app.S.light); world.setNight(!!app.S.night);
 document.body.classList.toggle('life', world.calibrated);
 app.onBallStats = (st) => {
@@ -64,6 +65,7 @@ function applySettings(k) {
   if (k === 'quality') { if (app.S.quality !== 'auto') app.quality.tier = tierIndex(app.S.quality); world.applyTier(QTIERS[app.quality.tier]); }
   if (k === 'overlay') app.perf.setOverlay(app.S.overlay);
   applyA11y();
+  world.setStyle(!!app.S.newLook); document.body.classList.toggle('newlook', !!app.S.newLook);
   world.setBall(app.S.ball, app.S.sight); world.setLight(app.S.light); world.setNight(!!app.S.night);
   world.applyView(app.S, app.db.profile.hand); needsRender = true;
   document.body.classList.toggle('life', world.calibrated);
