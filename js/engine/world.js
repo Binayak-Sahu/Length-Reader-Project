@@ -397,6 +397,9 @@ export function createWorld(canvas) {
     // Light: 'day' (afternoon sun behind you) or 'late' (low sun behind the bowler). Night mode wins over both.
     setLight(mode) { look.late = mode === 'late'; applyLook(); },
     setStyle, get styled() { return styled; },
+    // For the tests: which pictures are in use (true = the classic one).
+    styleInfo() { return { grass: grass.material.map === gTex, pitch: pitch.material.map === pTex, net: classic.netMat.map === classic.netTex,
+      netOpacity: classic.netMat.opacity, classicSky: classic.sky.visible && classic.trees.visible, newSky: !!s2 && (s2.sky.visible || s2.trees.visible) }; },
     get light() { return look.night ? 'night' : look.late ? 'late' : 'day'; },
     // Length markings for this pace (null = hide)
     setLenMarks(kph, spin) {

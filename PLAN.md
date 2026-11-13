@@ -115,7 +115,7 @@ Tick only what has been checked on a screen or by a test.
 | Science | Carry-over to real nets is tracked | ❌ next: a 3-tap "real nets diary" on Progress |
 | Game layer | Rewards only real reads | ✅ (tests) · Skill check earns nothing |
 | Design | One design system on every menu screen | ✅ index.html · ❌ real / action pages still have their own styles (mirror page dropped by Bink, 13 Nov) |
-| Design | Phone portrait and big monitor both look designed | ✅ menus (screenshots) · in-play: ✅ with New look on (screenshots), classic kept as the default |
+| Design | Phone portrait and big monitor both look designed | ✅ menus (screenshots) · in-play: ◐ New look checked only in headless-browser screenshots (phone portrait and landscape, 1600×900, upright 1080×1920, software rendering); not yet seen on the S25+ or the PC. Classic in-play (the default) is unchanged from v5.10.1, not redesigned |
 | Design | In-play ground, HUD and result card redesigned | ◐ v6.1 behind Settings → New look in play (off by default, U6) · bowler model and making it the default: after the selection |
 | Onboarding | Stranger to first ball in under 2 minutes, device-specific | ✅ |
 | Accessibility | WCAG 2.1 AA: contrast, focus, 44 px targets, labels, reduced motion | ◐ contrast, focus, targets and tab state done and tested; no full screen-reader pass yet; canvas charts have labels but no data table for the chart |

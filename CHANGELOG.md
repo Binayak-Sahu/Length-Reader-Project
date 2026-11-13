@@ -7,8 +7,8 @@ Plain-language list of what changed, newest first. One line says what to try.
 **Your drills are unchanged unless you switch this on.** It is off by default.
 
 New
-- **New look in play (preview).** Settings → Picture → New look in play. A softer sky with a tree line, cleaner grass, a pitch that looks like rolled clay (no scribbled cracks), finer nets, a quieter score bar, a tidier result card and one clear green Next button. On a phone the pause button moves to the bottom-right corner, clear of the pitch.
-- Not changed by the switch: the ball, the bowlers and their actions, the speed, the timing, the marking, the levels, the tap zones.
+- **New look in play (preview).** Settings → Picture → New look in play. A softer sky with a tree line, cleaner grass, a pitch that looks like rolled clay (only fine hairline cracks), finer nets, a quieter score bar, a tidier result card and one clear green Next button. On a phone the pause button stays bottom-centre, as now.
+- Not changed by the switch: the ball, the bowlers and their actions, the speed, the timing, the marking, the levels. The tap zones work exactly the same (top half front foot, bottom half back foot); only their labels and lines are restyled.
 - Honest limit: the bowler figure itself is the same simple model. That is next, after the selection.
 
 Try it: **S25+ and PC → More → Settings → Picture → New look in play**, then play a Quick 30. Switch it off again if anything is harder to see.
