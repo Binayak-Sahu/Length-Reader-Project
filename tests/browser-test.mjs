@@ -706,6 +706,60 @@ await ctx2.close();
   await c.close();
 }
 
+// ---------- v6.1: new look in play (a setting, off by default) ----------
+{
+  const c = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+  const q = await page(c, '?nosw', `if (!localStorage.getItem('lr5')) localStorage.setItem('lr5', ${JSON.stringify(JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false, feedback: 'always', levelMode: '0' }, sessions: [] }))});`);
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  ok(await q.evaluate(() => { const w = window.__lr.app.world; return window.__lr.app.S.newLook === false && !w.styled && !document.body.classList.contains('newlook') && w.scene.children.length > 0; }), 'new look: off by default (classic ground and classic in-play styles)');
+  const kids = await q.evaluate(() => window.__lr.app.world.scene.children.length);
+  ok(await q.evaluate(() => getComputedStyle(document.getElementById('pBtn')).borderRadius === '999px'), 'new look off: the pause button keeps its v5.10.1 shape');
+  await q.tap('#tMore'); await q.tap('#bSettings'); await q.evaluate(() => document.getElementById('f_newLook').click());
+  ok(await q.evaluate(() => { const w = window.__lr.app.world; return w.styled && document.body.classList.contains('newlook') && JSON.parse(localStorage.getItem('lr5')).settings.newLook === true; }), 'new look: the switch in Settings turns it on and is saved');
+  ok(await q.evaluate((k) => window.__lr.app.world.scene.children.length === k + 2, kids), 'new look: only a sky and a tree line are added to the scene (ball, bowler, stumps, lines untouched)');
+  const NEW = { grass: false, pitch: false, net: false, classicSky: false, newSky: true }, OLD = { grass: true, pitch: true, net: true, classicSky: true, newSky: false };
+  const look = (want, op) => q.evaluate(([want, op]) => { const i = window.__lr.app.world.styleInfo(); return Object.keys(want).every(k => i[k] === want[k]) && Math.abs(i.netOpacity - op) < 1e-9; }, [want, op]);
+  ok(await look(NEW, 0.42), 'new look on: new grass, pitch and net pictures, new sky and trees, classic sky hidden');
+  await q.tap('#bSetBack'); await q.tap('#tPlay'); await q.tap('#bQuick');
+  await waitFor(q, () => window.__lr.game.G.state === 'run' && window.__lr.game.clock.relTs !== null, null, 30000);
+  const fits = (id) => q.evaluate((id) => { const r = document.getElementById(id).getBoundingClientRect(); return r.width >= 43.5 && r.height >= 43.5 && r.left >= 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5; }, id);
+  ok(await fits('pBtn'), 'new look, phone: the pause button is on screen and at least 44 px');
+  await q.touchscreen.tap(195, 200);
+  await waitFor(q, () => window.__lr.game.G.state === 'result' && window.__lr.game.G.sess.balls.length === 1 && !document.getElementById('card').classList.contains('hidden'), null, 20000);
+  ok(await q.evaluate(() => window.__lr.game.G.sess.balls[0].foot === 'F'), 'new look: a tap on the top half is still the front foot');
+  ok(await fits('card') && await fits('rctl') && await fits('rcNext'), 'new look, phone: the result card and its buttons fit the screen');
+  ok(await q.evaluate(() => { const a = document.getElementById('card').getBoundingClientRect(), b = document.getElementById('rctl').getBoundingClientRect(); return a.bottom <= b.top + 1; }), 'new look, phone: the card does not cover the Next button');
+  await q.tap('#rcNext');
+  await waitFor(q, () => window.__lr.game.G.state === 'run' && window.__lr.game.G.sess.balls.length === 1 && window.__lr.game.clock.relTs !== null, null, 30000);
+  await q.touchscreen.tap(100, 650);                                                       // bottom half, clear of the pause button
+  await waitFor(q, () => window.__lr.game.G.state === 'result' && window.__lr.game.G.sess.balls.length === 2, null, 20000);
+  ok(await q.evaluate(() => window.__lr.game.G.sess.balls[1].foot === 'B'), 'new look: a tap on the bottom half is still the back foot (the pause button does not swallow it)');
+  await q.evaluate(() => { window.__lr.game.endSession(); });
+  await waitFor(q, () => !document.getElementById('end').classList.contains('hidden'));
+  await q.evaluate(() => { const a = window.__lr.app; a.S.newLook = false; a.applySettings('newLook'); });
+  ok(await q.evaluate(() => { const w = window.__lr.app.world; return !w.styled && !document.body.classList.contains('newlook') && getComputedStyle(document.getElementById('pBtn')).borderRadius === '999px'; }), 'new look: switching it off brings the classic look back');
+  ok(await look(OLD, 0.7), 'new look off: classic grass, pitch and net pictures, net opacity 0.7, classic sky and trees shown');
+  await q.evaluate(() => { const a = window.__lr.app; a.S.newLook = true; a.applySettings('newLook'); });
+  ok(await look(NEW, 0.42) && await q.evaluate((k) => window.__lr.app.world.styled && document.body.classList.contains('newlook') && window.__lr.app.world.scene.children.length === k + 2, kids), 'new look: on → off → on works and builds the new ground only once');
+  await q.evaluate(() => { const a = window.__lr.app; a.S.newLook = false; a.applySettings('newLook'); });
+  ok(await look(OLD, 0.7) && await q.evaluate((k) => window.__lr.app.world.scene.children.length === k + 2, kids), 'new look: off again restores the classic ground');
+  await c.close();
+}
+{ // phone landscape: the card fits between the score bar and the buttons
+  const c = await browser.newContext({ viewport: { width: 850, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1 });
+  const q = await page(c, '?nosw', `if (!localStorage.getItem('lr5')) localStorage.setItem('lr5', ${JSON.stringify(JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false, feedback: 'always', levelMode: '0', newLook: true }, sessions: [] }))});`);
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  ok(await q.evaluate(() => document.body.classList.contains('newlook') && window.__lr.app.world.styled), 'new look: a saved "on" is applied at start');
+  await q.tap('#bQuick');
+  await waitFor(q, () => window.__lr.game.G.state === 'run' && window.__lr.game.clock.relTs !== null, null, 30000);
+  await q.touchscreen.tap(425, 100);
+  await waitFor(q, () => window.__lr.game.G.state === 'result' && !document.getElementById('card').classList.contains('hidden'), null, 20000);
+  await q.waitForTimeout(400);
+  ok(await q.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(), a = r('card'), b = r('rctl'), h = r('hud'), n = r('rcNext');
+    return a.top >= h.bottom - 1 && a.bottom <= b.top + 1 && a.left >= 0 && a.right <= innerWidth + 0.5 && b.bottom <= innerHeight + 0.5 && n.height >= 43.5; }), 'new look, phone landscape (850×390): the card fits under the score bar and above the buttons');
+  await c.close();
+}
+
 const real = errors.filter(e => !/favicon|net::ERR_INTERNET_DISCONNECTED|Failed to load resource/.test(e));
 ok(real.length === 0, 'no page errors' + (real.length ? ':\n  ' + real.join('\n  ') : ''));
 await browser.close(); srv.close();

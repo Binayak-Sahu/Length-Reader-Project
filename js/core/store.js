@@ -11,7 +11,7 @@ export const DEF = {
   // v5
   feedback: 'auto', quality: 'auto', overlay: false, haptics: true, textScale: 1, contrast: false, reduceMotion: false, ball: 'red',
   // v5.2: life-size calibration, pitch and input options
-  sight: 'dark', calib: null, lenMarks: 'auto', night: false, pedals: null, stepCue: false, fpsOnly: false,
+  sight: 'dark', calib: null, lenMarks: 'auto', night: false, newLook: false, pedals: null, stepCue: false, fpsOnly: false,
   // v5.4: sandbox choices (per device)
   sandbox: SB_DEF,
   // v5.10: Helmet cam lens (vertical degrees), light, sounds from the nets next door

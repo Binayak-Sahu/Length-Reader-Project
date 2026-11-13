@@ -6,6 +6,7 @@ import { Z_STUMPS, R, bandsFor } from '../core/physics.js';
 import { TIERS } from '../core/quality.js';
 import { createBowler } from './bowler.js';
 import { activeCalib, frustum, canvasRect } from '../core/calib.js';
+import { buildScene2 } from './scene2.js';
 
 const d2r = Math.PI / 180;
 // Batter's eye: 1.5 m (6 ft in stance), head on the off-stump line. In the right-hander frame off side = −x;
@@ -80,13 +81,14 @@ export function createWorld(canvas) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SKY); scene.fog = new THREE.Fog(SKY, 70, 190);
   let skyMat = null, stumpShadow = null;
+  const classic = {}; let s2 = null, styled = false;       // new look (scene2.js): built on first use; classic is the default
   // Sky: a vertex-coloured dome (deeper blue overhead, hazy at the horizon) — one draw call, no texture
   { const g = new THREE.SphereGeometry(320, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), pos = g.attributes.position, col = [];
     const top = new THREE.Color(0x5d8fc4), hor = new THREE.Color(SKY), c = new THREE.Color();
     for (let i = 0; i < pos.count; i++) { const h = Math.max(0, pos.getY(i) / 320); c.copy(hor).lerp(top, Math.pow(h, 0.55)); col.push(c.r, c.g, c.b); }
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     skyMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false });
-    const sky = new THREE.Mesh(g, skyMat); sky.position.z = 20; sky.renderOrder = -1; scene.add(sky); }
+    const sky = new THREE.Mesh(g, skyMat); sky.position.z = 20; sky.renderOrder = -1; scene.add(sky); classic.sky = sky; }
   const camera = new THREE.PerspectiveCamera(34, 1, 0.05, 400);
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
@@ -187,6 +189,7 @@ export function createWorld(canvas) {
     const mat = new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false });
     const geo = new THREE.PlaneGeometry(26, 3.2);
     for (const x of [-1.75, 1.75]) { const n = new THREE.Mesh(geo, mat); n.rotation.y = Math.PI / 2; n.position.set(x, 1.6, 9); scene.add(n); }
+    classic.netMat = mat; classic.netTex = t;
     const zs = []; for (let z = -4; z <= 22; z += 3) zs.push(z);                      // a pole every 3 m: a strong depth cue
     const poles = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.03, 0.03, 3.3, 6), new THREE.MeshLambertMaterial({ color: 0x2a2f35 }), zs.length * 2);
     const m = new THREE.Matrix4(); let i = 0;
@@ -198,7 +201,7 @@ export function createWorld(canvas) {
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3();
     for (let i = 0; i < N; i++) { const a = rnd(-1.25, 1.25) + Math.PI / 2, r = rnd(70, 100), k = rnd(0.8, 1.5);
       trees.setMatrixAt(i, m.compose(p.set(Math.cos(a) * r, rnd(3, 5), Math.sin(a) * r * 0.9 + 15), q, s.set(k, k, k))); }
-    scene.add(trees); }
+    scene.add(trees); classic.trees = trees; }
 
   // Sight screen behind the bowler (white for a red ball, black for a white ball) and its stand
   const sightMat = new THREE.MeshLambertMaterial({ color: 0xf2f2ee });
@@ -282,7 +285,7 @@ export function createWorld(canvas) {
     if (sun.castShadow !== want) sun.castShadow = want;
     if (want && sun.shadow.mapSize.x !== t.shadow) { sun.shadow.mapSize.set(t.shadow, t.shadow); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
     bBlob.visible = !want;
-    for (const tx of [gTex, pTex]) { const a = Math.min(t.aniso, maxAniso); if (tx.anisotropy !== a) { tx.anisotropy = a; tx.needsUpdate = true; } }
+    for (const tx of (s2 ? [gTex, pTex, s2.grassTex, s2.pitchTex] : [gTex, pTex])) { const a = Math.min(t.aniso, maxAniso); if (tx.anisotropy !== a) { tx.anisotropy = a; tx.needsUpdate = true; } }
     shadowDirty = true;
   }
   // Where the canvas sits on the physical screen: all of it in full screen, otherwise an estimate (see core/calib.js).
@@ -347,7 +350,18 @@ export function createWorld(canvas) {
     SUN_DIR.copy(late ? SUN_LATE : SUN_DAY);
     sun.target.position.set(0, 0, late ? 12 : 24); sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 20);
     glare.visible = late; glare.position.set(0, 1.5, 0).addScaledVector(SUN_DIR, 250);
+    if (s2) s2.tint(night, late);
     placeStumpShadow(); placeMeShadow(); shadowDirty = true;
+  }
+  // New look: swap the pictures only (sky, tree line, grass, pitch surface, net mesh). Geometry, light, ball and bowler stay.
+  function setStyle(on) {
+    on = !!on; if (on === styled) return; styled = on;
+    if (on && !s2) { s2 = buildScene2(maxAniso); scene.add(s2.sky, s2.trees); }
+    classic.sky.visible = classic.trees.visible = !on; s2.sky.visible = s2.trees.visible = on;
+    grass.material.map = on ? s2.grassTex : gTex; pitch.material.map = on ? s2.pitchTex : pTex;
+    classic.netMat.map = on ? s2.netTex : classic.netTex; classic.netMat.opacity = on ? 0.42 : 0.7;
+    grass.material.needsUpdate = pitch.material.needsUpdate = classic.netMat.needsUpdate = true;
+    applyTier(tier); applyLook();
   }
   function resize() { size(); renderer.setSize(W, H, false); if (view) applyView(view, hx === -1 ? 'L' : 'R'); else placeHe(W, H); }
   size(); applyTier(tier);
@@ -382,6 +396,10 @@ export function createWorld(canvas) {
     setNight(on) { look.night = !!on; applyLook(); },
     // Light: 'day' (afternoon sun behind you) or 'late' (low sun behind the bowler). Night mode wins over both.
     setLight(mode) { look.late = mode === 'late'; applyLook(); },
+    setStyle, get styled() { return styled; },
+    // For the tests: which pictures are in use (true = the classic one).
+    styleInfo() { return { grass: grass.material.map === gTex, pitch: pitch.material.map === pTex, net: classic.netMat.map === classic.netTex,
+      netOpacity: classic.netMat.opacity, classicSky: classic.sky.visible && classic.trees.visible, newSky: !!s2 && (s2.sky.visible || s2.trees.visible) }; },
     get light() { return look.night ? 'night' : look.late ? 'late' : 'day'; },
     // Length markings for this pace (null = hide)
     setLenMarks(kph, spin) {

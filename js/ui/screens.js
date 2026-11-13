@@ -165,6 +165,7 @@ const FIELDS = [
   { k: 'lifeCm', l: 'SIMPLE LIFE-SIZE: SCREEN HEIGHT (CM)', t: 'number', min: 10, max: 300, h: 'Height of the lit picture area. 27-inch 16:9: upright ≈ 59.8 · flat ≈ 33.6. Better: Calibrate my setup.' },
   { k: 'lifeM', l: 'LIFE-SIZE: YOUR DISTANCE FROM SCREEN (M)', t: 'number', min: 0.5, max: 6, step: 0.1, h: 'Eyes to screen, standing in your stance.' },
   { k: 'boost', l: 'BALL SIZE BOOST', t: 'number', min: 1, max: 3, step: 0.1, h: 'Makes the ball easier to see on screen. 1 = true size. Its growth rate (a timing cue) is unchanged.' },
+  { k: 'newLook', l: 'NEW LOOK IN PLAY (PREVIEW)', t: 'check', h: 'A cleaner ground, pitch, score bar and result card. The ball, the bowlers, the timing and the marking are the same. Off = the look you have trained on.' },
   { k: 'ball', l: 'BALL', t: 'select', o: [['red', 'Red ball'], ['white', 'White ball']] },
   { k: 'sight', l: 'SIGHT SCREEN', t: 'select', o: [['dark', 'Dark — best contrast, least glare'], ['white', 'White'], ['off', 'Off (no screen)']] },
   { k: 'lenMarks', l: 'LENGTH MARKINGS ON THE PITCH', t: 'select', o: [['auto', 'Auto — Level 1 only'], ['on', 'Always'], ['off', 'Never']], h: 'Faint full / good / short bands for the ball’s pace.' },
@@ -197,7 +198,7 @@ const GROUPS = [
   ['You', ['hand', 'textScale', 'contrast', 'reduceMotion']],
   ['Training', ['levelMode', 'feedback', 'maxKph', 'gap', 'hawk', 'smart', 'trigger', 'stepCue']],
   ['Bowlers', ['spinners', 'club', 'rotate', 'netsGap', 'widePct', 'bouncerPct']],
-  ['Picture', ['view', 'helmFov', 'lifeCm', 'lifeM', 'boost', 'ball', 'sight', 'lenMarks', 'light', 'night', 'quality', 'overlay']],
+  ['Picture', ['newLook', 'view', 'helmFov', 'lifeCm', 'lifeM', 'boost', 'ball', 'sight', 'lenMarks', 'light', 'night', 'quality', 'overlay']],
   ['Sound and feel', ['sound', 'voice', 'ambience', 'haptics', 'fullscreen']],
 ];
 function fieldsInto(box, fields, onChange, idp = 'f_', groups = null) {

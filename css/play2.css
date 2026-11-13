@@ -1,0 +1,88 @@
+/* New look in play (Settings → New look in play; off by default, DECISIONS U6).
+   Every rule is scoped to body.newlook, so with the switch off the page is exactly play.css.
+   Uses the design-system tokens from app.css. No backdrop-filter (it re-blurs every frame over the 3D view). */
+body.newlook #hud,body.newlook #hint,body.newlook #card,body.newlook #rctl,body.newlook #pBtn,body.newlook #zones,body.newlook #speed,body.newlook #stepcue,body.newlook #toast{--bg:#06080b;--panel:#0f141b;--panel2:#161d27;--muted:#93a0b0;font-family:var(--ui)}
+body.newlook #pBtn:focus-visible,body.newlook #rctl button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* Score bar: quiet plates in the corners, labels small, numbers in the display face */
+body.newlook #hud{padding-top:calc(.75rem + env(safe-area-inset-top,0px));gap:.5rem}
+body.newlook .chip{background:rgba(6,8,11,.66);border:0;border-radius:var(--r-s);padding:.4rem .75rem;font:700 calc(clamp(1rem,1.25vw,1.75rem)*var(--fs))/1.15 var(--display);letter-spacing:.04em;color:var(--text);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+body.newlook .chip small{color:var(--muted);font-weight:600;font-size:.68em;letter-spacing:.14em;margin-right:.55em}
+body.newlook .lvbar{height:.3em;width:3.4em;border:0;background:rgba(255,255,255,.16);vertical-align:.18em}
+body.newlook .lvbar u{background:var(--good)}
+body.newlook #hudR{gap:.4rem}
+body.newlook #hint{color:rgba(255,255,255,.7);font:600 clamp(.8rem,.9vw,1.15rem)/1 var(--display);letter-spacing:.16em;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+body.newlook #stepcue{background:rgba(6,8,11,.7);border:0;border-radius:var(--r-s);color:var(--gold)}
+body.newlook #speed{background:rgba(6,8,11,.66);border:0;border-radius:var(--r-s);padding:.4rem .75rem;top:calc(.75rem + 3.2rem + env(safe-area-inset-top,0px));box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+body.newlook #speed small{color:var(--muted);font:600 .62rem/1.2 var(--display);letter-spacing:.16em}
+body.newlook #speed b{color:var(--text);font-size:calc(clamp(1.4rem,2vw,2.6rem)*var(--fs))}
+
+/* Call flash and the banner between segments */
+body.newlook #flash{font-weight:800;letter-spacing:.05em;text-shadow:0 .04em .2em rgba(0,0,0,.55)}
+body.newlook #banner{left:50%;right:auto;transform:translate(-50%,-50%);width:min(92vw,46rem);padding:1.75rem 1.5rem;border-radius:var(--r-xl);background:rgba(10,14,19,.94);border:1px solid var(--line2);color:var(--text);font:800 calc(clamp(1.5rem,2.6vw,3.2rem)*var(--fs))/1.15 var(--display);letter-spacing:.05em;box-shadow:0 1.5rem 4rem rgba(0,0,0,.5)}
+
+/* Touch: the tap zones work exactly as in play.css; only their labels and lines are restyled. Pause stays bottom-centre like classic */
+body.newlook #zones div{font:700 .82rem/1.9 var(--display);letter-spacing:.2em;color:rgba(255,255,255,.82);border-bottom:1px solid rgba(255,255,255,.1)}
+body.newlook #zones:not(.lbl) div{color:transparent}
+body.newlook #zones div:last-child{border-bottom:0}
+body.newlook #zones.six div{border-right:1px solid rgba(255,255,255,.14)}
+body.newlook #zones.six div:nth-child(3n){border-right:0}
+body.newlook #zones.six div:nth-child(-n+3){border-bottom:1px solid rgba(255,255,255,.14)}
+body.newlook #pBtn{bottom:calc(.75rem + env(safe-area-inset-bottom,0px));width:3rem;height:3rem;min-height:0;padding:0;border-radius:50%;border:0;background:rgba(6,8,11,.6);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);font-size:0;letter-spacing:0}
+body.newlook #pBtn::before{content:"";display:block;width:.85rem;height:1rem;margin:auto;border-left:.28rem solid #fff;border-right:.28rem solid #fff;opacity:.9}
+
+/* After the ball: one control bar, Next is the only loud button */
+body.newlook #rctl{gap:.25rem;padding:.35rem;border-radius:var(--r-l);background:rgba(10,14,19,.94);border:1px solid var(--line2);box-shadow:0 .75rem 2rem rgba(0,0,0,.45)}
+body.newlook #rctl button{border-radius:var(--r-m);padding:.7rem 1rem;font:700 clamp(1rem,1.1vw,1.4rem)/1 var(--display);letter-spacing:.06em;color:var(--text2);min-height:2.75rem}
+body.newlook #rctl button:hover{background:var(--panel2);color:var(--text)}
+body.newlook #rctl button.on{background:#3b3214;color:var(--gold)}
+body.newlook #rctl #rcNext{background:var(--good);color:var(--ink);padding-inline:1.5rem}
+body.newlook #rctl #rcNext:hover{background:#34d36d;color:var(--ink)}
+
+/* Result card */
+body.newlook #card{width:min(34vw,36rem);right:2vw;padding:1.25rem;gap:1.1rem;border-radius:var(--r-l);background:rgba(10,14,19,.95);border:1px solid var(--line2);box-shadow:0 1.5rem 4rem rgba(0,0,0,.5);grid-template-columns:1fr minmax(7rem,30%)}
+body.newlook #card>div{display:grid;grid-template-columns:auto 1fr;column-gap:.8rem;align-content:start}
+body.newlook #card>div>*{grid-column:1/-1}
+body.newlook #badge{grid-column:1!important;grid-row:1/span 2;align-self:center;width:calc(clamp(2.6rem,3.6vw,4.5rem)*var(--fs));height:calc(clamp(2.6rem,3.6vw,4.5rem)*var(--fs))}
+body.newlook #verdict{grid-column:2!important;font-size:calc(clamp(2rem,3.1vw,4rem)*var(--fs));line-height:.95;margin:0}
+body.newlook #rLen{grid-column:2!important;font:700 calc(clamp(.9rem,1.05vw,1.4rem)*var(--fs))/1.2 var(--display);letter-spacing:.08em;color:var(--muted);font-variant-numeric:tabular-nums}
+body.newlook #rCorrect,body.newlook #rYou{font-size:calc(clamp(.95rem,1.1vw,1.5rem)*var(--fs));line-height:1.35;color:var(--text);margin-top:.8rem}
+body.newlook #rYou{margin-top:.35rem}
+body.newlook #rYou:empty,body.newlook #rMsg:empty,body.newlook #rLevel:empty{display:none}
+body.newlook .bb{margin-top:.9rem;padding:.7rem .75rem .6rem;border-radius:var(--r-s);background:var(--panel2)}
+body.newlook .bbT{height:.5rem;background:rgba(255,255,255,.1);border:0}
+body.newlook .bbBase{background:repeating-linear-gradient(45deg,rgba(255,255,255,.22) 0 3px,transparent 3px 6px)}
+body.newlook .bbL{margin-top:.6rem;font-size:calc(clamp(.75rem,.85vw,1.1rem)*var(--fs));gap:.2em 1em}
+body.newlook #rMsg{font-size:calc(clamp(.85rem,.95vw,1.25rem)*var(--fs));margin-top:.7rem;color:var(--text2)}
+body.newlook .xpline{font-family:var(--display);letter-spacing:.06em}
+body.newlook #rLevel{margin-top:.7rem;font:700 calc(clamp(.85rem,1vw,1.3rem)*var(--fs))/1.2 var(--display);letter-spacing:.08em}
+body.newlook #rLevel.big{font-size:calc(clamp(1.3rem,2vw,2.6rem)*var(--fs))}
+body.newlook #map{border-radius:var(--r-s);min-height:38vh}
+
+@media (max-width:900px),(orientation:portrait),(max-height:500px){
+  body.newlook #card{left:.75rem;right:.75rem;width:auto;top:auto;transform:none;animation:none;bottom:calc(.75rem + 4.1rem + env(safe-area-inset-bottom,0px));padding:.9rem;gap:.75rem;grid-template-columns:1fr 28%;border-radius:var(--r-l)}
+  body.newlook #map{min-height:0;height:100%;max-height:30vh}
+  body.newlook #rctl{left:.75rem;right:.75rem;transform:none;bottom:calc(.75rem + env(safe-area-inset-bottom,0px));justify-content:space-between}
+  body.newlook #rctl button{padding:.7rem .6rem;flex:0 1 auto}
+  body.newlook #rctl #rcNext{flex:1 1 auto}
+}
+@media (orientation:portrait){
+  body.newlook #card{max-height:36vh;overflow:hidden;grid-template-columns:1fr 32%}
+  body.newlook .chip{font-size:calc(clamp(.95rem,1.7vw,1.6rem)*var(--fs));padding:.35rem .65rem;max-width:46vw}
+  body.newlook #card #badge{float:none;margin:0;width:calc(2.5rem*var(--fs));height:calc(2.5rem*var(--fs))}
+  body.newlook #card #verdict{font-size:calc(clamp(1.9rem,4.6vw,3.4rem)*var(--fs));margin:0}
+  body.newlook #card #rLen{font-size:calc(clamp(.8rem,1.9vw,1.4rem)*var(--fs));clear:none}
+  body.newlook #card #rCorrect,body.newlook #card #rYou{font-size:calc(clamp(.9rem,2vw,1.5rem)*var(--fs));margin-top:.6rem}
+  body.newlook #card #rYou{margin-top:.3rem}
+  body.newlook #card #rMsg,body.newlook #card #rLevel{font-size:calc(clamp(.8rem,1.8vw,1.3rem)*var(--fs));margin-top:.5rem}
+  body.newlook #card .bb{margin-top:.6rem;padding:.55rem .6rem .45rem}
+  body.newlook #speed{top:calc(.75rem + 6rem + env(safe-area-inset-top,0px))}
+}
+@media (max-width:600px){
+  body.newlook .chip{font-size:.95rem!important;padding:.35rem .6rem}
+  body.newlook #hAcc small{display:inline}
+  body.newlook .bbL span:nth-child(n+4){display:none}
+}
+body.newlook.contrast #zones div{border-color:rgba(255,255,255,.5)}
+body.newlook.contrast .chip,body.newlook.contrast #card,body.newlook.contrast #rctl,body.newlook.contrast #speed{background:#000;box-shadow:inset 0 0 0 2px #fff}
+body.newlook.life #hud .chip{opacity:.75}
