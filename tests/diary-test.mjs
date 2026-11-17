@@ -64,4 +64,12 @@ ok(diaryCarry([E(0, 1, 1, 1), E(1, 1, 1, 1), E(2, 1, 1, 2)]).state === 'same', '
 ok(diaryCarry([E(0, 2, 2, 2), E(1, 2, 2, 2), E(2, 0, 0, 1), E(3, 0, 1, 0)]).state === 'down', 'feeling worse shows as down');
 const del = [E(0, 0, 0, 0), E(1, 2, 2, 2), E(2, 2, 2, 2)]; const dd = { diary: del.slice() }; deleteEntry(dd, del[0].id);
 ok(diaryCarry(dd.diary).state === 'few', 'removed nets are left out of the summary');
+// review fixes: the cap and an older tab
+const capped = newDB(); for (let i = 0; i < DIARY_MAX; i++) addEntry(capped, E(100 + (i % 200), 1, 1, 1));
+const oldest = { ...E(0, 1, 1, 1) };
+ok(mergeDiary(capped, [oldest]) === 0 && !capped.diary.some(e => e.id === oldest.id), 'an entry the cap drops straight away is not counted as a change (no endless "diary updated")');
+const v61 = newDB(); delete v61.diary; const me = newDB(); addEntry(me, E(9, 2, 2, 2));
+const rb = mergeOtherTab(me, JSON.stringify(v61));
+ok(rb.behind === true && liveEntries(me.diary).length === 1, 'an older tab that saved without the diary is spotted, so this tab writes its diary back');
+ok(mergeOtherTab(me, JSON.stringify(me)).behind === false, 'a tab with the same diary is not behind');
 done();

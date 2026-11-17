@@ -355,5 +355,7 @@ body.calm .cta:hover,body.calm .tile:hover{transform:none}
 .diary .dMsg{color:var(--text2);line-height:1.5;max-width:52rem}
 .diary .dMsg b{color:var(--text)}
 .diary .sbRow .lbl{display:block;margin-bottom:.5rem}
-.dList .bk span{min-width:12rem}
+.dList .bk{flex-wrap:nowrap;gap:.75rem}
+.dList .bk span{flex:1 1 auto;min-width:0;line-height:1.4}
+.dList .bk .btn{flex:none;min-height:2.75rem;padding:.4rem .85rem;font-size:.9375rem}
 [data-fh]:focus{outline:none}

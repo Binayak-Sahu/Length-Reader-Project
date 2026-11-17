@@ -170,7 +170,7 @@ $('bResume').onclick = () => game.togglePause(); $('bEndNow').onclick = () => ga
 addEventListener('storage', (e) => {
   if (e.key !== KEY || !e.newValue) return;
   const r = mergeOtherTab(app.db, e.newValue);
-  if (r.sessions || r.diary) app.saveNow();       // write the union back, so it survives even if this tab never saves again
+  if (r.sessions || r.diary || r.behind) app.saveNow();   // write the union back, so it survives even if this tab never saves again
   if ((r.sessions || r.diary) && !game.G.sess) { if (app.state === 'home') goHome(); else if (app.state === 'progress') TAB.progress(); }
 });
 // Backups: one snapshot a day on this device. A restore only adds what is missing, then the app reloads.

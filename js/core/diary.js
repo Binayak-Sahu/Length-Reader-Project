@@ -46,9 +46,10 @@ export function deleteEntry(db, id) {
 }
 // Merge another copy (sync, import, backup, another tab). Never drops an entry; returns how many were added or changed.
 export function mergeDiary(db, list) {
-  db.diary = db.diary || []; let n = 0;
-  for (const e of list || []) if (validEntry(e) && put(db.diary, Object.assign({}, e))) n++;
-  tidy(db.diary); return n;
+  db.diary = db.diary || []; const changed = new Set();
+  for (const e of list || []) if (validEntry(e) && put(db.diary, Object.assign({}, e))) changed.add(e.id);
+  tidy(db.diary);
+  return db.diary.filter(e => changed.has(e.id)).length;            // only what is still kept after the cap counts
 }
 export const liveEntries = (diary) => (diary || []).filter(e => !e.del);
 

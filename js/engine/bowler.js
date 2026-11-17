@@ -53,6 +53,7 @@ export function createBowler(scene) {
   const classic = casters.slice().concat([trim, cap, peak]);
   let athlete = null;
   function buildAthlete() {
+    // small parts (joints, cuffs, hems, collar, jaw) cast no shadow: the shadow pass is redrawn every run-up frame
     const list = [], add = (parent, geo, mat, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1, shadow = true) => {
       const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = shadow; m.visible = false;
       parent.add(m); list.push(m); return m;
@@ -64,11 +65,11 @@ export function createBowler(scene) {
     const sole = new THREE.MeshLambertMaterial({ color: 0x9aa0a6 });
     // torso: waist → chest → shoulders, flatter front to back; the open collar and a belt in the kit colour
     add(torso, lathe([[0.001, -0.02], [0.138, -0.02], [0.15, 0.08], [0.162, 0.2], [0.186, 0.33], [0.2, 0.43], [0.19, 0.51], [0.15, 0.575], [0.07, 0.615], [0.001, 0.62]]), shirt, 0, 0, 0, 1.17, 1, 0.68);
-    add(torso, taper(0.072, 0.082, 0.05, 14), shirt, 0, 0.635, 0.004, 1, 1, 0.9);                                    // collar
+    add(torso, taper(0.072, 0.082, 0.05, 14), shirt, 0, 0.635, 0.004, 1, 1, 0.9, false);                                    // collar
     add(torso, new THREE.CylinderGeometry(0.143, 0.143, 0.04, 20, 1, true), dark, 0, 0.0, 0, 1.17, 1, 0.69, false);   // belt
     add(torso, taper(0.046, 0.05, 0.11, 10), skin, 0, 0.69, 0);                                                       // neck
     const head = add(torso, ball(0.1, 18, 14), skin, 0, 0.75, 0, 0.92, 1.12, 1.02);
-    add(torso, ball(0.075, 12, 8), skin, 0, 0.695, -0.03, 0.95, 0.75, 0.95);                                          // jaw
+    add(torso, ball(0.075, 12, 8), skin, 0, 0.695, -0.03, 0.95, 0.75, 0.95, false);                                          // jaw
     for (const sx of [1, -1]) add(torso, ball(0.022, 8, 6), skin, 0.093 * sx, 0.748, 0.005, 0.6, 1, 1, false);        // ears
     add(torso, new THREE.ConeGeometry(0.016, 0.04, 6), skin, 0, 0.738, -0.104, 1, 1, 1, false).rotation.x = -Math.PI / 2;  // nose (faces the batter)
     add(torso, new THREE.SphereGeometry(0.107, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), dark, 0, 0.785, 0, 0.95, 0.85, 1.03);  // cap
@@ -77,18 +78,18 @@ export function createBowler(scene) {
     // hips and seat: carry the trousers from the belt into the thighs
     add(root, lathe([[0.001, 0.09], [0.15, 0.09], [0.158, 0.02], [0.162, -0.06], [0.135, -0.11], [0.07, -0.14], [0.001, -0.145]]), pants, 0, 0, 0, 1.18, 1, 0.78);
     for (const A of [rA, lA]) {
-      add(A.up, ball(0.057, 14, 10), shirt, 0, -0.012, 0, 0.98, 1.1, 0.98);                                                // shoulder
+      add(A.up, ball(0.057, 14, 10), shirt, 0, -0.012, 0, 0.98, 1.1, 0.98, false);                                                // shoulder
       add(A.up, taper(0.058, 0.047, 0.29, 12), shirt, 0, -0.005, 0);                                                 // upper arm (sleeve)
-      add(A.up, taper(0.05, 0.052, 0.03, 12), shirt, 0, -0.27, 0);                                                    // sleeve cuff
-      add(A.el, ball(0.042, 10, 8), skin);                                                                             // elbow
+      add(A.up, taper(0.05, 0.052, 0.03, 12), shirt, 0, -0.27, 0, 1, 1, 1, false);                                                    // sleeve cuff
+      add(A.el, ball(0.042, 10, 8), skin, 0, 0, 0, 1, 1, 1, false);                                                                             // elbow
       add(A.fo, taper(0.044, 0.031, 0.27, 12), skin, 0, -0.005, 0);                                                  // forearm
-      add(A.fo, ball(0.04, 12, 8), skin, 0, -0.305, -0.005, 0.85, 1.3, 0.62);                                          // hand
+      add(A.fo, ball(0.04, 12, 8), skin, 0, -0.305, -0.005, 0.85, 1.3, 0.62, false);                                          // hand
     }
     for (const L of [rL, lL]) {
       add(L.th, taper(0.086, 0.062, 0.47, 14), pants);                                                                 // thigh
-      add(L.kn, ball(0.06, 12, 10), pants, 0, 0, -0.004);                                                              // knee
+      add(L.kn, ball(0.06, 12, 10), pants, 0, 0, -0.004, 1, 1, 1, false);                                                              // knee
       add(L.sh, taper(0.059, 0.043, 0.43, 14), pants);                                                                 // shin
-      add(L.sh, taper(0.044, 0.05, 0.035, 12), pants, 0, -0.42, 0);                                                    // trouser hem
+      add(L.sh, taper(0.044, 0.05, 0.035, 12), pants, 0, -0.42, 0, 1, 1, 1, false);                                                    // trouser hem
       add(L.sh, ball(0.056, 14, 10), dark, 0, -0.478, -0.05, 0.92, 0.82, 2.3);                                         // boot
       add(L.sh, new THREE.BoxGeometry(0.088, 0.02, 0.25), sole, 0, -0.514, -0.05, 1, 1, 1, false);                     // sole
     }

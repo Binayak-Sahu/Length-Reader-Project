@@ -13,6 +13,8 @@ New
 
 Not changed: the ball, physics, timing, grading, levels and mode plans. The New look stays off by default.
 
+Update the app on both the phone and the PC (close and reopen it): an older copy can't carry the diary through sync, so new nets only reach the other device once both are on v6.2. Nothing is lost meanwhile.
+
 Try it: **Progress → Add a real net** after your next real net; **Settings → Picture → New look in play** to see the new bowler.
 
 ## v6.1 (13 Nov 2026) — live

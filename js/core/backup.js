@@ -63,5 +63,9 @@ export function mergeOtherTab(db, raw) {
   let other; try { other = normalize(JSON.parse(raw)); } catch (e) { return { sessions: 0, actions: 0, diary: 0 }; }
   const before = JSON.stringify(db.actions || []);
   db.actions = other.actions;                      // the My bowlers page owns this list: a bowler deleted there stays deleted
-  return { sessions: mergeSessions(db, other.sessions), actions: JSON.stringify(db.actions) !== before ? 1 : 0, diary: mergeDiary(db, other.diary) };
+  const diary = mergeDiary(db, other.diary);
+  // the other tab is behind us (e.g. an older version that doesn't know the diary): our save must be written back
+  const theirs = new Set((other.diary || []).map(e => e.id + '|' + e.at));
+  const behind = (db.diary || []).some(e => !theirs.has(e.id + '|' + e.at));
+  return { sessions: mergeSessions(db, other.sessions), actions: JSON.stringify(db.actions) !== before ? 1 : 0, diary, behind };
 }
