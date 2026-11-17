@@ -2,7 +2,7 @@
 
 Plain-language list of what changed, newest first. One line says what to try.
 
-## v6.1 (13 Nov 2026)
+## v6.1 (13 Nov 2026) — live
 
 **Your drills are unchanged unless you switch this on.** It is off by default.
 

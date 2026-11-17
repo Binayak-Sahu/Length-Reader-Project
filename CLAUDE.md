@@ -195,7 +195,7 @@ Also read:
 - **v5.6 shipped (2 Nov 2026):** Selection sim, Leave drill, head-only mirror. **v5.7:** pre-release cues (bound, arm speed). **v5.8:** My bowlers (real actions copied from clips). **v5.9:** Helmet cam view. **v5.10:** Helmet cam improvements, late-afternoon light, next-net sounds.
 - **v5.6 shipped (1 Nov 2026):** Real bowlers page (More → Real bowlers). Portrait crop view (default) and Bink's first video `enRiR-kqxE4`; he's finding more himself.
 - **v6.0 shipped (12 Nov 2026, merged to `main`, CI green, live site checked):** design system for all menu screens, grouped Play, 5-step first run, Skill check, daily backups, honest How it works, grouped Settings. Live drills untouched. See CHANGELOG.md.
-- **v6.1 (13 Nov 2026):** New look in play behind Settings → Picture (off by default, DECISIONS U6): new sky, tree line, grass, pitch surface, nets, HUD, result card. Ball, bowler, timing and grading untouched. Bink dropped the mirror restyle.
+- **v6.1 shipped (13 Nov 2026, merged to `main`, CI green, live site checked):** New look in play behind Settings → Picture (off by default, DECISIONS U6): new sky, tree line, grass, pitch surface, nets, HUD, result card. Ball, bowler, timing and grading untouched. Bink dropped the mirror restyle.
 - **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
 - **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).
 - **Later (Bink paused it):** a PC mirror using the S25+ as a webcam, with pose checks on the big screen.
