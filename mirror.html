@@ -65,7 +65,8 @@ ol b{color:var(--text)}
 </style>
 </head>
 <body>
-<canvas id="view"></canvas>
+<main>
+<canvas id="view" role="img" aria-label="Camera view with your head line"></canvas>
 <video id="cam" playsinline muted autoplay></video>
 <div id="chip" class="hidden"></div>
 <div id="prog"></div>
@@ -119,6 +120,7 @@ ol b{color:var(--text)}
   </div>
 </div>
 
+</main>
 <script>
 (()=>{
 'use strict';

@@ -39,7 +39,7 @@ Videos need the internet. Some owners block playing outside YouTube; the app mar
 ## Your data
 
 - Everything is saved in this browser, on this web address only. There are no accounts, ads or tracking.
-- **Phone + PC:** More → **Sync phone + PC** merges your sessions, level, career and badges through a secret gist in your own GitHub account. Paste the same token on each device (GitHub → Settings → Developer settings → Fine-grained tokens → Account permissions → Gists: Read and write). Settings, calibration and reaction time stay per device.
+- **Phone + PC:** More → **Sync phone + PC** merges your sessions, level, career, badges, My bowlers and real nets diary through a secret gist in your own GitHub account. Paste the same token on each device (GitHub → Settings → Developer settings → Fine-grained tokens → Account permissions → Gists: Read and write). Settings, calibration and reaction time stay per device.
 - Your **v4 data on the same address** came across automatically: sessions, level, reaction time and settings. If you use v4 again, its new sessions are merged too.
 - Data from another address, like the old claude.ai copy, can't be read from here. Open that copy, tap **Export data**, then use **More → Settings → Import data** here. Both v4 and v5 files work.
 - Back up any time with **More → Export data**. The app also keeps its own copy once a day for 7 days (Settings → Backups) and repairs a damaged save from it.
@@ -106,7 +106,7 @@ node tools/serve.mjs          # → http://localhost:8080/
 ## Tests
 
 ```sh
-node tests/run-all.mjs        # physics, grading, timing, game logic, career, badges, saved data, Skill check, backups, offline-file stamp
+node tests/run-all.mjs        # physics, grading, timing, game logic, career, badges, saved data, Skill check, backups, nets diary, offline-file stamp
 node tests/browser-test.mjs   # headless Chromium (see below for what it checks)
 ```
 
@@ -118,11 +118,13 @@ The browser test checks:
 - nets and daily session
 - onboarding and trials
 - offline reload
+- the New look (ground, bowler body, card fit) and the real nets diary
+- accessibility: an automatic WCAG 2.1 AA check (axe-core) on every screen
 
 It needs Playwright and Chromium:
 
 ```sh
-npm i -g playwright
+npm install --no-save playwright@1.63.0 axe-core@4.10.3
 npx playwright install chromium
 ```
 
@@ -143,8 +145,9 @@ CI runs both test suites on every push and PR (`.github/workflows/ci.yml`).
 | Path | What |
 |---|---|
 | `index.html`, `fonts/` | App shell, display font (Barlow Condensed, SIL OFL) |
-| `css/app.css`, `css/play.css` | Design system and menu screens · the in-play layer |
+| `css/app.css`, `css/play.css`, `css/play2.css` | Design system, menu screens and the Real bowlers / My bowlers pages · the in-play layer · the New look in play |
 | `js/core/check.js`, `js/core/backup.js`, `js/backup-idb.js` | Skill check (standard test) · daily backups and damaged-save rescue |
+| `js/core/diary.js` | Real nets diary (three taps after a real net; carry-over summary) |
 | `js/sync-github.js` | Optional sync through a secret gist (merge logic in `js/core/sync.js`) |
 | `js/core/` | Pure logic, tested in Node: `physics`, `rules` (grading), `bowling`, `levels` (85% staircase), `timing`, `progress` (XP, streaks), `badges`, `career` (ladder, bosses), `store` (saving, migration), `quality`, `action` (bowler keyframes) |
 | `js/engine/` | three.js: `world` (scene, ball, Hawk-Eye, sight screen), `bowler`, `perf` (frame-time overlay) |
@@ -153,6 +156,7 @@ CI runs both test suites on every push and PR (`.github/workflows/ci.yml`).
 | `js/traj-worker.js` | Trajectory solver worker |
 | `mirror.html` | Phone batting mirror (MediaPipe pose, local files) |
 | `real.html`, `js/core/real.js` | Real bowlers: tag YouTube net videos, then call the length at a blackout |
+| `action.html`, `js/core/clipaction.js`, `js/core/myactions.js` | My bowlers: copy a real action from a side-on clip |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Offline + install |
 | `vendor/` | Vendored libraries (see `vendor/VERSIONS.txt`) |
 | `legacy/v4.html` | The previous version, kept as a fallback |

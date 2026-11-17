@@ -3,69 +3,65 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#07090c">
+<meta name="theme-color" content="#06080b">
 <meta name="color-scheme" content="dark">
 <title>My Bowlers</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/app.css">
 <style>
-/* My bowlers: a list of copied actions + "add from a clip" (open a side-on clip, mark 3 moments, analyse, save numbers only) */
-@font-face{font-family:"Barlow Condensed";font-weight:800;font-display:swap;src:url(fonts/barlow-condensed-latin-800-normal.woff2) format("woff2")}
-:root{--bg:#07090c;--panel:#10151c;--line:rgba(255,255,255,.1);--text:#eef2f6;--muted:#8d99a8;--good:#22c55e;--warn:#f5a524;--bad:#ef4444;--accent:#38bdf8;--disp:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;color-scheme:dark}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:"Segoe UI",Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-button,input,select{font:inherit;color:inherit}
-button{cursor:pointer}
-.hidden{display:none!important}
-main{max-width:900px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) 16px 48px;display:grid;gap:20px}
-.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.brand{font-family:var(--disp);font-weight:800;font-size:30px;letter-spacing:.08em}
-.brand small{display:block;font-size:14px;letter-spacing:.14em;color:var(--muted)}
-a{color:var(--accent)} .back{color:var(--muted);text-decoration:none;font-weight:600}
-h2{font-family:var(--disp);font-weight:800;font-size:20px;letter-spacing:.12em;color:var(--muted);margin-bottom:10px}
-.note{color:var(--muted);font-size:14px;line-height:1.55;max-width:70ch}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;display:grid;gap:12px}
-.btn{background:#1b2430;border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-height:44px;font-weight:650}
-.btn.go{background:#14532d;border-color:var(--good)}
-.btn.mk{border-color:var(--accent)} .btn.mk.on{background:#0c4a6e}
-.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.list{display:grid;gap:8px}
-.item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
-.item b{flex:1} .item small{color:var(--muted)}
-video{width:100%;max-height:52vh;background:#000;border-radius:12px}
-input[type=range]{width:100%}
-input[type=text],select{background:#0b1016;border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-height:44px}
-#prog{height:8px;border-radius:99px;background:#1e2732;overflow:hidden} #prog i{display:block;height:100%;width:0;background:var(--good)}
-#msg{font-weight:650} #msg.bad{color:var(--bad)} #msg.warn{color:var(--warn)} #msg.good{color:var(--good)}
+/* My bowlers (v6.2: on the app's design system, css/app.css): a list of copied actions + "add from a clip"
+   (open a side-on clip, mark 3 moments, analyse, save numbers only) */
+:root{color-scheme:dark}
 .num{font-variant-numeric:tabular-nums}
+.panel>h2:first-child{margin-top:0}
+.steps{padding-left:1.25rem}
+.steps li{margin-top:.35rem}
+.list{display:grid;gap:var(--s2);margin-top:var(--s3)}
+.item{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;padding:.6rem .9rem;border-radius:var(--r-m);background:var(--panel);border:1px solid var(--line)}
+.item b{flex:1 1 8rem;font-weight:650} .item small{color:var(--muted)}
+.item .btn{min-height:2.75rem;padding:.5rem .9rem;font-size:1rem}
+.btn.mk{border-color:rgba(56,189,248,.55)} .btn.mk.on{background:#0c4a6e;color:#fff}
+.edit{display:grid;gap:var(--s3);margin-top:var(--s4)}
+.edit .row{margin-top:0;align-items:center}
+.pick{display:inline-flex;margin-top:var(--s4)}
+.pick input{position:absolute;opacity:0;width:1px;height:1px}
+.pick:focus-within{outline:3px solid var(--accent);outline-offset:2px;border-radius:var(--r-m)}
+video{width:100%;max-height:52vh;background:#000;border-radius:var(--r-m);margin-top:var(--s4)}
+input[type=range]{width:100%;accent-color:var(--accent);min-height:2.75rem}
+input[type=text],select{background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:var(--r-m);padding:.6rem .8rem;min-height:3rem;font:inherit}
+#prog{height:.5rem;border-radius:99px;background:var(--panel3);overflow:hidden} #prog i{display:block;height:100%;width:0;background:var(--good)}
+#msg{font-weight:650;min-height:1.3em} #msg.bad{color:#f87171} #msg.warn{color:var(--warn)} #msg.good{color:var(--good)}
 </style>
 </head>
 <body>
-<main>
-  <div class="top"><div class="brand">MY BOWLERS<small>REAL ACTIONS, COPIED FROM A CLIP</small></div><a class="back" href="./">← Length Reader</a></div>
+<main class="screen">
+  <div class="wrap narrow">
+  <header class="top"><a class="btn back" href="./">Length Reader</a><div class="brand"><i></i>My bowlers</div></header>
+  <h1 class="h1s">Real actions, copied from a clip</h1>
 
-  <section>
-    <h2>SAVED</h2>
+  <section aria-labelledby="savedH">
+    <h2 id="savedH">Saved</h2>
     <div class="list" id="list"></div>
     <p class="note" id="empty">None yet. Add one below. Saved bowlers appear in Sandbox (Bowler row) and take turns in Nets and the Selection sim.</p>
   </section>
 
-  <section class="panel">
-    <h2>ADD FROM A CLIP</h2>
-    <ol class="note" style="padding-left:20px">
+  <section class="panel" aria-labelledby="addH">
+    <h2 id="addH">Add from a clip</h2>
+    <ol class="note steps">
       <li>Find a <b>side-on</b> clip of one delivery (YouTube is fine). Screen-record or save about <b>5 seconds</b> around it.</li>
       <li>Open it here. Step to each moment and tap: <b>Back foot down</b>, <b>Front foot down</b>, <b>Release</b>.</li>
       <li>Name it and tap <b>Copy action</b>. Only the joint angles are kept — the video is never saved or uploaded.</li>
     </ol>
-    <input type="file" id="file" accept="video/*">
-    <video id="vid" playsinline muted class="hidden"></video>
-    <div id="edit" class="hidden" style="display:grid;gap:10px">
+    <label class="btn go pick">Open a clip<input type="file" id="file" accept="video/*"></label>
+    <video id="vid" playsinline muted class="hidden" aria-label="Your clip"></video>
+    <div id="edit" class="hidden edit">
       <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Position in the clip">
       <div class="row">
         <button class="btn" id="play">Play / pause</button>
         <button class="btn" id="back1" aria-label="One frame back">◀ frame (,)</button>
         <button class="btn" id="fwd1" aria-label="One frame forward">frame ▶ (.)</button>
-        <span class="num note" id="tm">0.00 s</span>
+        <span class="num note" id="tm" style="margin-top:0">0.00 s</span>
       </div>
       <div class="row">
         <button class="btn mk" data-m="bfc">Back foot down</button>
@@ -73,16 +69,17 @@ input[type=text],select{background:#0b1016;border:1px solid var(--line);border-r
         <button class="btn mk" data-m="rel">Release</button>
       </div>
       <div class="row">
-        <input type="text" id="name" placeholder="Name, e.g. Club quick" maxlength="30">
-        <select id="type"><option value="pace">Pace</option><option value="off">Off-spin</option><option value="leg">Leg-spin</option></select>
-        <select id="arm"><option value="R">Right-arm</option><option value="L">Left-arm (copied onto the right arm)</option></select>
+        <input type="text" id="name" placeholder="Name, e.g. Club quick" maxlength="30" aria-label="Name">
+        <select id="type" aria-label="Bowler type"><option value="pace">Pace</option><option value="off">Off-spin</option><option value="leg">Leg-spin</option></select>
+        <select id="arm" aria-label="Bowling arm"><option value="R">Right-arm</option><option value="L">Left-arm (copied onto the right arm)</option></select>
         <button class="btn go" id="save">Copy action</button>
       </div>
-      <div id="prog"><i></i></div>
+      <div id="prog" role="progressbar" aria-label="Copying the action" aria-valuemin="0" aria-valuemax="100"><i></i></div>
       <div id="msg" role="status"></div>
     </div>
     <p class="note">Honest limits: one camera only guesses depth, so <b>side-on</b> clips work best; front-on clips make the arm look shaky. Cuts or zooms during the delivery break the tracking. Where the ball goes still comes from the app's physics — lengths and timings stay exact, and the release is pinned to the app's release point.</p>
   </section>
+  </div>
 </main>
 
 <script type="module">
@@ -101,7 +98,7 @@ function render() {
   const a = db.actions || [];
   $('empty').classList.toggle('hidden', a.length > 0);
   $('list').innerHTML = a.map(x => `<div class="item"><b></b><small>${x.type === 'pace' ? 'Pace' : x.type === 'off' ? 'Off-spin' : 'Leg-spin'} · tracked ${x.q}%</small>
-    <button class="btn" data-ren="${x.id}">Rename</button><button class="btn" data-del="${x.id}">Delete</button></div>`).join('');
+    <button class="btn" data-ren="${x.id}">Rename</button><button class="btn danger" data-del="${x.id}">Delete</button></div>`).join('');
   [...$('list').querySelectorAll('.item b')].forEach((b, i) => { b.textContent = a[i].name; });
 }
 $('list').onclick = (e) => {
@@ -155,7 +152,7 @@ $('save').onclick = async () => {
       await seek(t);
       const r = p.detectForVideo(vid, 1 + i * Math.round(1000 / FPS));
       frames.push({ t, lm: r.worldLandmarks && r.worldLandmarks[0] ? r.worldLandmarks[0] : null, hx: r.landmarks && r.landmarks[0] ? (r.landmarks[0][23].x + r.landmarks[0][24].x) / 2 : null });
-      $('prog').firstChild.style.width = Math.round(100 * (t - t0) / (t1 - t0)) + '%';
+      { const pc = Math.round(100 * (t - t0) / (t1 - t0)); $('prog').firstChild.style.width = pc + '%'; $('prog').setAttribute('aria-valuenow', pc); }
       if (i % 5 === 0) msg(`Tracking the body… ${Math.round(100 * (t - t0) / (t1 - t0))}%`);
     }
     const act = finish(frames, mk, opts);

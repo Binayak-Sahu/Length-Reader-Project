@@ -13,3 +13,6 @@ export const BADGE = {
   good: '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="43" fill="rgba(34,197,94,.14)" stroke="#22c55e" stroke-width="8"/><path d="M29 52 L44 67 L72 36" fill="none" stroke="#22c55e" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   warn: '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 8 L94 88 H6 Z" fill="rgba(245,165,36,.14)" stroke="#f5a524" stroke-width="8" stroke-linejoin="round"/><path d="M50 36 V60" stroke="#f5a524" stroke-width="10" stroke-linecap="round"/><circle cx="50" cy="74" r="6" fill="#f5a524"/></svg>',
   bad: '<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="8" width="84" height="84" rx="16" fill="rgba(239,68,68,.14)" stroke="#ef4444" stroke-width="8"/><path d="M32 32 L68 68 M68 32 L32 68" stroke="#ef4444" stroke-width="10" stroke-linecap="round"/></svg>' };
+// Screen readers: say a short message through the polite live region (cleared first so a repeat is read again).
+export function announce(t) { const el = $('live'); if (!el) return; el.textContent = ''; setTimeout(() => { el.textContent = t; }, 60); }
+app.announce = announce;

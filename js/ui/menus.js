@@ -16,6 +16,12 @@ export function only(id) {
   show('nav', tab);
   document.querySelectorAll('#nav button').forEach(b => { const on = b.dataset.tab === id; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   if (id) { const el = $(id); if (el) el.scrollTop = 0; }
+  // Screen readers and keyboards: if focus was left on something now hidden, move it to the new screen's heading
+  // (not a button, so the controller's first move still goes to the main button and Enter keeps its shortcuts).
+  const a = document.activeElement, el = id && $(id);
+  if (el && (!a || a === document.body || a.offsetParent === null || a.dataset.fh)) {
+    const h = el.querySelector('h1, h2'); if (h) { h.setAttribute('tabindex', '-1'); h.dataset.fh = '1'; h.focus({ preventScroll: true }); }
+  }
 }
 
 const FLAME = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1.5 3 5 4.5 5 9a5 5 0 0 1-10 0c0-2.5 1.5-3.5 2.5-5 0 1.5.8 2.5 1.7 2.5 0-2.5-.8-4 .8-6.5z"/></svg>';
@@ -48,7 +54,7 @@ export function renderHome(weakest) {
   $('weekTxt').textContent = n >= WEEK_GOAL ? `Weekly goal met ✓ (${n} days)` : `${n} of ${WEEK_GOAL} practice days this week · 20+ balls counts`;
   const L = LEVELS[db.level], nx = LEVELS[db.level + 1];
   $('lvlCard').innerHTML = `<small>LEVEL ${db.level + 1} OF ${LEVELS.length} · ${STAGES[L.m]}</small><b>L${L.m} · ${L.k} kph · ${L.o === null ? 'full view' : L.o === 0 ? 'black at release' : 'black +' + Math.round(L.o * 1000) + ' ms'}</b>
-    <div class="bar2" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round((db.levelD || 0) * 100)}"><u style="width:${Math.round((db.levelD || 0) * 100)}%"></u></div>
+    <div class="bar2" role="progressbar" aria-label="Progress to the next step" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round((db.levelD || 0) * 100)}"><u style="width:${Math.round((db.levelD || 0) * 100)}%"></u></div>
     <span class="sub">${nx ? 'Next: ' + esc(nx.n.replace(/^L\d /, '')) : 'Top level'} · stays near 85% right</span>`;
   const nb = cs.next;
   $('trialTitle').textContent = nb ? `Trial: ${nb.n}` : 'Career complete';

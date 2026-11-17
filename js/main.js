@@ -19,7 +19,7 @@ import { createSync } from './sync-github.js';
 import { createBackups } from './backup-idb.js';
 import { inspectRaw, restoreSnapshot, mergeOtherTab, DAMAGED_KEY } from './core/backup.js';
 
-const VERSION = '6.1.0';
+const VERSION = '6.2.0';
 const qs = new URLSearchParams(location.search);
 
 // ---------- data ----------
@@ -170,8 +170,8 @@ $('bResume').onclick = () => game.togglePause(); $('bEndNow').onclick = () => ga
 addEventListener('storage', (e) => {
   if (e.key !== KEY || !e.newValue) return;
   const r = mergeOtherTab(app.db, e.newValue);
-  if (r.sessions) app.saveNow();                  // write the union back, so it survives even if this tab never saves again
-  if (r.sessions && !game.G.sess) { if (app.state === 'home') goHome(); else if (app.state === 'progress') TAB.progress(); }
+  if (r.sessions || r.diary || r.behind) app.saveNow();   // write the union back, so it survives even if this tab never saves again
+  if ((r.sessions || r.diary) && !game.G.sess) { if (app.state === 'home') goHome(); else if (app.state === 'progress') TAB.progress(); }
 });
 // Backups: one snapshot a day on this device. A restore only adds what is missing, then the app reloads.
 app.restoreBackup = async (k, full) => {
@@ -201,8 +201,8 @@ function doSync(quiet) {
   if (!app.sync.on) return Promise.resolve(null);
   return app.sync.sync(app.db).then((r) => {
     app.saveNow();
-    if (r && (r.sessions || r.level)) {
-      toast(`Synced: ${r.sessions} session${r.sessions === 1 ? '' : 's'} from your other device${r.level ? ', level updated' : ''}.`);
+    if (r && (r.sessions || r.level || r.diary)) {
+      toast(`Synced: ${r.sessions} session${r.sessions === 1 ? '' : 's'} from your other device${r.diary ? ', nets diary updated' : ''}${r.level ? ', level updated' : ''}.`);
       if (app.state === 'home') goHome(); else if (app.state === 'progress') TAB.progress();
     } else if (!quiet) toast('Synced. Everything is up to date.');
     if (app.state === 'sync' || app.state === 'more') syncView();
@@ -237,7 +237,7 @@ addEventListener('keydown', (e) => {
   if (typing()) return;
   const dir = { ArrowUp: 'u', ArrowDown: 'd', ArrowLeft: 'l', ArrowRight: 'r' }[k];
   if (dir) { e.preventDefault(); menu.moveFocus(dir); return; }
-  if (k === 'Enter' && (document.activeElement === document.body || !document.activeElement)) {
+  if (k === 'Enter' && (document.activeElement === document.body || !document.activeElement || document.activeElement.dataset.fh)) {
     if (app.state === 'home') start('daily'); else if (app.state === 'end') $('bAgain').click();
   }
 });

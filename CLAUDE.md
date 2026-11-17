@@ -32,7 +32,7 @@ Also read:
   - `node tests/run-all.mjs` and `node tests/browser-test.mjs`.
   - Then `node tools/stamp.mjs` (a test fails if you forget).
   - Say what was tested and what couldn't be (real-device FPS).
-- **Until Bink says the selection is over: do not change how live drills feel or are graded** (DECISIONS U1). `css/play.css`, the ball, timing, grading and existing mode plans are frozen; new behaviour goes behind a setting that is off by default.
+- **Selection freeze lifted 17 Nov 2026** (Bink: "forget the selection"; DECISIONS U7). The ball, physics, timing, grading, levels and mode plans still change only with new evidence and an independent review. The New look stays off by default until Bink has tried it.
 - **Before merging anything that touches grading, timing, saved data or training design:** a separate reviewer subagent checks the diff.
 - **Never leave the live site broken.** Work on a branch and merge to `main` only when the tests pass. `main` is live on GitHub Pages.
 - Be honest when the app is wrong or a request won't help his cricket.
@@ -52,12 +52,13 @@ Also read:
   - The session runner is `js/game/game.js`.
   - Mode plans are in `js/game/modes.js`.
 - **Styles:** `css/app.css` = design system + every menu screen (tokens at the top; use them). `css/play.css` = in-play layer (frozen). `css/play2.css` = the New look in play, every rule under `body.newlook` (v6.1, U6); its ground pictures are in `js/engine/scene2.js`.
-- **This PC (D:\\Gen_AI\\Exp\\Length-Reader-Project):** Bink signed git in to GitHub on 12 Nov 2026, so pushing works; there is no `gh`, and the public GitHub API rate-limits quickly, so read CI from the Actions page in a browser. Keep `core.autocrlf false` (LF), or the offline stamp will not match CI. Playwright: `npm install --no-save playwright@1.63.0 && npx playwright install chromium`.
+- **This PC (D:\\Gen_AI\\Exp\\Length-Reader-Project):** Bink signed git in to GitHub on 12 Nov 2026, so pushing works; there is no `gh`, and the public GitHub API rate-limits quickly, so read CI from the Actions page in a browser. Keep `core.autocrlf false` (LF), or the offline stamp will not match CI. Playwright and the accessibility checker: `npm install --no-save playwright@1.63.0 axe-core@4.10.3 && npx playwright install chromium`.
 - **No build step.** ES modules plus an import map. Vendored libraries are in `vendor/` and are re-created by `tools/vendor.sh`.
 - **Saved data:** `localStorage` key `lr5`.
   - Sync (v5.3): `js/core/sync.js` (merge, tested in Node) and `js/sync-github.js` (gist client; token in key `lr5-sync`). More → Sync phone + PC.
   - v4's `lr_v3` is migrated, and later v4 sessions are merged on each start.
   - Import and export accept both v4 and v5 files.
+  - Real nets diary (v6.2, D3): `db.diary`, logic in `js/core/diary.js`; synced, imported, backed up, merged across tabs; removals are tombstones.
   - Backups (v6.0, D1): one snapshot a day in IndexedDB `lr-backup` (7 kept), damaged saves rescued at start, restore in Settings. Other tabs are merged on the `storage` event (D2).
 
 ## How it works (v5 engine, v6 shell)
@@ -196,6 +197,7 @@ Also read:
 - **v5.6 shipped (1 Nov 2026):** Real bowlers page (More → Real bowlers). Portrait crop view (default) and Bink's first video `enRiR-kqxE4`; he's finding more himself.
 - **v6.0 shipped (12 Nov 2026, merged to `main`, CI green, live site checked):** design system for all menu screens, grouped Play, 5-step first run, Skill check, daily backups, honest How it works, grouped Settings. Live drills untouched. See CHANGELOG.md.
 - **v6.1 shipped (13 Nov 2026, merged to `main`, CI green, live site checked):** New look in play behind Settings → Picture (off by default, DECISIONS U6): new sky, tree line, grass, pitch surface, nets, HUD, result card. Ball, bowler, timing and grading untouched. Bink dropped the mirror restyle.
+- **v6.2 (17 Nov 2026):** real nets diary on Progress, athletic bowler body with the New look (same skeleton and release), Real bowlers / My bowlers on the design system, screen-reader pass with an automatic WCAG check in the tests.
 - **Waiting on Bink:** results from the S25+ and 165 Hz PC checklist (README → "Test it on your devices"). Real-device FPS hasn't been measured yet.
 - **Next ideas:** see PLAN.md (the PC webcam mirror is still paused).
 - **Later (Bink paused it):** a PC mirror using the S25+ as a webcam, with pose checks on the big screen.

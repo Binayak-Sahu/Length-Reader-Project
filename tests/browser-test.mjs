@@ -717,9 +717,17 @@ await ctx2.close();
   await q.tap('#tMore'); await q.tap('#bSettings'); await q.evaluate(() => document.getElementById('f_newLook').click());
   ok(await q.evaluate(() => { const w = window.__lr.app.world; return w.styled && document.body.classList.contains('newlook') && JSON.parse(localStorage.getItem('lr5')).settings.newLook === true; }), 'new look: the switch in Settings turns it on and is saved');
   ok(await q.evaluate((k) => window.__lr.app.world.scene.children.length === k + 2, kids), 'new look: only a sky and a tree line are added to the scene (ball, bowler, stumps, lines untouched)');
-  const NEW = { grass: false, pitch: false, net: false, classicSky: false, newSky: true }, OLD = { grass: true, pitch: true, net: true, classicSky: true, newSky: false };
+  const NEW = { grass: false, pitch: false, net: false, classicSky: false, newSky: true, athlete: true }, OLD = { grass: true, pitch: true, net: true, classicSky: true, newSky: false, athlete: false };
   const look = (want, op) => q.evaluate(([want, op]) => { const i = window.__lr.app.world.styleInfo(); return Object.keys(want).every(k => i[k] === want[k]) && Math.abs(i.netOpacity - op) < 1e-9; }, [want, op]);
   ok(await look(NEW, 0.42), 'new look on: new grass, pitch and net pictures, new sky and trees, classic sky hidden');
+  ok(await q.evaluate(() => {                       // v6.2: the athletic body hangs on the same skeleton: every joint and the release point match
+    const w = window.__lr.app.world, b = w.bowler, prof = { s: 1.07, xo: 0, c: 0x1d2530, tw: 1, ao: 0 }, out = [];
+    for (const on of [false, true]) { b.setStyle(on); const r = []; for (const t of [2.5, 2.76, 2.95, 3.05, 3.3]) { b.pose(t, prof, 0, 0, null);
+      const j = b.joints(); r.push(...Object.values(j).flatMap(v => [v.x, v.y, v.z]), ...Object.values(w.releasePoint())); } out.push(r); }
+    b.setStyle(true);
+    return out[0].length > 100 && out[0].every((v, i) => Math.abs(v - out[1][i]) < 1e-9);
+  }), 'new look: the new bowler body has exactly the same joints and release point as the classic one, through the whole action');
+  ok(await q.evaluate(() => { const b = window.__lr.app.world.bowler; const n1 = b.meshCount(); b.setStyle(false); const n0 = b.meshCount(); b.setStyle(true); return n0 >= 15 && n1 > n0 && n1 <= 40; }), 'new look: the new bowler body swaps in place of the classic one (classic meshes hidden, at most 40 meshes)');
   await q.tap('#bSetBack'); await q.tap('#tPlay'); await q.tap('#bQuick');
   await waitFor(q, () => window.__lr.game.G.state === 'run' && window.__lr.game.clock.relTs !== null, null, 30000);
   const fits = (id) => q.evaluate((id) => { const r = document.getElementById(id).getBoundingClientRect(); return r.width >= 43.5 && r.height >= 43.5 && r.left >= 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5; }, id);
@@ -758,6 +766,64 @@ await ctx2.close();
   ok(await q.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(), a = r('card'), b = r('rctl'), h = r('hud'), n = r('rcNext');
     return a.top >= h.bottom - 1 && a.bottom <= b.top + 1 && a.left >= 0 && a.right <= innerWidth + 0.5 && b.bottom <= innerHeight + 0.5 && n.height >= 43.5; }), 'new look, phone landscape (850×390): the card fits under the score bar and above the buttons');
   await c.close();
+}
+
+// ---------- v6.2: real nets diary, design-system pages, accessibility ----------
+{
+  const c = await browser.newContext({ viewport: { width: 412, height: 915 }, hasTouch: true, isMobile: true });
+  const q = await page(c, '?nosw', `if (!localStorage.getItem('lr5')) localStorage.setItem('lr5', ${JSON.stringify(JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false }, sessions: [] }))});`);
+  await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+  await q.tap('#tProg');
+  ok(await q.evaluate(() => !!document.getElementById('bDiaryAdd') && /After a real net/.test(document.getElementById('diary').textContent)), 'diary: Progress offers "Add a real net" and says what it is for');
+  await q.tap('#bDiaryAdd');
+  ok(await q.evaluate(() => document.getElementById('bDiarySave').disabled && document.querySelectorAll('#diary [role=radiogroup]').length === 4), 'diary: the form has a day and three questions, and Save waits for all three answers');
+  for (const [k, v] of [['read', 2], ['short', 0], ['leave', 1]]) await q.tap(`#diary [data-k="${k}"][data-v="${v}"]`);
+  ok(await q.evaluate(() => document.querySelector('#diary [data-k="short"][data-v="0"]').getAttribute('aria-checked') === 'true' && !document.getElementById('bDiarySave').disabled), 'diary: answers are marked for screen readers and Save is ready');
+  await q.tap('#diary [data-day="1"]'); await q.tap('#bDiarySave');
+  const saved = await q.evaluate(() => JSON.parse(localStorage.getItem('lr5')).diary);
+  const yest = new Date(); yest.setDate(yest.getDate() - 1);
+  ok(saved.length === 1 && saved[0].read === 2 && saved[0].short === 0 && saved[0].leave === 1 && new Date(saved[0].date).getDate() === yest.getDate(), 'diary: three taps save a net (for yesterday) into the save');
+  ok(await q.evaluate(() => /1 net so far/.test(document.getElementById('diary').textContent) && document.querySelectorAll('#diary .dList li').length === 1), 'diary: the saved net is listed, with no trend claimed yet');
+  await q.tap('#diary [data-del]');
+  ok(await q.evaluate(() => JSON.parse(localStorage.getItem('lr5')).diary.filter(e => !e.del).length === 1 && !!document.querySelector('#diary [data-sure]')), 'diary: Remove asks once more before removing');
+  await q.tap('#diary [data-sure]');
+  ok(await q.evaluate(() => JSON.parse(localStorage.getItem('lr5')).diary.filter(e => !e.del).length === 0), 'diary: the second tap removes it');
+  await c.close();
+}
+{
+  const c = await browser.newContext({ viewport: { width: 412, height: 915 }, hasTouch: true, isMobile: true });
+  for (const [pg, h] of [['real.html', 'Read the length'], ['action.html', 'Real actions']]) {
+    const q = await page(c, pg);
+    await q.waitForTimeout(300);
+    ok(await q.evaluate((h) => { const css = [...document.styleSheets].some(s => /css\/app\.css$/.test(s.href || '')); const h1 = document.querySelector('h1');
+      return css && h1 && h1.textContent.includes(h) && getComputedStyle(h1).fontFamily.includes('Barlow') && document.documentElement.scrollWidth <= innerWidth + 1; }, h),
+      `${pg}: uses the app's design system (app.css, display headings) and fits a phone`);
+    await q.close();
+  }
+  await c.close();
+}
+let AXE = null; try { AXE = (await import('node:fs')).readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8'); } catch (e) { AXE = null; }
+if (!AXE) console.log('skip accessibility check: axe-core is not installed (npm install --no-save axe-core@4.10.3)');
+else {
+  const axeRun = (q) => q.evaluate(async () => (await axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'] } })).violations
+    .map(v => `${v.id} (${v.nodes.slice(0, 3).map(n => n.target.join(' ')).join(', ')})`));
+  for (const [vw, vh, touch] of [[1280, 800, false], [412, 915, true]]) {
+    const c = await browser.newContext({ viewport: { width: vw, height: vh }, hasTouch: touch, isMobile: touch });
+    const q = await page(c, '?nosw', `if (!localStorage.getItem('lr5')) localStorage.setItem('lr5', ${JSON.stringify(JSON.stringify({ v: 5, profile: { hand: 'R', onboarded: true, seenV5: true }, settings: { sound: false, voice: false, fullscreen: false, feedback: 'always', levelMode: '0' }, sessions: [] }))});`);
+    await waitFor(q, () => window.__lr && document.querySelector('#home:not(.hidden)'));
+    const check = async (name) => { await q.addScriptTag({ content: AXE }); const v = await axeRun(q); ok(!v.length, `accessibility (${vw}px): ${name} has no WCAG 2.1 AA problems` + (v.length ? ' — ' + v.join('; ') : '')); };
+    await check('home');
+    for (const t of ['career', 'progress', 'more']) { await q.evaluate((t) => document.querySelector(`#nav button[data-tab="${t}"]`).click(), t); await check(t); }
+    await q.evaluate(() => document.getElementById('bSettings').click()); await check('settings');
+    await q.evaluate(() => document.querySelector('#nav button[data-tab="progress"]').click()); await q.evaluate(() => document.getElementById('bDiaryAdd').click()); await check('the diary form');
+    await q.evaluate(() => { document.querySelector('#nav button[data-tab="home"]').click(); document.getElementById('bQuick').click(); });
+    await waitFor(q, () => window.__lr.game.G.state === 'result', null, 30000); await q.waitForTimeout(300); await check('the result card');
+    await q.evaluate(() => { const a = window.__lr.app; a.S.newLook = true; a.applySettings('newLook'); }); await check('the result card (new look)');
+    await q.evaluate(() => window.__lr.game.endSession()); await waitFor(q, () => !document.getElementById('end').classList.contains('hidden')); await check('the end of a session');
+    ok(await q.evaluate(() => document.querySelectorAll('#endList tbody tr').length === window.__lr.app.db.sessions.at(-1).balls.length), `accessibility (${vw}px): the pitch map has a ball-by-ball table for screen readers`);
+    for (const pg of ['real.html', 'action.html', 'mirror.html']) { await q.goto(BASE + pg); await q.waitForTimeout(500); await check(pg); }
+    await c.close();
+  }
 }
 
 const real = errors.filter(e => !/favicon|net::ERR_INTERNET_DISCONNECTED|Failed to load resource/.test(e));

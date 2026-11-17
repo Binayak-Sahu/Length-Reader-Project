@@ -3,6 +3,7 @@
 // snapshot of the same day, and a save that can't be read is kept aside instead of being overwritten.
 import { normalize, mergeSessions, importData } from './store.js';
 import { mergeActions } from './myactions.js';
+import { mergeDiary } from './diary.js';
 import { dayKey } from './progress.js';
 
 export const KEEP_DAYS = 7, DAMAGED_KEY = 'lr5-damaged';
@@ -16,11 +17,11 @@ export function inspectRaw(raw) {
 
 export function snapKey(now = new Date()) { return 'day-' + dayKey(now); }
 
-// A snapshot record for today, or null when there is nothing worth keeping (no sessions and no bowlers).
+// A snapshot record for today, or null when there is nothing worth keeping (no sessions, no bowlers, no real nets).
 export function makeSnapshot(db, now = new Date()) {
-  const n = (db.sessions || []).length, acts = (db.actions || []).length;
-  if (!n && !acts) return null;
-  return { k: snapKey(now), at: now.toISOString(), n, balls: db.sessions.reduce((a, s) => a + (s.n || 0), 0), text: JSON.stringify(db) };
+  const n = (db.sessions || []).length, acts = (db.actions || []).length, nets = (db.diary || []).length;
+  if (!n && !acts && !nets) return null;
+  return { k: snapKey(now), at: now.toISOString(), n, balls: (db.sessions || []).reduce((a, s) => a + (s.n || 0), 0), text: JSON.stringify(db) };
 }
 // Should `next` replace the snapshot already stored under the same key? Not if it holds fewer sessions:
 // if something went wrong today, the fuller copy from earlier in the day is the one to keep.
@@ -44,11 +45,11 @@ export function restoreSnapshot(db, text, full) {
   if (inspectRaw(text) !== 'ok') throw new Error('That backup can’t be read');
   const snap = normalize(JSON.parse(text));
   if (full) {
-    const mine = db.sessions || [], myActs = db.actions || [];
+    const mine = db.sessions || [], myActs = db.actions || [], myDiary = db.diary || [];
     for (const k of Object.keys(db)) delete db[k];
     Object.assign(db, snap);
     const added = mergeSessions(db, mine);
-    mergeActions(db, myActs);
+    mergeActions(db, myActs); mergeDiary(db, myDiary);
     return { added: snap.sessions.length + added, full: true };
   }
   const added = importData(db, { app: 'length-reader', version: 5, data: snap }, 'backup ' + (snap.created || ''));
@@ -58,9 +59,13 @@ export function restoreSnapshot(db, text, full) {
 
 // Another tab of the app saved: take the sessions it has that we don't (never drop ours), and its bowler list as it is.
 export function mergeOtherTab(db, raw) {
-  if (inspectRaw(raw) !== 'ok') return { sessions: 0, actions: 0 };
-  let other; try { other = normalize(JSON.parse(raw)); } catch (e) { return { sessions: 0, actions: 0 }; }
+  if (inspectRaw(raw) !== 'ok') return { sessions: 0, actions: 0, diary: 0 };
+  let other; try { other = normalize(JSON.parse(raw)); } catch (e) { return { sessions: 0, actions: 0, diary: 0 }; }
   const before = JSON.stringify(db.actions || []);
   db.actions = other.actions;                      // the My bowlers page owns this list: a bowler deleted there stays deleted
-  return { sessions: mergeSessions(db, other.sessions), actions: JSON.stringify(db.actions) !== before ? 1 : 0 };
+  const diary = mergeDiary(db, other.diary);
+  // the other tab is behind us (e.g. an older version that doesn't know the diary): our save must be written back
+  const theirs = new Set((other.diary || []).map(e => e.id + '|' + e.at));
+  const behind = (db.diary || []).some(e => !theirs.has(e.id + '|' + e.at));
+  return { sessions: mergeSessions(db, other.sessions), actions: JSON.stringify(db.actions) !== before ? 1 : 0, diary, behind };
 }

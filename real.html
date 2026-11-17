@@ -3,68 +3,44 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#07090c">
+<meta name="theme-color" content="#06080b">
 <meta name="color-scheme" content="dark">
 <title>Real Bowlers</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/app.css">
 <style>
-/* Layout: library list (tag videos, start) → full-width video stage with one control bar under it → session summary */
-@font-face{font-family:"Barlow Condensed";font-weight:700;font-display:swap;src:url(fonts/barlow-condensed-latin-700-normal.woff2) format("woff2")}
-@font-face{font-family:"Barlow Condensed";font-weight:800;font-display:swap;src:url(fonts/barlow-condensed-latin-800-normal.woff2) format("woff2")}
-:root{
-  --bg:#07090c;--panel:#10151c;--panel2:#161d26;--line:rgba(255,255,255,.1);
-  --text:#eef2f6;--muted:#8d99a8;--good:#22c55e;--warn:#f5a524;--bad:#ef4444;--accent:#38bdf8;--gold:#fde68a;
-  --full:#7dd3fc;--goodlen:#86efac;--short:#c4b5fd;
-  --disp:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
-  color-scheme:dark;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:"Segoe UI Variable Display","Segoe UI",Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
-button,input{font:inherit;color:inherit}
-button{cursor:pointer;border:0;background:none}
-button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-a{color:var(--accent)}
-.hidden{display:none!important}
+/* Real bowlers (v6.2: on the app's design system, css/app.css; only what this page needs is here).
+   Layout: library list (tag videos, start) → full-width video stage with one control bar under it → session summary */
+:root{--full:#7dd3fc;--goodlen:#86efac;--short:#c4b5fd;color-scheme:dark}
 .num{font-variant-numeric:tabular-nums}
-
-/* Library */
-#lib{max-width:900px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px));display:grid;gap:22px}
-.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.brand{font-family:var(--disp);font-weight:800;font-size:30px;letter-spacing:.08em}
-.brand small{display:block;font-family:inherit;font-weight:700;font-size:14px;letter-spacing:.14em;color:var(--muted)}
-.back{color:var(--muted);text-decoration:none;font-weight:600;padding:10px 0}
-h2{font-family:var(--disp);font-weight:800;font-size:20px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:10px}
-.note{color:var(--muted);font-size:14px;line-height:1.5;max-width:65ch}
-.go{display:grid;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px}
-.counts{display:flex;flex-wrap:wrap;gap:8px}
-.pill{padding:5px 12px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-weight:700;font-size:14px}
+.panel>div>.lbl{display:block;margin-bottom:.6rem}
+.panel>div+div{margin-top:var(--s5)}
+.counts{display:flex;flex-wrap:wrap;gap:var(--s2);margin-bottom:var(--s4)}
 .pill.F{color:var(--full)}.pill.G{color:var(--goodlen)}.pill.S{color:var(--short)}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;flex-wrap:wrap}
-.seg button{padding:10px 16px;font-weight:700;min-height:44px}
-.seg button[aria-pressed="true"]{background:#1e3a4c;color:var(--accent)}
-.big{padding:14px 26px;border-radius:14px;background:#15803d;font-weight:800;font-size:18px;letter-spacing:.04em;min-height:52px}
-.big:disabled{background:var(--panel2);color:var(--muted);cursor:default}
-.btn{padding:9px 14px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-weight:650;min-height:42px}
-.btn.danger{color:#fca5a5}
-.vids{display:grid;gap:10px}
-.vid{display:grid;grid-template-columns:120px 1fr auto;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px}
-.vid img{width:120px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#000;display:block}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r-m);overflow:hidden;flex-wrap:wrap}
+.seg button{padding:.6rem 1.1rem;font-weight:700;min-height:2.75rem}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--good);color:var(--ink)}
+.btn.big{min-height:3.25rem;padding:.75rem 1.6rem;font:800 1.25rem/1 var(--display);letter-spacing:.06em;text-transform:uppercase}
+.hint{color:var(--muted);font-size:.875rem}
+.vids{display:grid;gap:var(--s2);margin-top:var(--s4)}
+.vid{display:grid;grid-template-columns:7.5rem 1fr auto;gap:var(--s4);align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-l);padding:.65rem}
+.vid img{width:7.5rem;aspect-ratio:16/9;object-fit:cover;border-radius:var(--r-s);background:#000;display:block}
 .vid .t{min-width:0}
 .vid b{display:block;font-weight:650;overflow-wrap:anywhere}
-.vid span{color:var(--muted);font-size:13px}
-.vid .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.vid span{color:var(--muted);font-size:.8125rem}
+.vid .acts{display:flex;gap:var(--s2);flex-wrap:wrap;justify-content:flex-end}
+.vid .acts .btn{min-height:2.75rem;padding:.5rem .9rem;font-size:1rem}
 .vid.blocked{opacity:.6}
-@media (max-width:560px){.vid{grid-template-columns:90px 1fr}.vid img{width:90px}.vid .acts{grid-column:1/-1;justify-content:flex-start}}
-.add{display:flex;gap:8px;flex-wrap:wrap}
-.add input{flex:1 1 260px;min-width:0;padding:11px 14px;border-radius:10px;background:var(--panel2);border:1px solid var(--line)}
-#addMsg{font-size:14px;color:var(--warn);min-height:1.2em}
-table{border-collapse:collapse;width:100%;font-size:14px}
-th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
-th{color:var(--muted);font-weight:600}
+@media (max-width:560px){.vid{grid-template-columns:5.6rem 1fr}.vid img{width:5.6rem}.vid .acts{grid-column:1/-1;justify-content:flex-start}}
+.add{display:flex;gap:var(--s2);flex-wrap:wrap;margin-top:var(--s4)}
+.add input{flex:1 1 16rem;min-width:0;min-height:3rem;padding:.65rem .9rem;border-radius:var(--r-m);background:var(--panel2);border:1px solid var(--line2);color:var(--text);font:inherit}
+#addMsg{font-size:.875rem;color:var(--warn);min-height:1.2em;margin-top:.4rem}
+.tablewrap{overflow:auto}
 
-/* Stage */
-#stage{position:fixed;inset:0;display:flex;flex-direction:column;background:#000;padding-top:env(safe-area-inset-top,0px)}
+/* Stage (over the page) */
+#stage{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;background:#000;padding-top:env(safe-area-inset-top,0px)}
 #frame{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
 #box{position:relative;width:min(100%,calc((100vh - 170px) * 16 / 9));aspect-ratio:16/9;max-height:100%;overflow:hidden;--sx:0}
 #yt,#yt iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
@@ -73,84 +49,82 @@ th{color:var(--muted);font-weight:600}
 #box.portrait #yt{inset:0 auto 0 auto;width:316.05%;left:calc(-108.02% * (1 + var(--sx)))}
 #shield{position:absolute;inset:0;z-index:2}
 #black{position:absolute;inset:0;z-index:3;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-align:center;padding:16px}
-#black b{font-family:var(--disp);font-weight:800;font-size:clamp(28px,4vw,64px);letter-spacing:.06em}
-#black span{color:var(--muted);font-size:clamp(14px,1.3vw,22px)}
+#black b{font:800 clamp(1.75rem,4vw,4rem)/1.1 var(--display);letter-spacing:.06em}
+#black span{color:var(--muted);font-size:clamp(.875rem,1.3vw,1.375rem)}
 #black.call b{color:var(--gold)}
-#mark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4;pointer-events:none;font-family:var(--disp);font-weight:800;font-size:clamp(40px,7vw,130px);letter-spacing:.04em;text-shadow:0 2px 20px #000;text-align:center;line-height:1}
+#mark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4;pointer-events:none;font:800 clamp(2.5rem,7vw,8rem)/1 var(--display);letter-spacing:.04em;text-shadow:0 2px 20px #000;text-align:center}
 #mark small{display:block;font-size:.32em;letter-spacing:.1em;color:var(--text);margin-top:.4em}
-#bar{background:var(--panel);border-top:1px solid var(--line);padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:10px}
-.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.row.sp{justify-content:space-between}
-.calls{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.call{padding:14px 10px;border-radius:14px;font-family:var(--disp);font-weight:800;font-size:clamp(20px,2vw,34px);letter-spacing:.06em;background:var(--panel2);border:2px solid var(--line);min-height:56px}
-.call small{display:block;font-family:"Segoe UI",system-ui,sans-serif;font-weight:600;font-size:12px;letter-spacing:.06em;color:var(--muted)}
+#bar{background:var(--panel);border-top:1px solid var(--line);padding:.75rem max(1rem,env(safe-area-inset-right,0px)) calc(.75rem + env(safe-area-inset-bottom,0px)) max(1rem,env(safe-area-inset-left,0px));display:grid;gap:.6rem}
+#bar .row{margin-top:0;gap:var(--s2);align-items:center}
+#bar .row.sp{justify-content:space-between}
+#bar .btn{min-height:2.75rem;padding:.5rem .9rem;font-size:1rem}
+#bar .btn.big{min-height:3.25rem;font-size:1.25rem}
+.calls{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem}
+.call{padding:.85rem .6rem;border-radius:var(--r-l);font:800 clamp(1.25rem,2vw,2.125rem)/1 var(--display);letter-spacing:.06em;background:var(--panel2);border:2px solid var(--line2);min-height:3.5rem}
+.call small{display:block;font:600 .75rem/1.3 var(--ui);letter-spacing:.06em;color:var(--muted);margin-top:.25rem}
 .call.F{color:var(--full)}.call.G{color:var(--goodlen)}.call.S{color:var(--short)}
 .call:disabled{opacity:.35;cursor:default}
 .call.picked{border-color:currentColor}
-.chip{padding:6px 12px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-weight:700;font-size:14px}
-#seek{flex:1 1 200px;min-width:0;accent-color:var(--accent)}
-.balls{display:flex;gap:6px;flex-wrap:wrap;max-height:76px;overflow:auto}
-.ball{padding:4px 9px;border-radius:999px;border:1px solid var(--line);font-size:13px;font-weight:700;background:var(--panel2)}
+.chip{padding:.4rem .8rem;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font:700 1rem/1 var(--display);letter-spacing:.06em}
+#seek{flex:1 1 12rem;min-width:0;accent-color:var(--accent)}
+.balls{display:flex;gap:.4rem;flex-wrap:wrap;max-height:4.75rem;overflow:auto}
+.ball{padding:.25rem .55rem;border-radius:999px;border:1px solid var(--line);font-size:.8125rem;font-weight:700;background:var(--panel2)}
 .ball.F{color:var(--full)}.ball.G{color:var(--goodlen)}.ball.S{color:var(--short)}
-.hint{color:var(--muted);font-size:13px}
 .step{color:var(--gold);font-weight:700}
-#pend{border:1px solid #a16207;background:rgba(120,80,0,.18);border-radius:12px;padding:10px;display:grid;gap:8px}
+#pend{border:1px solid #a16207;background:rgba(120,80,0,.18);border-radius:var(--r-m);padding:.6rem;display:grid;gap:.5rem}
 
 /* Summary */
-#done{max-width:640px;margin:0 auto;padding:calc(30px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px));display:grid;gap:18px}
-#dPct{font-family:var(--disp);font-weight:800;font-size:72px;line-height:1}
-#dMsg{font-size:16px;line-height:1.5}
+#dPct{font:800 clamp(4rem,8vw,6rem)/.9 var(--display);color:var(--gold)}
+#dMsg{font-size:1rem;line-height:1.5;color:var(--text2);margin-top:var(--s4)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
 
 <!-- LIBRARY -->
-<main id="lib">
-  <div class="top">
-    <div class="brand">REAL BOWLERS<small>Read the length from real net videos</small></div>
-    <a class="back" href="./">← Length Reader</a>
-  </div>
+<main id="lib" class="screen">
+  <div class="wrap narrow">
+  <header class="top"><a class="btn back" href="./">Length Reader</a><div class="brand"><i></i>Real bowlers</div></header>
+  <h1 class="h1s">Read the length from real net videos</h1>
 
-  <section class="go">
+  <section class="panel" aria-label="Start a session">
     <div class="counts" id="counts"></div>
     <div>
-      <h2>Level</h2>
-      <div class="seg" id="lvl" role="group" aria-label="Level"></div>
-      <p class="note" id="lvlNote" style="margin-top:8px"></p>
+      <span class="lbl" id="lvlL">Level</span>
+      <div class="seg" id="lvl" role="group" aria-labelledby="lvlL"></div>
+      <p class="note" id="lvlNote"></p>
     </div>
     <div>
-      <h2>View</h2>
-      <div class="seg" id="view" role="group" aria-label="View"><button data-v="portrait">Portrait crop</button><button data-v="wide">Wide</button></div>
-      <p class="note" style="margin-top:8px">Portrait crop cuts both sides of the video so the bowler fills an upright screen. Move the crop per video while tagging.</p>
+      <span class="lbl" id="viewL">View</span>
+      <div class="seg" id="view" role="group" aria-labelledby="viewL"><button data-v="portrait">Portrait crop</button><button data-v="wide">Wide</button></div>
+      <p class="note">Portrait crop cuts both sides of the video so the bowler fills an upright screen. Move the crop per video while tagging.</p>
     </div>
-    <div class="row"><button class="big" id="start">Start 20 balls</button><span class="hint" id="startHint"></span></div>
+    <div class="row"><button class="btn go big" id="start">Start 20 balls</button><span class="hint" id="startHint"></span></div>
   </section>
 
-  <section>
-    <h2>Videos</h2>
-    <p class="note" style="margin-bottom:12px">Tag each video once: tap when the ball leaves the hand, then say where it pitched. Use videos filmed from behind the batter or a helmet camera, so the bowler runs in at you.</p>
+  <section aria-labelledby="vidsH">
+    <h2 id="vidsH">Videos</h2>
+    <p class="note">Tag each video once: tap when the ball leaves the hand, then say where it pitched. Use videos filmed from behind the batter or a helmet camera, so the bowler runs in at you.</p>
     <div class="vids" id="vids"></div>
-    <div style="margin-top:14px">
-      <div class="add"><input id="url" type="url" placeholder="Paste a YouTube link" autocomplete="off" aria-label="YouTube link"><button class="btn" id="addBtn">Add video</button></div>
-      <p id="addMsg"></p>
-    </div>
+    <div class="add"><input id="url" type="url" placeholder="Paste a YouTube link" autocomplete="off" aria-label="YouTube link"><button class="btn" id="addBtn">Add video</button></div>
+    <p id="addMsg" role="status"></p>
   </section>
 
-  <section id="histSec" class="hidden">
-    <h2>Recent sessions</h2>
-    <table class="num"><thead><tr><th>Date</th><th>Level</th><th>Right</th><th>Short read</th><th>Call time</th></tr></thead><tbody id="hist"></tbody></table>
+  <section id="histSec" class="hidden" aria-labelledby="histH">
+    <h2 id="histH">Recent sessions</h2>
+    <div class="panel tablewrap"><table class="num"><thead><tr><th scope="col">Date</th><th scope="col">Level</th><th scope="col">Right</th><th scope="col">Short read</th><th scope="col">Call time</th></tr></thead><tbody id="hist"></tbody></table></div>
   </section>
 
-  <section>
-    <h2>Keys</h2>
+  <section aria-labelledby="keysH">
+    <h2 id="keysH">Keys</h2>
     <p class="note"><b>Training:</b> 1 / F = Full, 2 / G = Good, 3 / S = Short, Space = next ball, Esc = stop. Xbox: X Full, Y Good, B Short, A next.<br>
     <b>Tagging:</b> Space play/pause, R = ball released, ← → jump 2 s, , and . nudge the release, 1 2 3 = length, Backspace = undo last, [ ] = move the portrait crop.</p>
   </section>
+  </div>
 </main>
 
 <!-- VIDEO STAGE -->
-<div id="stage" class="hidden">
+<div id="stage" class="hidden" role="region" aria-label="Video">
   <div id="frame"><div id="box">
     <div id="yt"></div>
     <div id="shield"></div>
@@ -161,12 +135,12 @@ th{color:var(--muted);font-weight:600}
     <!-- training -->
     <div id="trainBar" class="hidden">
       <div class="row sp"><span class="chip num" id="tProg">Ball 1 / 20</span><span class="chip num" id="tScore">0 right</span><button class="btn" id="tStop">Stop</button></div>
-      <div class="calls" style="margin-top:10px">
+      <div class="calls">
         <button class="call F" data-c="F">FULL<small>1 · X · forward</small></button>
         <button class="call G" data-c="G">GOOD<small>2 · Y</small></button>
         <button class="call S" data-c="S">SHORT<small>3 · B · back</small></button>
       </div>
-      <div class="row" style="margin-top:10px"><button class="big hidden" id="tNext">Next ball (Space)</button><span class="hint" id="tHint"></span></div>
+      <div class="row"><button class="btn go big hidden" id="tNext">Next ball (Space)</button><span class="hint" id="tHint"></span></div>
     </div>
     <!-- tagging -->
     <div id="tagBar" class="hidden">
@@ -180,7 +154,7 @@ th{color:var(--muted);font-weight:600}
         <span class="row" id="cropCtl"><button class="btn" id="cL" title="Move crop left ([)">◀ crop</button><button class="btn" id="cR" title="Move crop right (])">crop ▶</button></span>
         <div class="seg" id="rate" role="group" aria-label="Speed"><button data-r="0.25">¼×</button><button data-r="0.5">½×</button><button data-r="1">1×</button></div>
       </div>
-      <div id="gIdle" class="row"><button class="big" id="gMark">Ball released (R)</button><span class="hint">Play at ½× and tap the moment the ball leaves the hand.</span></div>
+      <div id="gIdle" class="row"><button class="btn go big" id="gMark">Ball released (R)</button><span class="hint">Play at ½× and tap the moment the ball leaves the hand.</span></div>
       <div id="pend" class="hidden">
         <div class="row"><span class="step">1. Check the frame:</span><span class="hint">the ball should be just leaving the hand.</span>
           <button class="btn" id="nB">◀ earlier (,)</button><button class="btn" id="nF">later (.) ▶</button><span class="chip num" id="pT"></span></div>
@@ -195,12 +169,15 @@ th{color:var(--muted);font-weight:600}
 </div>
 
 <!-- SUMMARY -->
-<main id="done" class="hidden">
-  <div class="brand">SESSION DONE</div>
+<main id="done" class="screen hidden">
+  <div class="wrap narrow">
+  <header class="top"><div class="brand"><i></i>Real bowlers</div></header>
+  <h1 class="h1s">Session done</h1>
   <div><div id="dPct" class="num"></div><p class="note" id="dSub"></p></div>
-  <table class="num"><thead><tr><th>Length</th><th>Right</th></tr></thead><tbody id="dBy"></tbody></table>
+  <div class="panel tablewrap"><table class="num"><caption class="sr">Right by length</caption><thead><tr><th scope="col">Length</th><th scope="col">Right</th></tr></thead><tbody id="dBy"></tbody></table></div>
   <p id="dMsg"></p>
-  <div class="row"><button class="big" id="dAgain">Another 20</button><button class="btn" id="dLib">Back to videos</button></div>
+  <div class="row"><button class="btn go big" id="dAgain">Another 20</button><button class="btn" id="dLib">Back to videos</button></div>
+  </div>
 </main>
 
 <script type="module">

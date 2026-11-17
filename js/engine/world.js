@@ -353,7 +353,8 @@ export function createWorld(canvas) {
     if (s2) s2.tint(night, late);
     placeStumpShadow(); placeMeShadow(); shadowDirty = true;
   }
-  // New look: swap the pictures only (sky, tree line, grass, pitch surface, net mesh). Geometry, light, ball and bowler stay.
+  // New look: swap the pictures (sky, tree line, grass, pitch surface, net mesh) and the bowler's body (same skeleton and
+  // release point). Geometry, light, ball, physics and the action stay.
   function setStyle(on) {
     on = !!on; if (on === styled) return; styled = on;
     if (on && !s2) { s2 = buildScene2(maxAniso); scene.add(s2.sky, s2.trees); }
@@ -361,6 +362,7 @@ export function createWorld(canvas) {
     grass.material.map = on ? s2.grassTex : gTex; pitch.material.map = on ? s2.pitchTex : pTex;
     classic.netMat.map = on ? s2.netTex : classic.netTex; classic.netMat.opacity = on ? 0.42 : 0.7;
     grass.material.needsUpdate = pitch.material.needsUpdate = classic.netMat.needsUpdate = true;
+    bowler.setStyle(on); shadowDirty = true;                                         // v6.2: the athletic bowler body (same skeleton)
     applyTier(tier); applyLook();
   }
   function resize() { size(); renderer.setSize(W, H, false); if (view) applyView(view, hx === -1 ? 'L' : 'R'); else placeHe(W, H); }
@@ -399,7 +401,7 @@ export function createWorld(canvas) {
     setStyle, get styled() { return styled; },
     // For the tests: which pictures are in use (true = the classic one).
     styleInfo() { return { grass: grass.material.map === gTex, pitch: pitch.material.map === pTex, net: classic.netMat.map === classic.netTex,
-      netOpacity: classic.netMat.opacity, classicSky: classic.sky.visible && classic.trees.visible, newSky: !!s2 && (s2.sky.visible || s2.trees.visible) }; },
+      netOpacity: classic.netMat.opacity, classicSky: classic.sky.visible && classic.trees.visible, newSky: !!s2 && (s2.sky.visible || s2.trees.visible), athlete: bowler.style }; },
     get light() { return look.night ? 'night' : look.late ? 'late' : 'day'; },
     // Length markings for this pace (null = hide)
     setLenMarks(kph, spin) {

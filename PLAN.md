@@ -108,17 +108,17 @@ Status (12 Nov 2026): M1–M3 and v5.2–v5.10 shipped. **v6.0 (finished-product
 
 Tick only what has been checked on a screen or by a test.
 
-| Area | Done means | State (12 Nov 2026) |
+| Area | Done means | State (17 Nov 2026) |
 |---|---|---|
 | Science | Every claim in the app traces to a checked source; limits stated | ✅ v6.0 |
 | Science | The app can show real improvement, separate from practice scores | ✅ Skill check (needs real use to prove useful) |
-| Science | Carry-over to real nets is tracked | ❌ next: a 3-tap "real nets diary" on Progress |
+| Science | Carry-over to real nets is tracked | ✅ v6.2 real nets diary on Progress (self-report, shown next to the Skill check; needs real use) |
 | Game layer | Rewards only real reads | ✅ (tests) · Skill check earns nothing |
-| Design | One design system on every menu screen | ✅ index.html · ❌ real / action pages still have their own styles (mirror page dropped by Bink, 13 Nov) |
+| Design | One design system on every menu screen | ✅ index.html, real.html, action.html (v6.2; mirror page dropped by Bink, 13 Nov) |
 | Design | Phone portrait and big monitor both look designed | ✅ menus (screenshots) · in-play: ◐ New look checked only in headless-browser screenshots (phone portrait and landscape, 1600×900, upright 1080×1920, software rendering); not yet seen on the S25+ or the PC. Classic in-play (the default) is unchanged from v5.10.1, not redesigned |
-| Design | In-play ground, HUD and result card redesigned | ◐ v6.1 behind Settings → New look in play (off by default, U6) · bowler model and making it the default: after the selection |
+| Design | In-play ground, HUD and result card redesigned | ◐ v6.1 + v6.2 athletic bowler, behind Settings → New look in play (off by default, U6, U8) · making it the default: after Bink tries it |
 | Onboarding | Stranger to first ball in under 2 minutes, device-specific | ✅ |
-| Accessibility | WCAG 2.1 AA: contrast, focus, 44 px targets, labels, reduced motion | ◐ contrast, focus, targets and tab state done and tested; no full screen-reader pass yet; canvas charts have labels but no data table for the chart |
+| Accessibility | WCAG 2.1 AA: contrast, focus, 44 px targets, labels, reduced motion | ✅ automatic WCAG 2.1 AA check on every screen in the tests (0 problems), tables behind the charts, focus moves on screen change · a hands-on TalkBack / Narrator session is still for a person |
 | Input | Touch, keyboard, mouse, controller; left- and right-handers | ✅ (unchanged; tests) · controller feel needs Bink's hands |
 | Engineering | Offline, installable, private | ✅ |
 | Engineering | Saved data can't be lost | ✅ backups, damaged-save rescue, tab merge (tests) |
@@ -127,11 +127,10 @@ Tick only what has been checked on a screen or by a test.
 
 ## Next (in order)
 
-1. Hear from Bink how v6.1's New look feels on the S25+ and the PC (and v6.0: update prompt, Skill check, new menus).
-2. After the selection: a better bowler model, then make the New look the default.
-3. Real nets diary (carry-over), then bring the real / action pages onto the design system (mirror page: dropped by Bink).
-4. Screen-reader pass and a data table behind the progress chart.
-5. Device results from Bink (frame rates, controller, audio latency).
+1. Hear from Bink how the New look and the new bowler feel on the S25+ and the PC; then make the New look the default.
+2. Device results from Bink (frame rates, controller, audio latency).
+3. A few weeks of real nets diary entries, then check the summary is useful.
+4. A hands-on screen-reader session (TalkBack on the S25+).
 
 ## Known limits (stated in the app too)
 
