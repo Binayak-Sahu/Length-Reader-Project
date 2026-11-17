@@ -19,7 +19,7 @@ import { createSync } from './sync-github.js';
 import { createBackups } from './backup-idb.js';
 import { inspectRaw, restoreSnapshot, mergeOtherTab, DAMAGED_KEY } from './core/backup.js';
 
-const VERSION = '6.1.0';
+const VERSION = '6.2.0';
 const qs = new URLSearchParams(location.search);
 
 // ---------- data ----------

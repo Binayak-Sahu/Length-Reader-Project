@@ -717,9 +717,17 @@ await ctx2.close();
   await q.tap('#tMore'); await q.tap('#bSettings'); await q.evaluate(() => document.getElementById('f_newLook').click());
   ok(await q.evaluate(() => { const w = window.__lr.app.world; return w.styled && document.body.classList.contains('newlook') && JSON.parse(localStorage.getItem('lr5')).settings.newLook === true; }), 'new look: the switch in Settings turns it on and is saved');
   ok(await q.evaluate((k) => window.__lr.app.world.scene.children.length === k + 2, kids), 'new look: only a sky and a tree line are added to the scene (ball, bowler, stumps, lines untouched)');
-  const NEW = { grass: false, pitch: false, net: false, classicSky: false, newSky: true }, OLD = { grass: true, pitch: true, net: true, classicSky: true, newSky: false };
+  const NEW = { grass: false, pitch: false, net: false, classicSky: false, newSky: true, athlete: true }, OLD = { grass: true, pitch: true, net: true, classicSky: true, newSky: false, athlete: false };
   const look = (want, op) => q.evaluate(([want, op]) => { const i = window.__lr.app.world.styleInfo(); return Object.keys(want).every(k => i[k] === want[k]) && Math.abs(i.netOpacity - op) < 1e-9; }, [want, op]);
   ok(await look(NEW, 0.42), 'new look on: new grass, pitch and net pictures, new sky and trees, classic sky hidden');
+  ok(await q.evaluate(() => {                       // v6.2: the athletic body hangs on the same skeleton: every joint and the release point match
+    const w = window.__lr.app.world, b = w.bowler, prof = { s: 1.07, xo: 0, c: 0x1d2530, tw: 1, ao: 0 }, out = [];
+    for (const on of [false, true]) { b.setStyle(on); const r = []; for (const t of [2.5, 2.76, 2.95, 3.05, 3.3]) { b.pose(t, prof, 0, 0, null);
+      const j = b.joints(); r.push(...Object.values(j).flatMap(v => [v.x, v.y, v.z]), ...Object.values(w.releasePoint())); } out.push(r); }
+    b.setStyle(true);
+    return out[0].length > 100 && out[0].every((v, i) => Math.abs(v - out[1][i]) < 1e-9);
+  }), 'new look: the new bowler body has exactly the same joints and release point as the classic one, through the whole action');
+  ok(await q.evaluate(() => { const b = window.__lr.app.world.bowler; const n1 = b.meshCount(); b.setStyle(false); const n0 = b.meshCount(); b.setStyle(true); return n0 >= 15 && n1 > n0 && n1 <= 40; }), 'new look: the new bowler body swaps in place of the classic one (classic meshes hidden, at most 40 meshes)');
   await q.tap('#bSetBack'); await q.tap('#tPlay'); await q.tap('#bQuick');
   await waitFor(q, () => window.__lr.game.G.state === 'run' && window.__lr.game.clock.relTs !== null, null, 30000);
   const fits = (id) => q.evaluate((id) => { const r = document.getElementById(id).getBoundingClientRect(); return r.width >= 43.5 && r.height >= 43.5 && r.left >= 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5; }, id);

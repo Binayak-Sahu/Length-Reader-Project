@@ -2,6 +2,19 @@
 
 Plain-language list of what changed, newest first. One line says what to try.
 
+## v6.2 (17 Nov 2026)
+
+New
+- **Real nets diary** (Progress → Real nets). After a real net, three taps: reading length, short balls, leaving outside off. Over a few weeks it shows whether your nets feel better, next to your Skill check. It never claims to prove anything: they are your own feelings. Synced, backed up and exported like your sessions.
+- **A proper bowler** with the New look: shaped chest and shoulders, joined arms and legs, knees and elbows, a face, belt and boots. Same skeleton, same action, same release point as before (tested to the millimetre), so the ball and the cues are unchanged.
+- **Real bowlers** and **My bowlers** pages now look like the rest of the app.
+- **Screen readers:** every screen passes an automatic WCAG 2.1 AA check (now part of the tests). The pitch map has a ball-by-ball table, the progress chart points to its table, focus moves to the new screen's heading, and saving a net is announced.
+- Small: the classic green Next button is a shade darker so its text is easier to read.
+
+Not changed: the ball, physics, timing, grading, levels and mode plans. The New look stays off by default.
+
+Try it: **Progress → Add a real net** after your next real net; **Settings → Picture → New look in play** to see the new bowler.
+
 ## v6.1 (13 Nov 2026) — live
 
 **Your drills are unchanged unless you switch this on.** It is off by default.
@@ -9,7 +22,7 @@ Plain-language list of what changed, newest first. One line says what to try.
 New
 - **New look in play (preview).** Settings → Picture → New look in play. A softer sky with a tree line, cleaner grass, a pitch that looks like rolled clay (only fine hairline cracks), finer nets, a quieter score bar, a tidier result card and one clear green Next button. On a phone the pause button stays bottom-centre, as now.
 - Not changed by the switch: the ball, the bowlers and their actions, the speed, the timing, the marking, the levels. The tap zones work exactly the same (top half front foot, bottom half back foot); only their labels and lines are restyled.
-- Honest limit: the bowler figure itself is the same simple model. That is next, after the selection.
+- Honest limit: the bowler figure itself is the same simple model (replaced in v6.2).
 
 Try it: **S25+ and PC → More → Settings → Picture → New look in play**, then play a Quick 30. Switch it off again if anything is harder to see.
 
