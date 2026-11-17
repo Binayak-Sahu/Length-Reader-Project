@@ -3,7 +3,7 @@ import { app, $, show, esc, VCOL } from '../app.js';
 import { LEVELS, STAGES, STAGE_START, MAX_LEVEL } from '../core/levels.js';
 import { SHOTS } from '../core/rules.js';
 import { T_BFC, T_REL } from '../core/physics.js';
-import { progressData, totalXP } from '../core/progress.js';
+import { progressData, totalXP, isRead } from '../core/progress.js';
 import { importData, exportData, newDB, DEF } from '../core/store.js';
 import { median } from '../core/timing.js';
 import { TIERS } from '../core/quality.js';
@@ -15,6 +15,7 @@ import { actionProfiles } from '../core/myactions.js';
 import { personalLine, recentBalls, evidenceText } from '../core/readline.js';
 import { selectorReport, leaveReport } from '../core/selection.js';
 import { checkReport, checkAdvice, checkHistory, checkTrend, checkDue, CHECK_NOISE } from '../core/check.js';
+import { DIARY_Q, makeEntry, addEntry, deleteEntry, liveEntries, diaryCarry } from '../core/diary.js';
 export { only };
 
 // ---------- end of session ----------
@@ -98,6 +99,10 @@ export function renderEnd(s, score, rec, extra = {}) {
   const nb = extra.badges || [];
   $('eBadges').innerHTML = nb.map(id => { const b = badgeById(id); return `<div class="bdg">${badgeSVG(b, true)}<b>${esc(b.n)}</b><small>${esc(b.d)}</small></div>`; }).join('');
   $('bAgain').textContent = s.kind === 'tutorial' ? 'Start your first daily session' : s.kind === 'trial' && !(tr && tr.passed) ? 'Try the trial again' : isTest ? 'Back to training' : 'Go again (Enter · A)';
+  // the pitch map as a table, for screen readers
+  const footW = { F: 'front', B: 'back' };
+  $('endList').innerHTML = b.length ? `<table><caption>Every ball, in order</caption><thead><tr><th scope="col">Ball</th><th scope="col">Pace</th><th scope="col">Length</th><th scope="col">Your feet</th><th scope="col">Result</th></tr></thead><tbody>` +
+    b.map((x, i) => `<tr><td>${i + 1}</td><td>${x.spin ? 'spin, ' : ''}${Math.round(x.kph || 0)} kph</td><td>${esc(x.cat || '')}${x.d != null ? ', ' + x.d.toFixed(1) + ' m' : ''}</td><td>${x.foot ? footW[x.foot] || esc(x.foot) : 'no move'}</td><td>${isRead(x) ? 'right' : 'wrong'}</td></tr>`).join('') + '</tbody></table>' : '';
   only('end');
   requestAnimationFrame(() => drawMap($('endMap'), b, null, app.db.profile.hand));
 }
@@ -105,10 +110,10 @@ export function renderEnd(s, score, rec, extra = {}) {
 // ---------- progress ----------
 export function renderProgress() {
   const D = progressData(app.db); show('progEmpty', !D.length);
-  renderCheckCard();
+  renderCheckCard(); renderDiary();
   const cell = v => v == null ? '—' : `<span class="${v >= 80 ? 'g' : v >= 60 ? 'w' : 'b'}">${v}%</span>`;
-  $('progTable').innerHTML = D.length ? `<table><thead><tr><th>Day</th><th>Balls</th><th>Score</th><th>Reading</th><th>Full</th><th>Short</th><th>Wide off</th><th>Spin</th><th>XP</th><th>Matches</th><th>Level</th></tr></thead><tbody>` +
-    D.slice().reverse().map(r => `<tr><td>${r.k.slice(5)}</td><td>${r.n}</td><td>${cell(r.score)}</td><td>${r.read == null ? '—' : r.read.toFixed(2) + ' s'}</td><td>${cell(r.full)}</td><td>${cell(r.short)}</td><td>${cell(r.wide)}</td><td>${cell(r.spin)}</td><td>${r.xp || '—'}</td><td>${r.matches ? r.wins + '/' + r.matches + ' won' : '—'}</td><td>L${LEVELS[r.lvl].m} · ${LEVELS[r.lvl].k}</td></tr>`).join('') + '</tbody></table>' : '';
+  $('progTable').innerHTML = D.length ? `<table><caption class="sr">Day by day, newest first (the numbers behind the chart)</caption><thead><tr>${['Day', 'Balls', 'Score', 'Reading', 'Full', 'Short', 'Wide off', 'Spin', 'XP', 'Matches', 'Level'].map(h => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>` +
+    D.slice().reverse().map(r => `<tr><th scope="row">${r.k.slice(5)}</th><td>${r.n}</td><td>${cell(r.score)}</td><td>${r.read == null ? '—' : r.read.toFixed(2) + ' s'}</td><td>${cell(r.full)}</td><td>${cell(r.short)}</td><td>${cell(r.wide)}</td><td>${cell(r.spin)}</td><td>${r.xp || '—'}</td><td>${r.matches ? r.wins + '/' + r.matches + ' won' : '—'}</td><td>L${LEVELS[r.lvl].m} · ${LEVELS[r.lvl].k}</td></tr>`).join('') + '</tbody></table>' : '';
   const wk = Date.now() - 7 * 864e5, sbB = app.db.sessions.filter(s => s.kind === 'sandbox' && Date.parse(s.date) >= wk).reduce((a, s) => a + (s.n || 0), 0);
   $('rlNote').textContent = evidenceText(personalLine(recentBalls(app.db.sessions), app.db.rtBase));
   $('sbNote').textContent = `Sandbox practice: ${sbB} ball${sbB === 1 ? '' : 's'} in the last 7 days (not counted above).`; show('sbNote', sbB > 0);
@@ -135,12 +140,74 @@ function drawProg(cv, D) {
   line(r => r.score, Ys, '#22c55e', 'dot'); line(r => r.short, Ys, '#f5a524', 'tri'); line(r => r.read, Yr, '#38bdf8', 'sq');
 }
 
+// ---------- real nets diary (carry-over) ----------
+// Three taps after a real net. Kept next to the Skill check so the two can be read together; never claims proof.
+const DIARY = { open: false, ans: {}, day: 0, del: null };
+const dayLabel = (iso) => new Date(iso).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+function renderDiary() {
+  const el = $('diary'); if (!el) return;
+  const db = app.db, live = liveEntries(db.diary), C = diaryCarry(db.diary, checkHistory(db.sessions));
+  if (DIARY.open) {
+    const A = DIARY.ans, all = DIARY_Q.every(q => A[q.k] != null);
+    const days = [['0', 'Today'], ['1', 'Yesterday'], ['2', '2 days ago'], ['3', '3 days ago']];
+    el.innerHTML = `<h3>How did your real net go?</h3>` +
+      `<div class="sbRow"><span class="lbl" id="dqDay">When</span><div class="sbChips" role="radiogroup" aria-labelledby="dqDay">` +
+      days.map(([v, t]) => `<button class="sbChip${String(DIARY.day) === v ? ' on' : ''}" role="radio" aria-checked="${String(DIARY.day) === v}" data-day="${v}">${t}</button>`).join('') + `</div></div>` +
+      DIARY_Q.map(q => `<div class="sbRow"><span class="lbl" id="dq_${q.k}">${esc(q.q)}</span><div class="sbChips" role="radiogroup" aria-labelledby="dq_${q.k}">` +
+        q.o.map((t, v) => `<button class="sbChip${A[q.k] === v ? ' on' : ''}" role="radio" aria-checked="${A[q.k] === v}" data-k="${q.k}" data-v="${v}">${esc(t)}</button>`).join('') + `</div></div>`).join('') +
+      `<div class="row"><button class="btn go" id="bDiarySave"${all ? '' : ' disabled aria-disabled="true"'}>Save this net</button><button class="btn" id="bDiaryCancel">Cancel</button></div>` +
+      (all ? '' : `<p class="note" id="diaryNeed">Answer all three to save.</p>`);
+    el.onclick = (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.day != null) DIARY.day = +b.dataset.day;
+      else if (b.dataset.k) DIARY.ans[b.dataset.k] = +b.dataset.v;
+      else if (b.id === 'bDiaryCancel') { DIARY.open = false; DIARY.ans = {}; }
+      else if (b.id === 'bDiarySave') {
+        if (!DIARY_Q.every(q => DIARY.ans[q.k] != null)) return;
+        const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - DIARY.day);
+        addEntry(app.db, makeEntry(DIARY.ans, d)); app.saveNow(); DIARY.open = false; DIARY.ans = {}; DIARY.day = 0;
+        renderDiary(); const t = $('bDiaryAdd'); if (t) t.focus(); if (app.announce) app.announce('Net saved.'); return;
+      }
+      const keep = b.dataset.day != null ? `[data-day="${b.dataset.day}"]` : b.dataset.k ? `[data-k="${b.dataset.k}"][data-v="${b.dataset.v}"]` : null;
+      renderDiary(); if (keep) { const n = el.querySelector(keep); if (n) n.focus(); } else { const t = $('bDiaryAdd'); if (t) t.focus(); }
+    };
+    return;
+  }
+  const word = (q, v) => DIARY_Q.find(x => x.k === q).o[v];
+  let msg;
+  if (C.state === 'none') msg = 'After a real net, tap three answers here. Over a few weeks this shows whether what you practise here is turning up against real balls.';
+  else if (C.state === 'few') msg = `${live.length} net${live.length === 1 ? '' : 's'} so far. After 3 this shows your trend.`;
+  else {
+    const P = C.parts, big = Object.entries(P).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0], names = { read: 'reading length', short: 'short balls', leave: 'leaving' };
+    const ck = C.rows.filter(r => r.check != null), ckTxt = ck.length >= 2 ? ` Skill check over the same nets: ${ck[0].check}% → ${ck[ck.length - 1].check}%.` : '';
+    msg = (C.state === 'up' ? `Your nets feel better: <b>${C.first} → ${C.last}</b> out of 100 (earlier nets against your latest).`
+      : C.state === 'down' ? `Your nets feel worse: <b>${C.first} → ${C.last}</b> out of 100 (earlier nets against your latest).`
+      : `Your nets feel about the same: <b>${C.first} → ${C.last}</b> out of 100.`) +
+      (big && big[1] ? ` Biggest change: ${names[big[0]]} (${big[1] > 0 ? 'better' : 'worse'}).` : '') + ckTxt;
+  }
+  const list = live.slice(-6).reverse();
+  el.innerHTML = `<p class="dMsg">${msg}</p>` +
+    (list.length ? `<ul class="bkList dList" aria-label="Your latest real nets">` + list.map(e =>
+      `<li class="bk"><span><b>${esc(dayLabel(e.date))}</b> · ${esc(word('read', e.read))} · Short: ${esc(word('short', e.short)).toLowerCase()} · Leaving: ${esc(word('leave', e.leave)).toLowerCase()}</span>` +
+      (DIARY.del === e.id ? `<button class="btn danger" data-del="${esc(e.id)}" data-sure="1">Sure? Remove</button><button class="btn ghost" data-keep="1">Keep</button>`
+        : `<button class="btn ghost" data-del="${esc(e.id)}" aria-label="Remove the net on ${esc(dayLabel(e.date))}">Remove</button>`) + `</li>`).join('') + `</ul>` : '') +
+    `<div class="row"><button class="btn go" id="bDiaryAdd">Add a real net</button></div>` +
+    (C.state === 'none' ? '' : `<p class="note">These are your own feelings, so they can’t prove the app helped. If your nets and your Skill check go up together, that is a good sign.</p>`);
+  el.onclick = (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.id === 'bDiaryAdd') { DIARY.open = true; DIARY.ans = {}; DIARY.day = 0; renderDiary(); const f = el.querySelector('.sbChip'); if (f) f.focus(); }
+    else if (b.dataset.keep) { DIARY.del = null; renderDiary(); const t = $('bDiaryAdd'); if (t) t.focus(); }
+    else if (b.dataset.del && !b.dataset.sure) { DIARY.del = b.dataset.del; renderDiary(); const n = el.querySelector('[data-sure]'); if (n) n.focus(); }
+    else if (b.dataset.del) { deleteEntry(app.db, b.dataset.del); DIARY.del = null; app.saveNow(); renderDiary(); const t = $('bDiaryAdd'); if (t) t.focus(); if (app.announce) app.announce('Net removed.'); }
+  };
+}
+
 // The Skill check card: the one number that can be compared from week to week.
 function renderCheckCard() {
   const hist = checkHistory(app.db.sessions), t = checkTrend(hist), due = checkDue(app.db.sessions), el = $('ckCard');
   const btn = (txt) => `<div class="row"><button class="btn go" id="bCheck2">${txt}</button></div>`;
   if (t.state === 'none') {
-    el.innerHTML = `<div><h3>Skill check</h3><p>The same 24-ball test every time: front or back, no feedback, half of them blacked out just after release, always at 110 kph. Three minutes. Take it now for your starting mark, then about once a week.</p>${btn('Take the Skill check')}</div>`;
+    el.innerHTML = `<div><h2>Skill check</h2><p>The same 24-ball test every time: front or back, no feedback, half of them blacked out just after release, always at 110 kph. Three minutes. Take it now for your starting mark, then about once a week.</p>${btn('Take the Skill check')}</div>`;
   } else {
     const L = t.last, when = new Date(L.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
     const msg = t.state === 'first' ? 'Your starting mark. Take it again in about a week, fresh, before you train.'
@@ -149,7 +216,7 @@ function renderCheckCard() {
       : `About the same as your first test (${t.first.score}%). Under ${CHECK_NOISE} points either way can be luck on 24 balls.`;
     const bars = hist.slice(-8).map(h => `<span>${h.score}<i style="height:${Math.max(4, h.score * 0.7)}%"></i></span>`).join('');
     el.innerHTML = `<div><div class="num">${L.score}<small>%</small></div>${hist.length > 1 ? `<div class="ckBars" role="img" aria-label="Skill check scores, oldest first: ${hist.slice(-8).map(h => h.score + '%').join(', ')}">${bars}</div>` : ''}</div>
-      <div><h3>Skill check · ${when}</h3><p>${msg}</p>
+      <div><h2>Skill check · ${when}</h2><p>${msg}</p>
       <div class="ckFacts"><span>Short balls <b>${L.short == null ? '—' : L.short + '%'}</b></span><span>Pitched-up <b>${L.full == null ? '—' : L.full + '%'}</b></span><span>Blacked out <b>${L.dark == null ? '—' : L.dark + '%'}</b></span><span>Tells short from full <b>${L.tell == null ? '—' : L.tell + '/100'}</b></span>${L.lean ? `<span>May lean <b>${L.lean === 'front' ? 'forward' : 'back'}</b></span>` : ''}</div>
       ${btn(due.due ? 'Take it again (it\u2019s been ' + due.days + ' days)' : 'Take it again')}${due.due ? '' : '<p class="note" style="margin-top:.6rem">Best about once a week. Taking it every day just teaches the test.</p>'}</div>`;
   }

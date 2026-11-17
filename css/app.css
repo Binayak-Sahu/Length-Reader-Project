@@ -92,7 +92,7 @@ h3{font:800 1.25rem/1.1 var(--display);letter-spacing:.05em;text-transform:upper
 .cta:hover{transform:translateY(-2px);background:#3ddc78}
 .cta:focus-visible{outline-color:#fff}
 .ctaPlay{width:0;height:0;border-left:1.2rem solid var(--ink);border-top:.78rem solid transparent;border-bottom:.78rem solid transparent}
-.ctaHint{font:700 .8125rem/1 var(--ui);letter-spacing:.08em;opacity:.7;margin-left:.2rem;text-transform:none}
+.ctaHint{font:700 .8125rem/1 var(--ui);letter-spacing:.08em;opacity:.85;margin-left:.2rem;text-transform:none}
 body.touch .ctaHint{display:none}
 
 /* ---------- cards ---------- */
@@ -175,7 +175,7 @@ body.touch .ctaHint{display:none}
 .ck{display:grid;grid-template-columns:auto 1fr;gap:var(--s5);align-items:center;padding:clamp(1.1rem,2vw,1.75rem);border-radius:var(--r-xl);background:linear-gradient(135deg,#2a1f0a,#14110b 65%);border:1px solid rgba(251,191,36,.42)}
 .ck .num{font:800 clamp(4rem,7vw + 1rem,7rem)/.85 var(--display);color:var(--gold);font-variant-numeric:tabular-nums}
 .ck .num small{font-size:.32em;color:#d9c58e;letter-spacing:.04em}
-.ck h3{color:var(--gold);font-size:1.5rem}
+.ck h3,.ck h2{color:var(--gold);font:800 1.5rem/1.1 var(--display);letter-spacing:.05em;text-transform:uppercase;margin:0}
 .ck p{color:#eadfbf;line-height:1.5;margin-top:.4rem;max-width:40rem}
 .ck .row{margin-top:var(--s4)}
 .ckBars{display:flex;align-items:flex-end;gap:.4rem;height:4.5rem;margin-top:var(--s4)}
@@ -194,6 +194,7 @@ body.touch .ctaHint{display:none}
 .tablewrap th{color:var(--muted);font:700 .8125rem/1 var(--display);letter-spacing:.12em;text-transform:uppercase;text-align:left;padding:.6rem .6rem;border-bottom:1px solid var(--line2);white-space:nowrap}
 .tablewrap td{padding:.55rem .6rem;border-bottom:1px solid var(--line);white-space:nowrap}
 .tablewrap th:first-child,.tablewrap td:first-child{position:sticky;left:0;background:var(--panel)}
+.tablewrap tbody th{color:var(--text);font:inherit;font-weight:650;letter-spacing:0;text-transform:none;border-bottom:1px solid var(--line);padding:.6rem}
 .badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr));gap:var(--s3)}
 .bdg{display:grid;justify-items:center;text-align:center;gap:.4rem;padding:.9rem .6rem;border-radius:var(--r-l);background:var(--panel);border:1px solid var(--line)}
 .bdg svg{width:4rem;height:4rem}
@@ -348,3 +349,11 @@ body.contrast .screen{background:#000}
 body.calm .cta,body.calm .tile,body.calm .btn,body.calm .field input[type=checkbox]::after{transition:none}
 body.calm .newBadges .bdg{animation:none}
 body.calm .cta:hover,body.calm .tile:hover{transform:none}
+
+/* Real nets diary (v6.2) */
+.diary h3{font:800 1.35rem/1.15 var(--display);letter-spacing:.04em}
+.diary .dMsg{color:var(--text2);line-height:1.5;max-width:52rem}
+.diary .dMsg b{color:var(--text)}
+.diary .sbRow .lbl{display:block;margin-bottom:.5rem}
+.dList .bk span{min-width:12rem}
+[data-fh]:focus{outline:none}

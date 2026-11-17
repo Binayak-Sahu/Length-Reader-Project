@@ -2,6 +2,7 @@
 // (window.localStorage in the app, a Map-backed fake in tests).
 import { summarize, sessionXP } from './progress.js';
 import { SB_DEF, sbClean } from './sandbox.js';
+import { validEntry, mergeDiary } from './diary.js';
 
 export const KEY = 'lr5', V4_KEY = 'lr_v3', MAX_CHARS = 3_500_000;
 
@@ -24,7 +25,7 @@ export function newDB() {
     profile: { hand: 'R', onboarded: false, seenV5: false },
     settings: Object.assign({}, DEF),
     level: 0, levelD: 0.5, levelAt: null, rtBase: null, rtAt: null, cs: { pace: {}, spin: {} },
-    sessions: [], career: { tier: 0, trials: [] }, badges: {}, bosses: {}, actions: [],
+    sessions: [], career: { tier: 0, trials: [] }, badges: {}, bosses: {}, actions: [], diary: [],
     v3: { merged: false, last: null, count: 0 }, imports: [],
   };
 }
@@ -39,6 +40,7 @@ export function normalize(db) {
   db.cs = db.cs || { pace: {}, spin: {} };
   db.sessions = (db.sessions || []).filter(s => s && s.date);
   db.actions = Array.isArray(db.actions) ? db.actions.filter(a => a && a.id && a.keys) : [];
+  db.diary = Array.isArray(db.diary) ? db.diary.filter(validEntry) : [];      // v6.2: real nets diary
   if (!(db.levelD >= 0 && db.levelD <= 1)) db.levelD = 0.5;
   db.level = Math.max(0, Math.min(27, db.level | 0));
   return db;
@@ -105,6 +107,7 @@ export function importData(db, obj, name) {
     for (const k in extra.bosses) db.bosses[k] = Math.max(db.bosses[k] || 0, extra.bosses[k]);
     if (extra.career.tier > db.career.tier) db.career.tier = extra.career.tier;
     db.career.trials = db.career.trials.concat(extra.career.trials.filter(t => !db.career.trials.some(u => u.date === t.date)));
+    mergeDiary(db, extra.diary);
   }
   db.imports.push({ name: name || 'file', date: new Date().toISOString(), added });
   return added;

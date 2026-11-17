@@ -14,7 +14,7 @@ jobs:
           node-version: 22
       - name: Physics, grading, timing, game logic, saved data, service-worker stamp
         run: node tests/run-all.mjs
-      - name: Install headless Chromium
-        run: npm install --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
+      - name: Install headless Chromium and the accessibility checker
+        run: npm install --no-save playwright@1.63.0 axe-core@4.10.3 && npx playwright install --with-deps chromium
       - name: Browser tests (boot, migration, timing, blackout, offline)
         run: node tests/browser-test.mjs

@@ -29,6 +29,7 @@
 <link rel="modulepreload" href="js/core/check.js">
 <link rel="modulepreload" href="js/core/clipaction.js">
 <link rel="modulepreload" href="js/core/cues.js">
+<link rel="modulepreload" href="js/core/diary.js">
 <link rel="modulepreload" href="js/core/levels.js">
 <link rel="modulepreload" href="js/core/match.js">
 <link rel="modulepreload" href="js/core/myactions.js">
@@ -61,7 +62,8 @@
 <script type="module" src="js/main.js"></script>
 </head>
 <body>
-<canvas id="c" aria-label="Batter's view of the bowler"></canvas>
+<div role="region" aria-label="Batting" id="playLayer">
+<canvas id="c" role="img" aria-label="Batter's view of the bowler"></canvas>
 
 <div id="hud" class="hidden">
   <div class="chip" id="hBall"></div>
@@ -79,7 +81,7 @@
 <div id="live" class="sr" aria-live="polite"></div>
 
 <div id="rctl" class="hidden"><button id="rcHold">⏸ Hold</button><button id="rcRep">↺ Replay</button><button id="rcSlow">½× Slow</button><button id="rcNext">Next ▶</button></div>
-<div id="card" class="hidden" role="status">
+<div id="card" class="hidden" role="group" aria-label="Result of this ball">
   <div>
     <div id="badge"></div>
     <div id="verdict"></div>
@@ -90,7 +92,8 @@
     <div id="rMsg"></div>
     <div id="rLevel"></div>
   </div>
-  <canvas id="map" aria-label="Pitch map"></canvas>
+  <canvas id="map" role="img" aria-label="Pitch map: where this ball pitched, against the full, good and short zones"></canvas>
+</div>
 </div>
 
 <!-- NAV (Play · Career · Progress · More) -->
@@ -161,11 +164,12 @@
 </main>
 
 <!-- CAREER -->
-<main id="career" class="screen tabbed hidden">
+<main id="career" class="screen tabbed hidden" tabindex="0" aria-label="Career">
   <div class="wrap">
     <header class="top"><div class="brand"><i></i>Career</div></header>
     <h1 class="display">From the gully to India A</h1>
     <p class="lead">Each promotion is a trial: 2 overs in the nets against a boss bowler, no feedback till the end, 80% to pass. A trial opens when your training level reaches what it tests.</p>
+    <h2 class="sr">Your next trial</h2>
     <div id="nextTrial"></div>
     <div class="ladder" id="ladder"></div>
     <h2>Boss nets <small>face a boss you've beaten again, any time</small></h2>
@@ -346,9 +350,11 @@
     <h1 class="h1s">Is your reading getting better?</h1>
     <div class="ck" id="ckCard"></div>
     <p class="note">Your training score stays near 85% on purpose: when you improve, the level goes up instead. So the fair measures are the Skill check, your level, and your real nets.</p>
+    <h2 id="diaryH">Real nets <small>three taps after each real net</small></h2>
+    <section class="panel diary" id="diary" aria-labelledby="diaryH"></section>
     <h2>Day by day</h2>
     <div class="legend"><span><i class="lg g"></i>● Score %</span><span><i class="lg w"></i>▲ Short balls %</span><span><i class="lg a"></i>■ Reading time (s, right axis; 0.2–0.25 s is the target)</span></div>
-    <div class="panel"><canvas id="progChart" role="img" aria-label="Chart of score, short-ball score and reading time by day"></canvas><p class="note hidden" id="progEmpty">No sessions yet. Play one and come back.</p></div>
+    <div class="panel"><canvas id="progChart" role="img" aria-label="Chart of score, short-ball score and reading time by day. The same numbers are in the table below."></canvas><p class="note hidden" id="progEmpty">No sessions yet. Play one and come back.</p></div>
     <div class="panel tablewrap" id="progTable"></div>
     <p class="note" id="rlNote"></p>
     <p class="note hidden" id="sbNote"></p>
@@ -398,7 +404,7 @@
           <button class="btn" id="bHome3">Home</button>
         </div>
       </div>
-      <div class="panel"><canvas id="endMap" role="img" aria-label="Where every ball pitched"></canvas></div>
+      <div class="panel"><canvas id="endMap" role="img" aria-label="Where every ball pitched. Each ball is listed in the table below the map."></canvas><div class="sr" id="endList"></div></div>
     </div>
   </div>
 </main>

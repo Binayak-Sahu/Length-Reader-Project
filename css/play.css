@@ -10,7 +10,7 @@ body.insession{cursor:none;touch-action:none;-webkit-user-select:none;user-selec
 #rctl{position:fixed;left:50%;bottom:calc(2vh + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:11;display:flex;gap:8px;padding:6px;border-radius:999px;background:rgba(6,9,13,.92);border:1px solid var(--line)}
 #rctl button{padding:12px 18px;border-radius:999px;font-weight:800;font-size:clamp(14px,1.15vw,21px);letter-spacing:.04em;white-space:nowrap;min-height:44px}
 #rctl button.on{background:#3b3214;color:var(--gold)}
-#rctl #rcNext{background:#15803d}
+#rctl #rcNext{background:#166534}
 body.result #pBtn{display:none!important}
 #pBtn{position:fixed;left:50%;bottom:calc(2vh + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:9;display:none;padding:12px 24px;border-radius:999px;background:rgba(6,9,13,.8);border:1px solid var(--line);font-weight:700;letter-spacing:.14em;font-size:13px;min-height:44px}
 body.touch.insession #pBtn{display:block}
